@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 import pygame
 
-from ppe.objects import GameObject, Ball, Polygon
+from ppe.objects import GameObject, Ball, ConvexPolygon
 from ppe import collision
 from ppe.vector import Vector
 
@@ -15,6 +15,9 @@ class World:
     def update(self, dt: float):
         for obj in self.objects:
             obj.update(dt)
+
+        for obj in self.objects:
+            obj.color = (255, 255, 255)
 
         collisions = collision.get_collisions(self.objects)
         for c in collisions:
@@ -32,18 +35,18 @@ class Visualizer(ABC):
         self.viewport_offset = viewport_offset or Vector(0, 0)
 
     @abstractmethod
-    def draw_ball(self, ball: Any):
+    def draw_ball(self, ball: Ball):
         raise NotImplementedError()
 
     @abstractmethod
-    def draw_polygon(self, polygon: Any):
+    def draw_polygon(self, polygon: ConvexPolygon):
         raise NotImplementedError()
 
     def draw(self):
         for obj in self.world.objects:
             if isinstance(obj, Ball):
                 self.draw_ball(obj)
-            elif isinstance(obj, Polygon):
+            elif isinstance(obj, ConvexPolygon):
                 self.draw_polygon(obj)
             else:
                 raise ValueError(f"Unknown object type {type(obj)}")
@@ -74,7 +77,7 @@ class PyGameVisualizer(Visualizer):
             ball.radius * self.scale,
         )
 
-    def draw_polygon(self, polygon: Polygon):
+    def draw_polygon(self, polygon: ConvexPolygon):
         pygame.draw.polygon(
             self.screen,
             polygon.color,
@@ -83,30 +86,30 @@ class PyGameVisualizer(Visualizer):
 
 
 if __name__ == "__main__":
-    from ppe.vector import Vector
-    import math
-
     ball = Ball(
         Vector(0, 0),
         Vector(0, 0),
         Vector(0, 0),
+        0,
+        0,
         1,
         0.05,
         False,
         (255, 255, 255),
     )
-    rectangle = Polygon(
+    rectangle = ConvexPolygon(
         Vector(0, 0),
         Vector(0, 0),
-        Vector(0, 0),
-        math.inf,
+        0,
+        0,
+        1,
         [
             Vector(0.25, 1),
             Vector(0.25, 1.1),
             Vector(0.75, 1.1),
             Vector(0.75, 1),
         ],
-        True,
+        False,
         (255, 255, 255),
     )
     world = World([ball, rectangle])

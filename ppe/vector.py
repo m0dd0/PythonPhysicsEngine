@@ -28,6 +28,12 @@ class Vector:
     def __rmul__(self, other: float) -> "Vector":
         return self * other
 
+    def __truediv__(self, other: float) -> "Vector":
+        return Vector(
+            self.x / other,
+            self.y / other,
+        )
+
     def __eq__(self, other: "Vector") -> bool:
         return self.x == other.x and self.y == other.y
 
