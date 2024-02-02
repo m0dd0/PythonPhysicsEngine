@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import pygame
 
 from ppe.objects import GameObject, Ball, ConvexPolygon
-from ppe import collision
+from ppe.collision import get_collisions, handle_collision
 from ppe.vector import Vector
 
 
@@ -19,11 +19,13 @@ class World:
         for obj in self.objects:
             obj.color = (255, 255, 255)
 
-        collisions = collision.get_collisions(self.objects)
+        collisions = get_collisions(self.objects)
         for c in collisions:
             # TODO handle collison: update velocities
             c.obj1.color = (255, 0, 0)
             c.obj2.color = (255, 0, 0)
+            print(c.normal, c.depth)
+            handle_collision(c)
 
 
 class Visualizer(ABC):
@@ -97,6 +99,17 @@ if __name__ == "__main__":
         False,
         (255, 255, 255),
     )
+    ball2 = Ball(
+        Vector(0.5, 1),
+        Vector(0, 0),
+        Vector(0, 0),
+        0,
+        0,
+        1,
+        0.2,
+        False,
+        (255, 255, 255),
+    )
     rectangle = ConvexPolygon(
         Vector(0, 0),
         Vector(0, 0),
@@ -104,15 +117,15 @@ if __name__ == "__main__":
         0,
         1,
         [
-            Vector(0.25, 1),
-            Vector(0.25, 1.1),
-            Vector(0.75, 1.1),
-            Vector(0.75, 1),
+            Vector(0.25, 0.75),
+            Vector(0.25, 1.25),
+            Vector(0.75, 1.25),
+            Vector(0.75, 0.75),
         ],
         False,
         (255, 255, 255),
     )
-    world = World([ball, rectangle])
+    world = World([ball, ball2])
 
     FPS = 60
     SCALE = 300

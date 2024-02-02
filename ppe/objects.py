@@ -46,7 +46,7 @@ class GameObject(ABC):
         self.pos = self.pos + self.vel * dt + 0.5 * self.acc * dt**2
         # TODO account for angular velocity
 
-    def collides_with(self, other: "GameObject") -> Vector:
+    def collides_with(self, other: "GameObject") -> Collision:
         if not bounding_box_collision(self, other):
             return None
 
@@ -60,14 +60,6 @@ class GameObject(ABC):
             return polygon_polygon_collision(self, other)
         else:
             raise ValueError(f"Unknown object types {type(self)} and {type(other)}")
-
-    def handle_collision(self, collision: Collision):
-        if self.fixed:
-            return
-
-        # TODO
-
-        raise NotImplementedError()
 
     @abstractmethod
     def rotate(self, angle: float):
@@ -103,7 +95,7 @@ class Ball(GameObject):
     def rotate(self, angle: float):
         self.angle += angle
 
-    def collides_with(self, other: GameObject) -> Vector:
+    def collides_with(self, other: GameObject) -> Collision:
         if not bounding_box_collision(self, other):
             return None
 
@@ -198,7 +190,7 @@ class ConvexPolygon(GameObject):
             cy += (vertices[i].y + vertices[j].y) * factor
         return Vector(cx, cy) / (6 * area)
 
-    def collides_with(self, other: GameObject) -> Vector:
+    def collides_with(self, other: GameObject) -> Collision:
         if not bounding_box_collision(self, other):
             return None
 
