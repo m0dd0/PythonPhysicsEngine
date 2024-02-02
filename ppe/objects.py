@@ -7,28 +7,36 @@ from ppe.vector import Vector
 class GameObject(ABC):
     def __init__(
         self,
-        pos: Vector,
-        vel: Vector,
-        acc: Vector,
-        mass: float,
+        pos: Vector,  # in meter
+        vel: Vector,  # in meter per second
+        acc: Vector,  # in meter per second squared
+        mass: float,  # in kilogram
         bbox_min: Vector,
         bbox_max: Vector,
         fixed: bool = False,
         color: Tuple[int] = (255, 255, 255),
     ):
-        self.pos = pos
-        self.vel = vel
-        self.acc = acc
-        self.mass = mass
-        self.bbox_min = bbox_min
-        self.bbox_max = bbox_max
-        self.fixed = fixed
-        self.color = color
+        self._pos = pos
+        self._vel = vel
+        self._acc = acc
+        self._mass = mass
+        self._bbox_min = bbox_min
+        self._bbox_max = bbox_max
+        self._fixed = fixed
+        self._color = color
 
     def update(self, dt: float):
         # TODO use verlet integration
         self.vel = self.vel + self.acc * dt
         self.pos = self.pos + self.vel * dt + 0.5 * self.acc * dt**2
+
+    @property
+    def pos(self):
+        return self._pos
+
+    @pos.setter
+    def pos(self, value):
+        self._pos = value
 
 
 class Ball(GameObject):
@@ -59,7 +67,8 @@ class Polygon(GameObject):
     def __init__(
         self, pos, vel, acc, mass, vertices, fixed=False, color=(255, 255, 255)
     ):
-        xs, ys = zip(*vertices)
+        xs = [v.x for v in vertices]
+        ys = [v.y for v in vertices]
         super().__init__(
             pos,
             vel,

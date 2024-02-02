@@ -5,6 +5,7 @@ import pygame
 
 from ppe.objects import GameObject, Ball, Polygon
 from ppe import collision
+from ppe.vector import Vector
 
 
 class World:
@@ -18,12 +19,17 @@ class World:
         collisions = collision.get_collisions(self.objects)
         for c in collisions:
             # TODO handle collison: update velocities
-            pass
+            c.obj1.color = (255, 0, 0)
+            c.obj2.color = (255, 0, 0)
 
 
 class Visualizer(ABC):
-    def __init__(self, world: World):
+    def __init__(
+        self, world: World, scale: float = 100, viewport_offset: Vector = None
+    ):
         self.world = world
+        self.scale = scale
+        self.viewport_offset = viewport_offset or Vector(0, 0)
 
     @abstractmethod
     def draw_ball(self, ball: Any):
@@ -44,23 +50,35 @@ class Visualizer(ABC):
 
 
 class PyGameVisualizer(Visualizer):
-    def __init__(self, world: World, screen: pygame.Surface):
-        super().__init__(world)
+    def __init__(
+        self,
+        world: World,
+        screen: pygame.Surface,
+        scale: float = 100,
+        viewport_offset=None,
+    ):
+        super().__init__(world, scale, viewport_offset)
         self.screen = screen
+
+    def _world_to_screen(self, pos: Vector) -> Vector:
+        pos = pos - self.viewport_offset  # coordinates in meters relative to viewport
+        pos = pos * self.scale  # coordinates in pixels relative to viewport
+        pos.y = self.screen.get_height() - pos.y  # flip y axis
+        return pos
 
     def draw_ball(self, ball: Ball):
         pygame.draw.circle(
             self.screen,
             ball.color,
-            (int(ball.pos.x), int(ball.pos.y)),
-            ball.radius,
+            self._world_to_screen(ball.pos).to_tuple(),
+            ball.radius * self.scale,
         )
 
     def draw_polygon(self, polygon: Polygon):
         pygame.draw.polygon(
             self.screen,
             polygon.color,
-            [(v.x, v.y) for v in polygon.vertices],
+            [self._world_to_screen(v).to_tuple() for v in polygon.vertices],
         )
 
 
@@ -69,21 +87,42 @@ if __name__ == "__main__":
     import math
 
     ball = Ball(
-        Vector(400, 300),
+        Vector(0, 0),
         Vector(0, 0),
         Vector(0, 0),
         1,
+        0.05,
         False,
         (255, 255, 255),
     )
-    world = World([ball])
+    rectangle = Polygon(
+        Vector(0, 0),
+        Vector(0, 0),
+        Vector(0, 0),
+        math.inf,
+        [
+            Vector(0.25, 1),
+            Vector(0.25, 1.1),
+            Vector(0.75, 1.1),
+            Vector(0.75, 1),
+        ],
+        True,
+        (255, 255, 255),
+    )
+    world = World([ball, rectangle])
 
     FPS = 60
+    SCALE = 300
+    SCREEN_WIDTH_METER = 1
+    SCREEN_HEIGHT_METER = 2
+
     pygame.init()
     clock = pygame.time.Clock()
-    screen = pygame.display.set_mode((800, 600))
+    screen = pygame.display.set_mode(
+        (SCREEN_WIDTH_METER * SCALE, SCREEN_HEIGHT_METER * SCALE)
+    )
 
-    visualizer = PyGameVisualizer(world, screen)
+    visualizer = PyGameVisualizer(world, screen, scale=SCALE)
 
     running = True
     while running:
@@ -91,9 +130,22 @@ if __name__ == "__main__":
             if event.type == pygame.QUIT:
                 running = False
 
+        # control ball position with arrow keys
+        # move 0.01 meters per frame
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            ball.pos.x -= 0.01
+        if keys[pygame.K_RIGHT]:
+            ball.pos.x += 0.01
+        if keys[pygame.K_UP]:
+            ball.pos.y += 0.01
+        if keys[pygame.K_DOWN]:
+            ball.pos.y -= 0.01
+
         world.update(1 / FPS)
 
         screen.fill((0, 0, 0))
         visualizer.draw()
+        pygame.display.flip()
 
         clock.tick(FPS)

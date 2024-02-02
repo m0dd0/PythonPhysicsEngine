@@ -1,4 +1,5 @@
 import math
+from typing import Tuple
 
 
 class Vector:
@@ -30,6 +31,9 @@ class Vector:
     def __eq__(self, other: "Vector") -> bool:
         return self.x == other.x and self.y == other.y
 
+    def __repr__(self) -> str:
+        return f"Vector({self.x}, {self.y})"
+
     def magnitude(self) -> float:
         return math.sqrt(self.x**2 + self.y**2)
 
@@ -47,3 +51,6 @@ class Vector:
             self.x * math.cos(angle) - self.y * math.sin(angle),
             self.x * math.sin(angle) + self.y * math.cos(angle),
         )
+
+    def to_tuple(self) -> Tuple[float, float]:
+        return (self.x, self.y)
