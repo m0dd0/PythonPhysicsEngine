@@ -20,12 +20,10 @@ class World:
             obj.color = (255, 255, 255)
 
         collisions = get_collisions(self.objects)
-        for c in collisions:
+        for coll in collisions:
             # TODO handle collison: update velocities
-            c.obj1.color = (255, 0, 0)
-            c.obj2.color = (255, 0, 0)
-            print(c.normal, c.depth)
-            handle_collision(c)
+            coll.obj1.color = (255, 0, 0)
+            handle_collision(coll)
 
 
 class Visualizer(ABC):
@@ -68,7 +66,8 @@ class PyGameVisualizer(Visualizer):
     def _world_to_screen(self, pos: Vector) -> Vector:
         pos = pos - self.viewport_offset  # coordinates in meters relative to viewport
         pos = pos * self.scale  # coordinates in pixels relative to viewport
-        pos.y = self.screen.get_height() - pos.y  # flip y axis
+        pos = Vector(pos.x, self.screen.get_height() - pos.y)  # flip y axis
+
         return pos
 
     def draw_ball(self, ball: Ball):
@@ -88,7 +87,7 @@ class PyGameVisualizer(Visualizer):
 
 
 if __name__ == "__main__":
-    ball = Ball(
+    ball_small = Ball(
         Vector(0, 0),
         Vector(0, 0),
         Vector(0, 0),
@@ -98,8 +97,9 @@ if __name__ == "__main__":
         0.05,
         False,
         (255, 255, 255),
+        name="ball_small",
     )
-    ball2 = Ball(
+    ball_big = Ball(
         Vector(0.5, 1),
         Vector(0, 0),
         Vector(0, 0),
@@ -109,8 +109,25 @@ if __name__ == "__main__":
         0.2,
         False,
         (255, 255, 255),
+        name="ball_big",
     )
-    rectangle = ConvexPolygon(
+    rectangle_small = ConvexPolygon(
+        Vector(0, 0),
+        Vector(0, 0),
+        0,
+        0,
+        1,
+        [
+            Vector(0, 0),
+            Vector(0, 0.1),
+            Vector(0.1, 0.1),
+            Vector(0.1, 0),
+        ],
+        False,
+        (255, 255, 255),
+        name="rectangle_small",
+    )
+    rectangle_big = ConvexPolygon(
         Vector(0, 0),
         Vector(0, 0),
         0,
@@ -124,8 +141,12 @@ if __name__ == "__main__":
         ],
         False,
         (255, 255, 255),
+        name="rectangle_big",
     )
-    world = World([ball, ball2])
+
+    # world = World([ball, ball2])
+    world = World([rectangle_big, rectangle_small])
+    controlled_object = rectangle_small
 
     FPS = 60
     SCALE = 300
@@ -150,13 +171,13 @@ if __name__ == "__main__":
         # move 0.01 meters per frame
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
-            ball.pos.x -= 0.01
+            rectangle_small.move_by(Vector(-0.01, 0))
         if keys[pygame.K_RIGHT]:
-            ball.pos.x += 0.01
+            rectangle_small.move_by(Vector(0.01, 0))
         if keys[pygame.K_UP]:
-            ball.pos.y += 0.01
+            rectangle_small.move_by(Vector(0, 0.01))
         if keys[pygame.K_DOWN]:
-            ball.pos.y -= 0.01
+            rectangle_small.move_by(Vector(0, -0.01))
 
         world.update(1 / FPS)
 
