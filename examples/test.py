@@ -5,19 +5,21 @@ import pygame
 from ppe.world import World
 from ppe.vector import Vector
 from ppe.objects import Ball, ConvexPolygon
+from ppe.visualization import PyGameVisualizer
 
-WORLD_DIMENSIONS = (3, 3)
-OBJECT_SIZE_BOUNDS = (0.1, 0.5)
-N_BALLS = 5
+OBJECT_SIZE_BOUNDS = (0.3, 0.5)
+N_BALLS = 0
 N_POLYGONS = 5
 N_VERTICES_BOUNDS = (3, 5)
 MASS_BOUNDS = (1, 1)
 
-SCREEN_DIMENSIONS = (600, 600)
+SCREEN_DIMENSIONS_WORLD = (3, 3)
+SCALE = 300
+
 if __name__ == "__main__":
     polygons = [
         ConvexPolygon.create_random(
-            (Vector(0, 0), Vector(*WORLD_DIMENSIONS)),
+            (Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)),
             OBJECT_SIZE_BOUNDS,
             N_VERTICES_BOUNDS,
             MASS_BOUNDS,
@@ -27,7 +29,7 @@ if __name__ == "__main__":
 
     balls = [
         Ball.create_random(
-            (Vector(0, 0), Vector(*WORLD_DIMENSIONS)),
+            (Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)),
             OBJECT_SIZE_BOUNDS,
             MASS_BOUNDS,
         )
@@ -36,8 +38,15 @@ if __name__ == "__main__":
 
     world = World(polygons + balls)
 
-    screen = pygame.display.set_mode(SCREEN_DIMENSIONS)
-    visualizer = PyGameVisualizer(world, screen)
+    screen = pygame.display.set_mode(
+        (SCREEN_DIMENSIONS_WORLD[0] * SCALE, SCREEN_DIMENSIONS_WORLD[1] * SCALE)
+    )
+    visualizer = PyGameVisualizer(world, screen, scale=SCALE)
+
+    screen.fill((0, 0, 0))
+    visualizer.draw()
+    pygame.display.flip()
+    time.sleep(100)
 
     # ball_small = Ball(
     #     Vector(0, 0),

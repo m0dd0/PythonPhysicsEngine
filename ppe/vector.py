@@ -51,6 +51,9 @@ class Vector:
     def __repr__(self) -> str:
         return f"Vector({self._x}, {self._y})"
 
+    def __hash__(self) -> int:
+        return hash((self._x, self._y))
+
     def magnitude(self) -> float:
         return math.sqrt(self._x**2 + self._y**2)
 

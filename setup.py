@@ -8,6 +8,7 @@ setup(
     description="Description of your package",
     packages=find_packages(),
     install_requires=["pygame"],
+    additional_requires={"dev": ["pytest", "black"]},
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",

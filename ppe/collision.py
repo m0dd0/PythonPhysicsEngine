@@ -39,7 +39,7 @@ def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
         ) / math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2)
         if d < ball.radius:
             edge = p2 - p1
-            normal = Vector(-edge.y, edge.x).normalize()
+            normal = Vector(edge.y, -edge.x).normalize()
             collisions.append(Collision(polygon, ball, normal, ball.radius - d))
 
     if not collisions:

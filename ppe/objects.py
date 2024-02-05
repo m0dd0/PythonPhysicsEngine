@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Iterator
 import random
+import math
 
 from ppe.vector import Vector
 from ppe.collision import (
@@ -22,9 +23,9 @@ class GameObject(ABC):
         angle: float,  # in radian
         angular_vel: float,  # in radian per second
         bbox: Tuple[Vector, Vector],
-        fixed: bool = False,
-        color: Tuple[int] = (255, 255, 255),
-        name: str = None,
+        fixed: bool,
+        color: Tuple[int],
+        name: str,
     ):
         self._pos = pos
         self._vel = vel
@@ -155,12 +156,12 @@ class Ball(GameObject):
     def __init__(
         self,
         pos: Vector,
-        vel: Vector,
-        acc: Vector,
-        angle: float,
-        angular_vel: float,
-        mass: float,
         radius: float,
+        vel: Vector = Vector(0, 0),
+        acc: Vector = Vector(0, 0),
+        angle: float = 0,
+        angular_vel: float = 0,
+        mass: float = 1,
         fixed: bool = False,
         color: Tuple[int, int, int] = (255, 255, 255),
         name: str = None,
@@ -238,23 +239,27 @@ class Ball(GameObject):
 class ConvexPolygon(GameObject):
     def __init__(
         self,
-        vel: Vector,
-        acc: Vector,
-        angle: float,
-        angular_vel: float,
-        mass: Vector,
         vertices: List[Vector],
+        vel: Vector = Vector(0, 0),
+        acc: Vector = Vector(0, 0),
+        angle: float = 0,
+        angular_vel: float = 0,
+        mass: float = 1,
         fixed: bool = False,
         color: Tuple[int, int, int] = (255, 255, 255),
         name: str = None,
     ):
         assert len(vertices) >= 3
-        assert ConvexPolygon._is_convex(vertices)
-        if not ConvexPolygon._is_clockwise(vertices):
-            vertices.reverse()
 
-        pos = ConvexPolygon._compute_center_of_mass(vertices)
-        bbox_rel = ConvexPolygon._compute_bounding_box(vertices)
+        self._vertices = vertices
+        if self._compute_area() < 0:
+            self._vertices = list(reversed(self._vertices))
+
+        if not self._is_convex():
+            raise ValueError("Polygon is not convex")
+
+        pos = self._compute_center_of_mass()
+        bbox_rel = self._compute_bounding_box()
 
         super().__init__(
             pos,
@@ -269,25 +274,13 @@ class ConvexPolygon(GameObject):
             name=name,
         )
 
-        self._vertices = vertices
-
-    @staticmethod
-    def _is_clockwise(vertices: List[Vector]) -> bool:
-        n = len(vertices)
-        area = 0
-        for i in range(n):
-            j = (i + 1) % n
-            area += vertices[i].cross(vertices[j])
-        return area < 0
-
-    @staticmethod
-    def _is_convex(vertices: List[Vector]) -> bool:
-        n = len(vertices)
+    def _is_convex(self) -> bool:
+        n = len(self._vertices)
         vertex_signs = []
         for i in range(n):
-            p1 = vertices[i]
-            p2 = vertices[(i + 1) % n]
-            p3 = vertices[(i + 2) % n]
+            p1 = self._vertices[i]
+            p2 = self._vertices[(i + 1) % n]
+            p3 = self._vertices[(i + 2) % n]
             edge1 = p2 - p1
             edge2 = p3 - p2
 
@@ -295,81 +288,74 @@ class ConvexPolygon(GameObject):
 
         return all(vertex_signs) or not any(vertex_signs)
 
-    @staticmethod
-    def _compute_bounding_box(vertices: List[Vector]) -> Tuple[Vector, Vector]:
-        xs = [v.x for v in vertices]
-        ys = [v.y for v in vertices]
+    def _compute_bounding_box(self) -> Tuple[Vector, Vector]:
+        xs = [v.x for v in self._vertices]
+        ys = [v.y for v in self._vertices]
         return (Vector(min(xs), min(ys)), Vector(max(xs), max(ys)))
 
-    @staticmethod
-    def _compute_area(vertices: List[Vector]) -> float:
+    def _compute_area(self) -> float:
         # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
-        n = len(vertices)
+        n = len(self._vertices)
         area = 0
         for i in range(n):
             j = (i + 1) % n
-            area += vertices[i].cross(vertices[j])
+            area += self._vertices[i].cross(self._vertices[j])
         return area / 2
 
-    @staticmethod
-    def _compute_center_of_mass(vertices: List[Vector]) -> Vector:
+    def _compute_center_of_mass(self) -> Vector:
         # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
-        n = len(vertices)
-        area = ConvexPolygon._compute_area(vertices)
+        n = len(self._vertices)
+        area = self._compute_area()
         cx = 0
         cy = 0
         for i in range(n):
             j = (i + 1) % n
-            factor = vertices[i].cross(vertices[j])
-            cx += (vertices[i].x + vertices[j].x) * factor
-            cy += (vertices[i].y + vertices[j].y) * factor
+            factor = self._vertices[i].cross(self._vertices[j])
+            cx += (self._vertices[i].x + self._vertices[j].x) * factor
+            cy += (self._vertices[i].y + self._vertices[j].y) * factor
         return Vector(cx, cy) / (6 * area)
 
     @classmethod
     def create_random(
         cls,
         pos_bounds: Tuple[Vector, Vector],
-        max_extend: Tuple[float, float],
+        extend_bounds: Tuple[float, float],
         vertices_bounds: Tuple[int, int],
         mass_bounds: Tuple[float, float],
+        rel_volue_bounds: Tuple[float, float],
     ) -> "ConvexPolygon":
-        # rn we use rejection sampling to generate random convex polygons
-        # however this is highly inefficient and should be replaced by a more efficient algorithm:
-        # https://cglab.ca/~sander/misc/ConvexGeneration/convex.html
-
         n_vertices = random.randint(*vertices_bounds)
-        polygon = None
-        while True:
-            vertices = [
-                Vector(
-                    random.uniform(0, max_extend[0]), random.uniform(0, max_extend[1])
-                )
-                for _ in range(n_vertices)
-            ]
-            if ConvexPolygon._is_convex(vertices):
-                polygon = ConvexPolygon(
-                    Vector(0, 0),
-                    Vector(0, 0),
-                    0,
-                    0,
-                    1,
-                    vertices,
-                    False,
-                    (255, 255, 255),
-                )
-                break
+
+        ellpise_a = random.uniform(*extend_bounds) / 2
+        ellipse_b = random.uniform(*extend_bounds) / 2
+
+        ts = sorted(
+            [random.uniform(0, 2 * 3.1415) for _ in range(n_vertices - 2)] + [0, 3.1415]
+        )
+        vertices = [
+            Vector(ellpise_a * math.cos(t), ellipse_b * math.sin(t)) for t in ts
+        ]
+
+        polygon = ConvexPolygon(
+            Vector(0, 0),
+            Vector(0, 0),
+            0,
+            0,
+            random.uniform(*mass_bounds),
+            vertices,
+            color=(
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(0, 255),
+            ),
+        )
 
         pos = Vector(
             random.uniform(pos_bounds[0].x, pos_bounds[1].x),
             random.uniform(pos_bounds[0].y, pos_bounds[1].y),
         )
         polygon.move_to(pos)
-        polygon.color = (
-            random.randint(0, 255),
-            random.randint(0, 255),
-            random.randint(0, 255),
-        )
-        polygon.mass = random.uniform(*mass_bounds)
+
         return polygon
 
     @property
@@ -417,5 +403,5 @@ class ConvexPolygon(GameObject):
         for i, p1 in enumerate(self.vertices):
             p2 = self.vertices[(i + 1) % len(self.vertices)]
             edge = p2 - p1
-            normal = Vector(-edge.y, edge.x).normalize()
+            normal = Vector(edge.y, -edge.x).normalize()
             yield normal
