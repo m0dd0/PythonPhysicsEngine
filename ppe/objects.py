@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Iterator
+import random
 
 from ppe.vector import Vector
 from ppe.collision import (
@@ -178,6 +179,22 @@ class Ball(GameObject):
         )
         self._radius = radius
 
+    @classmethod
+    def create_random(
+        cls,
+        pos_bounds: Tuple[Vector, Vector],
+        radius_bounds: Tuple[float, float],
+        mass_bounds: Tuple[float, float],
+    ) -> "Ball":
+        radius = random.uniform(*radius_bounds)
+        mass = random.uniform(*mass_bounds)
+        pos = Vector(
+            random.uniform(pos_bounds[0].x, pos_bounds[1].x),
+            random.uniform(pos_bounds[0].y, pos_bounds[1].y),
+        )
+        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        return Ball(pos, Vector(0, 0), Vector(0, 0), 0, 0, mass, radius, color=color)
+
     @property
     def radius(self):
         return self._radius
@@ -231,7 +248,10 @@ class ConvexPolygon(GameObject):
         color: Tuple[int, int, int] = (255, 255, 255),
         name: str = None,
     ):
-        ConvexPolygon._check_vertices(vertices)
+        assert len(vertices) >= 3
+        assert ConvexPolygon._is_convex(vertices)
+        if not ConvexPolygon._is_clockwise(vertices):
+            vertices.reverse()
 
         pos = ConvexPolygon._compute_center_of_mass(vertices)
         bbox_rel = ConvexPolygon._compute_bounding_box(vertices)
@@ -252,11 +272,17 @@ class ConvexPolygon(GameObject):
         self._vertices = vertices
 
     @staticmethod
-    def _check_vertices(vertices: List[Vector]):
+    def _is_clockwise(vertices: List[Vector]) -> bool:
         n = len(vertices)
-        if n < 3:
-            raise ValueError("Polygon must have at least 3 vertices")
+        area = 0
+        for i in range(n):
+            j = (i + 1) % n
+            area += vertices[i].cross(vertices[j])
+        return area < 0
 
+    @staticmethod
+    def _is_convex(vertices: List[Vector]) -> bool:
+        n = len(vertices)
         vertex_signs = []
         for i in range(n):
             p1 = vertices[i]
@@ -267,12 +293,7 @@ class ConvexPolygon(GameObject):
 
             vertex_signs.append(edge1.cross(edge2) > 0)
 
-        if not (all(vertex_signs) or not any(vertex_signs)):
-            raise ValueError("Polygon must be convex")
-
-        # ensure vertice are ordered clockwise
-        if all(vertex_signs):  # vertices are ordered anti-clockwise
-            vertices.reverse()
+        return all(vertex_signs) or not any(vertex_signs)
 
     @staticmethod
     def _compute_bounding_box(vertices: List[Vector]) -> Tuple[Vector, Vector]:
@@ -303,6 +324,53 @@ class ConvexPolygon(GameObject):
             cx += (vertices[i].x + vertices[j].x) * factor
             cy += (vertices[i].y + vertices[j].y) * factor
         return Vector(cx, cy) / (6 * area)
+
+    @classmethod
+    def create_random(
+        cls,
+        pos_bounds: Tuple[Vector, Vector],
+        max_extend: Tuple[float, float],
+        vertices_bounds: Tuple[int, int],
+        mass_bounds: Tuple[float, float],
+    ) -> "ConvexPolygon":
+        # rn we use rejection sampling to generate random convex polygons
+        # however this is highly inefficient and should be replaced by a more efficient algorithm:
+        # https://cglab.ca/~sander/misc/ConvexGeneration/convex.html
+
+        n_vertices = random.randint(*vertices_bounds)
+        polygon = None
+        while True:
+            vertices = [
+                Vector(
+                    random.uniform(0, max_extend[0]), random.uniform(0, max_extend[1])
+                )
+                for _ in range(n_vertices)
+            ]
+            if ConvexPolygon._is_convex(vertices):
+                polygon = ConvexPolygon(
+                    Vector(0, 0),
+                    Vector(0, 0),
+                    0,
+                    0,
+                    1,
+                    vertices,
+                    False,
+                    (255, 255, 255),
+                )
+                break
+
+        pos = Vector(
+            random.uniform(pos_bounds[0].x, pos_bounds[1].x),
+            random.uniform(pos_bounds[0].y, pos_bounds[1].y),
+        )
+        polygon.move_to(pos)
+        polygon.color = (
+            random.randint(0, 255),
+            random.randint(0, 255),
+            random.randint(0, 255),
+        )
+        polygon.mass = random.uniform(*mass_bounds)
+        return polygon
 
     @property
     def vertices(self):

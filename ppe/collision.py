@@ -29,12 +29,10 @@ def bounding_box_collision(obj1: "GameObject", obj2: "GameObject") -> bool:
 
 
 def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
-    # FIXME
     collisions = []
-    for i in range(len(polygon.vertices)):  # pylint: disable=consider-using-enumerate
-        p1 = polygon.vertices[i]
+    p0 = ball.pos
+    for i, p1 in enumerate(polygon.vertices):
         p2 = polygon.vertices[(i + 1) % len(polygon.vertices)]
-        p0 = ball.pos
         # see https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
         d = abs(
             (p2.x - p1.x) * (p1.y - p0.y) - (p1.x - p0.x) * (p2.y - p1.y)
