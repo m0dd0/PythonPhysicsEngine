@@ -108,10 +108,12 @@ class GameObject(ABC):
         return f"GameObject({self.name}, pos={self.pos}, vel={self.vel}, acc={self.acc}, mass={self.mass})"
 
     def update(self, dt: float):
-        # TODO use verlet integration
+        # we do NOT use verlet integration as we want to be able to set the velocity directly
+        # while this does not represent a real world physics, it is useful for the game
         self.vel = self.vel + self.acc * dt
-        new_pos = self.pos + self.vel * dt + 0.5 * self.acc * dt**2
+        new_pos = self.pos + self.vel * dt
         self.move_to(new_pos)
+
         # TODO account for angular velocity
 
     def collides_with(self, other: "GameObject") -> Collision:
@@ -192,7 +194,7 @@ class Ball(GameObject):
         self.angle += angle
 
     def move_to(self, pos: Vector):
-        self.pos = pos
+        self._pos = pos
         self._bbox = (
             self.pos - Vector(self.radius, self.radius),
             self.pos + Vector(self.radius, self.radius),

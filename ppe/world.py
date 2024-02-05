@@ -145,8 +145,8 @@ if __name__ == "__main__":
     )
 
     # world = World([ball, ball2])
-    world = World([rectangle_big, rectangle_small])
-    controlled_object = rectangle_small
+    world = World([rectangle_big, ball_small])
+    controlled_object = ball_small
 
     FPS = 60
     SCALE = 300
@@ -171,13 +171,13 @@ if __name__ == "__main__":
         # move 0.01 meters per frame
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
-            rectangle_small.move_by(Vector(-0.01, 0))
+            controlled_object.move_by(Vector(-0.01, 0))
         if keys[pygame.K_RIGHT]:
-            rectangle_small.move_by(Vector(0.01, 0))
+            controlled_object.move_by(Vector(0.01, 0))
         if keys[pygame.K_UP]:
-            rectangle_small.move_by(Vector(0, 0.01))
+            controlled_object.move_by(Vector(0, 0.01))
         if keys[pygame.K_DOWN]:
-            rectangle_small.move_by(Vector(0, -0.01))
+            controlled_object.move_by(Vector(0, -0.01))
 
         world.update(1 / FPS)
 
