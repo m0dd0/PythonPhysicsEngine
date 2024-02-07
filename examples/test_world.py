@@ -1,156 +1,71 @@
 import time
 
 import pygame
+from palettable.cartocolors.diverging import Earth_5
 
 from ppe.world import World
 from ppe.vector import Vector
 from ppe.objects import Ball, ConvexPolygon
 from ppe.visualization import PyGameVisualizer
 
-OBJECT_SIZE_BOUNDS = (0.3, 0.5)
-N_BALLS = 0
-N_POLYGONS = 5
-N_VERTICES_BOUNDS = (3, 5)
-MASS_BOUNDS = (1, 1)
+RADIUS_BOUNDS = (0.1, 0.3)
+RECTANGLE_SIDE_BOUNDS = (0.1, 0.5)
 
-SCREEN_DIMENSIONS_WORLD = (3, 3)
-SCALE = 300
+FLOOR_VERTICES = [Vector(2, 1), Vector(2, 1.2), Vector(7, 1.2), Vector(7, 1)]
+
+SCREEN_DIMENSIONS_WORLD = (9, 5)
+SCALE = 150
+BACKGROUND_COLOR = Earth_5.colors[2]
+OBJECT_COLOR = Earth_5.colors.copy()
+OBJECT_COLOR.remove(BACKGROUND_COLOR)
+
+FPS = 60
+STEPS_PER_FRAME = 1
+
 
 if __name__ == "__main__":
-    polygons = [
-        ConvexPolygon.create_random(
-            (Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)),
-            OBJECT_SIZE_BOUNDS,
-            N_VERTICES_BOUNDS,
-            MASS_BOUNDS,
-        )
-        for _ in range(N_POLYGONS)
-    ]
+    floor = ConvexPolygon(
+        vertices=FLOOR_VERTICES,
+        vel=Vector(0, 0),
+        acc=Vector(0, 0),
+        mass=float("inf"),
+        angular_vel=0,
+        fixed=True,
+        color=(0, 0, 0),
+        name="floor",
+    )
 
-    balls = [
-        Ball.create_random(
-            (Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)),
-            OBJECT_SIZE_BOUNDS,
-            MASS_BOUNDS,
-        )
-        for _ in range(N_BALLS)
-    ]
-
-    world = World(polygons + balls)
+    world = World([floor])
 
     screen = pygame.display.set_mode(
         (SCREEN_DIMENSIONS_WORLD[0] * SCALE, SCREEN_DIMENSIONS_WORLD[1] * SCALE)
     )
     visualizer = PyGameVisualizer(world, screen, scale=SCALE)
 
-    screen.fill((0, 0, 0))
-    visualizer.draw()
-    pygame.display.flip()
-    time.sleep(100)
+    clock = pygame.time.Clock()
 
-    # ball_small = Ball(
-    #     Vector(0, 0),
-    #     Vector(0, 0),
-    #     Vector(0, 0),
-    #     0,
-    #     0,
-    #     1,
-    #     0.05,
-    #     False,
-    #     (255, 255, 255),
-    #     name="ball_small",
-    # )
-    # ball_big = Ball(
-    #     Vector(0.5, 1),
-    #     Vector(0, 0),
-    #     Vector(0, 0),
-    #     0,
-    #     0,
-    #     1,
-    #     0.2,
-    #     False,
-    #     (255, 255, 255),
-    #     name="ball_big",
-    # )
-    # rectangle_small = ConvexPolygon(
-    #     Vector(0, 0),
-    #     Vector(0, 0),
-    #     0,
-    #     0,
-    #     1,
-    #     [
-    #         Vector(0, 0),
-    #         Vector(0, 0.1),
-    #         Vector(0.1, 0.1),
-    #         Vector(0.1, 0),
-    #     ],
-    #     False,
-    #     (255, 255, 255),
-    #     name="rectangle_small",
-    # )
-    # rectangle_big = ConvexPolygon(
-    #     Vector(0, 0),
-    #     Vector(0, 0),
-    #     0,
-    #     0,
-    #     1,
-    #     [
-    #         Vector(0.25, 0.75),
-    #         Vector(0.25, 1.25),
-    #         Vector(0.75, 1.25),
-    #         Vector(0.75, 0.75),
-    #     ],
-    #     False,
-    #     (255, 255, 255),
-    #     name="rectangle_big",
-    # )
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
-    # # world = World([ball, ball2])
-    # world = World([rectangle_big, ball_small])
-    # controlled_object = ball_small
+        physic_step_start = time.perf_counter()
+        for _ in range(STEPS_PER_FRAME):
+            world.update(1 / (FPS * STEPS_PER_FRAME))
+        physic_step_duration = time.perf_counter() - physic_step_start
 
-    # FPS = 60
-    # SCALE = 300
-    # SCREEN_WIDTH_METER = 1
-    # SCREEN_HEIGHT_METER = 2
+        render_step_start = time.perf_counter()
+        screen.fill(BACKGROUND_COLOR)
+        visualizer.draw()
+        pygame.display.flip()
+        render_step_duration = time.perf_counter() - render_step_start
 
-    # pygame.init()
-    # screen = pygame.display.set_mode(
-    #     (SCREEN_WIDTH_METER * SCALE, SCREEN_HEIGHT_METER * SCALE)
-    # )
+        print(f"{physic_step_duration:.3f}s, {render_step_duration:.3f}s")
+        if physic_step_duration + render_step_duration > 1 / FPS:
+            print(
+                f"Warning: frame took {physic_step_duration + render_step_duration:.3f}s, "
+                f"which is longer than 1/{FPS:.0f}s"
+            )
 
-    # visualizer = PyGameVisualizer(world, screen, scale=SCALE)
-
-    # running = True
-    # last_input_check = time.time()
-    # last_update = time.time()
-    # while running:
-    #     current_time = time.time()
-    #     if current_time - last_input_check >= 1 / FPS:
-    #         # check user input
-    #         for event in pygame.event.get():
-    #             if event.type == pygame.QUIT:
-    #                 running = False
-
-    #         keys = pygame.key.get_pressed()
-    #         if keys[pygame.K_LEFT]:
-    #             controlled_object.move_by(Vector(-0.01, 0))
-    #         if keys[pygame.K_RIGHT]:
-    #             controlled_object.move_by(Vector(0.01, 0))
-    #         if keys[pygame.K_UP]:
-    #             controlled_object.move_by(Vector(0, 0.01))
-    #         if keys[pygame.K_DOWN]:
-    #             controlled_object.move_by(Vector(0, -0.01))
-
-    #         last_input_check = current_time
-
-    #     # update game logic as often as possible
-    #     delta = current_time - last_update
-    #     world.update(delta)
-
-    #     # render
-    #     screen.fill((0, 0, 0))
-    #     visualizer.draw()
-    #     pygame.display.flip()
-
-    #     last_update = current_time
+        clock.tick(FPS)
