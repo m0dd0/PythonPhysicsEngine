@@ -54,3 +54,7 @@ class TestPolygon:
     def test_pos(self):
         polygon = ConvexPolygon(VERTICES_CLOCKWISE)
         assert polygon.pos == Vector(1 / 3, 1 / 3)
+
+    def test_bounding_box(self):
+        polygon = ConvexPolygon(VERTICES_CLOCKWISE)
+        assert polygon.bbox == (Vector(0, 0), Vector(1, 1))

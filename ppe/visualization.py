@@ -32,6 +32,14 @@ class Visualizer(ABC):
             else:
                 raise ValueError(f"Unknown object type {type(obj)}")
 
+    @abstractmethod
+    def pixel_2_world_coord(self, pos: Vector) -> Vector:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def world_2_pixel_coord(self, pos: Vector) -> Vector:
+        raise NotImplementedError()
+
 
 class PyGameVisualizer(Visualizer):
     def __init__(
@@ -44,24 +52,31 @@ class PyGameVisualizer(Visualizer):
         super().__init__(world, scale, viewport_offset)
         self.screen = screen
 
-    def _world_to_screen(self, pos: Vector) -> Vector:
+    def world_2_pixel_coord(self, pos: Vector) -> Vector:
         pos = pos - self.viewport_offset  # coordinates in meters relative to viewport
         pos = pos * self.scale  # coordinates in pixels relative to viewport
         pos = Vector(pos.x, self.screen.get_height() - pos.y)  # flip y axis
 
         return pos
 
+    def pixel_2_world_coord(self, pos: Vector) -> Vector:
+        pos = Vector(pos.x, self.screen.get_height() - pos.y)
+        pos = pos / self.scale
+        pos = pos + self.viewport_offset
+
+        return pos
+
     def draw_ball(self, ball: Ball):
         pygame.draw.circle(
             self.screen,
-            ball.color,
-            self._world_to_screen(ball.pos).to_tuple(),
+            ball.style_attributes["color"],
+            self.world_2_pixel_coord(ball.pos).to_tuple(),
             ball.radius * self.scale,
         )
 
     def draw_polygon(self, polygon: ConvexPolygon):
         pygame.draw.polygon(
             self.screen,
-            polygon.color,
-            [self._world_to_screen(v).to_tuple() for v in polygon.vertices],
+            polygon.style_attributes["color"],
+            [self.world_2_pixel_coord(v).to_tuple() for v in polygon.vertices],
         )

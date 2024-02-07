@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Iterator
+from typing import Tuple, List, Iterator, Dict, Any
 import random
 import math
 
@@ -23,7 +23,7 @@ class GameObject(ABC):
         angle: float,  # in radian
         angular_vel: float,  # in radian per second
         fixed: bool,
-        color: Tuple[int],
+        style_attributes: Dict[Any, Any],
         name: str,
     ):
         self._pos = pos
@@ -33,7 +33,7 @@ class GameObject(ABC):
         self._angle = angle
         self._angular_vel = angular_vel
         self._fixed = fixed
-        self._color = color
+        self._style_attributes = style_attributes
         self._name = name
 
         self._bbox = None
@@ -105,12 +105,12 @@ class GameObject(ABC):
         self._fixed = value
 
     @property
-    def color(self):
-        return self._color
+    def style_attributes(self):
+        return self._style_attributes
 
-    @color.setter
-    def color(self, value: Tuple[int]):
-        self._color = value
+    @style_attributes.setter
+    def style_attributes(self, value: Dict[Any, Any]):
+        self._style_attributes = value
 
     @property
     def name(self):
@@ -174,9 +174,10 @@ class Ball(GameObject):
         angular_vel: float = 0,
         mass: float = 1,
         fixed: bool = False,
-        color: Tuple[int, int, int] = (255, 255, 255),
+        style_attributes: Dict[Any, Any] = None,
         name: str = None,
     ):
+        self._radius = radius
         super().__init__(
             pos,
             vel,
@@ -185,10 +186,9 @@ class Ball(GameObject):
             angle,
             angular_vel,
             fixed=fixed,
-            color=color,
+            style_attributes=style_attributes or {},
             name=name,
         )
-        self._radius = radius
 
     @classmethod
     def create_random(
@@ -203,8 +203,7 @@ class Ball(GameObject):
             random.uniform(pos_bounds[0].x, pos_bounds[1].x),
             random.uniform(pos_bounds[0].y, pos_bounds[1].y),
         )
-        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        return Ball(pos, Vector(0, 0), Vector(0, 0), 0, 0, mass, radius, color=color)
+        return Ball(pos, Vector(0, 0), Vector(0, 0), 0, 0, mass, radius)
 
     @property
     def radius(self):
@@ -258,7 +257,7 @@ class ConvexPolygon(GameObject):
         mass: float = 1,
         angular_vel: float = 0,
         fixed: bool = False,
-        color: Tuple[int, int, int] = (255, 255, 255),
+        style_attributes: Dict[Any, Any] = None,
         name: str = None,
     ):
         assert len(vertices) >= 3
@@ -280,7 +279,7 @@ class ConvexPolygon(GameObject):
             0,
             angular_vel,
             fixed=fixed,
-            color=color,
+            style_attributes=style_attributes or {},
             name=name,
         )
 
@@ -395,7 +394,7 @@ class ConvexPolygon(GameObject):
     def _update_bbox(self) -> Tuple[Vector, Vector]:
         xs = [v.x for v in self._vertices]
         ys = [v.y for v in self._vertices]
-        return (Vector(min(xs), min(ys)), Vector(max(xs), max(ys)))
+        self._bbox = (Vector(min(xs), min(ys)), Vector(max(xs), max(ys)))
 
     def _update_area(self) -> float:
         # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon

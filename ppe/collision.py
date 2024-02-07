@@ -18,13 +18,13 @@ class Collision:
 
 
 def bounding_box_collision(obj1: "GameObject", obj2: "GameObject") -> bool:
-    bbox_1_min, bbox1_max = obj1.bbox
-    bbox_2_min, bbox2_max = obj2.bbox
+    bbox1_min, bbox1_max = obj1.bbox
+    bbox2_min, bbox2_max = obj2.bbox
     return (
-        bbox_1_min.x <= bbox2_max.x
-        and bbox1_max.x >= bbox_2_min.x
-        and bbox_1_min.y <= bbox2_max.y
-        and bbox1_max.y >= bbox_2_min.y
+        bbox1_min.x <= bbox2_max.x
+        and bbox1_max.x >= bbox2_min.x
+        and bbox1_min.y <= bbox2_max.y
+        and bbox1_max.y >= bbox2_min.y
     )
 
 

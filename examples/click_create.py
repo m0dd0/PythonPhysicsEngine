@@ -1,4 +1,5 @@
 import time
+import random
 
 import pygame
 from palettable.cartocolors.diverging import Earth_5
@@ -22,7 +23,6 @@ OBJECT_COLOR.remove(BACKGROUND_COLOR)
 FPS = 60
 STEPS_PER_FRAME = 1
 
-
 if __name__ == "__main__":
     floor = ConvexPolygon(
         vertices=FLOOR_VERTICES,
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         mass=float("inf"),
         angular_vel=0,
         fixed=True,
-        color=(0, 0, 0),
+        style_attributes={"color": (0, 0, 0)},
         name="floor",
     )
 
@@ -49,6 +49,25 @@ if __name__ == "__main__":
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = pygame.mouse.get_pos()
+                if event.button == 1:  # left click
+                    random_rectangle = ConvexPolygon.create_rectangle(
+                        pos=visualizer.pixel_2_world_coord(Vector(x, y)),
+                        height=random.uniform(*RECTANGLE_SIDE_BOUNDS),
+                        width=random.uniform(*RECTANGLE_SIDE_BOUNDS),
+                    )
+                    random_rectangle.style_attributes["color"] = random.choice(
+                        OBJECT_COLOR
+                    )
+                    world.objects.append(random_rectangle)
+                elif event.button == 3:  # right click
+                    random_ball = Ball(
+                        pos=visualizer.pixel_2_world_coord(Vector(x, y)),
+                        radius=random.uniform(*RADIUS_BOUNDS),
+                    )
+                    random_ball.style_attributes["color"] = random.choice(OBJECT_COLOR)
+                    world.objects.append(random_ball)
 
         physic_step_start = time.perf_counter()
         for _ in range(STEPS_PER_FRAME):
