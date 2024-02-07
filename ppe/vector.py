@@ -46,7 +46,10 @@ class Vector:
         )
 
     def __eq__(self, other: "Vector") -> bool:
-        return self._x == other.x and self._y == other.y
+        tolerance = 1e-5  # 1/100 mm
+        return math.isclose(self._x, other.x, abs_tol=tolerance) and math.isclose(
+            self._y, other.y, abs_tol=tolerance
+        )
 
     def __repr__(self) -> str:
         return f"Vector({self._x}, {self._y})"

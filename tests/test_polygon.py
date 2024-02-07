@@ -24,12 +24,12 @@ NORMALS_EXSPECETED = {
 
 
 class TestPolygon:
-    def test_init_clockwise(self):
-        polygon = ConvexPolygon(VERTICES_CLOCKWISE)
-        assert polygon.vertices == VERTICES_ANTICLOCKWISE
-
     def test_init_anticlockwise(self):
         polygon = ConvexPolygon(VERTICES_ANTICLOCKWISE)
+        assert polygon.vertices == VERTICES_ANTICLOCKWISE
+
+    def test_init_clockwise(self):
+        polygon = ConvexPolygon(VERTICES_CLOCKWISE)
         assert polygon.vertices == VERTICES_ANTICLOCKWISE
 
     def test_init_concave(self):
@@ -40,9 +40,9 @@ class TestPolygon:
         polygon = ConvexPolygon(VERTICES_CLOCKWISE)
         assert polygon._is_convex()
 
-    def test_compute_area(self):
+    def test_area(self):
         polygon = ConvexPolygon(VERTICES_CLOCKWISE)
-        assert polygon._compute_area() == 0.5
+        assert polygon.area == 0.5
 
     def test_get_normal(self):
         polygon = ConvexPolygon(VERTICES_CLOCKWISE)
@@ -50,3 +50,7 @@ class TestPolygon:
         normals = set(polygon.get_normals())
 
         assert normals == NORMALS_EXSPECETED
+
+    def test_pos(self):
+        polygon = ConvexPolygon(VERTICES_CLOCKWISE)
+        assert polygon.pos == Vector(1 / 3, 1 / 3)
