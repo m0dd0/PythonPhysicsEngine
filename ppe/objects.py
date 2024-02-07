@@ -314,6 +314,60 @@ class ConvexPolygon(GameObject):
         self._angle = value
         self._update_bbox()
 
+    @classmethod
+    def create_rectangle(
+        cls, pos: Vector, width: float, height: float
+    ) -> "ConvexPolygon":
+        half_width = width / 2
+        half_height = height / 2
+
+        polygon = ConvexPolygon(
+            [
+                Vector(-half_width, -half_height) + pos,
+                Vector(-half_width, half_height) + pos,
+                Vector(half_width, half_height) + pos,
+                Vector(half_width, -half_height) + pos,
+            ],
+        )
+
+        return polygon
+
+    @classmethod
+    def create_random(
+        cls,
+        pos_bounds: Tuple[Vector, Vector],
+        extend_bounds: Tuple[float, float],
+        n_vertices_bounds: Tuple[int, int],
+    ) -> "ConvexPolygon":
+        n_vertices = random.randint(*n_vertices_bounds)
+
+        ellpise_a = random.uniform(*extend_bounds) / 2
+        ellipse_b = random.uniform(*extend_bounds) / 2
+
+        # distribute the vertices uniformly on the ellipse
+        delta_t = 2 * math.pi / n_vertices
+        ts = [i * delta_t for i in range(n_vertices)]
+        # add a small random perturbation to the vertices to make the polygon more interesting
+        # this effectively controls how "irregular" the polygon is
+        max_offset = delta_t / 2
+        ts = [t + random.uniform(-max_offset, max_offset) for t in ts]
+
+        vertices = [
+            Vector(ellpise_a * math.cos(t), ellipse_b * math.sin(t)) for t in ts
+        ]
+
+        polygon = ConvexPolygon(vertices)
+
+        # rotate the polygon randomly for extra randomness
+        polygon.angle = random.uniform(0, 2 * math.pi)
+
+        polygon.pos = Vector(
+            random.uniform(pos_bounds[0].x, pos_bounds[1].x),
+            random.uniform(pos_bounds[0].y, pos_bounds[1].y),
+        )
+
+        return polygon
+
     def _is_convex(self) -> bool:
         n = len(self._vertices)
         vertex_signs = []
@@ -366,55 +420,6 @@ class ConvexPolygon(GameObject):
             cy += (self._vertices[i].y + self._vertices[j].y) * factor
             area += factor
         return Vector(cx, cy) / (3 * area)
-
-    @classmethod
-    def create_random(
-        cls,
-        pos_bounds: Tuple[Vector, Vector],
-        extend_bounds: Tuple[float, float],
-        vertices_bounds: Tuple[int, int],
-        mass_bounds: Tuple[float, float],
-    ) -> "ConvexPolygon":
-        n_vertices = random.randint(*vertices_bounds)
-
-        ellpise_a = random.uniform(*extend_bounds) / 2
-        ellipse_b = random.uniform(*extend_bounds) / 2
-
-        # distribute the vertices uniformly on the ellipse
-        delta_t = 2 * math.pi / n_vertices
-        ts = [i * delta_t for i in range(n_vertices)]
-        # add a small random perturbation to the vertices to make the polygon more interesting
-        # this effectively controls how "irregular" the polygon is
-        max_offset = delta_t / 2
-        ts = [t + random.uniform(-max_offset, max_offset) for t in ts]
-
-        vertices = [
-            Vector(ellpise_a * math.cos(t), ellipse_b * math.sin(t)) for t in ts
-        ]
-
-        polygon = ConvexPolygon(
-            vertices,
-            Vector(0, 0),
-            Vector(0, 0),
-            random.uniform(0, 2 * math.pi),
-            0,
-            random.uniform(*mass_bounds),
-            color=(
-                random.randint(0, 255),
-                random.randint(0, 255),
-                random.randint(0, 255),
-            ),
-        )
-
-        # rotate the polygon randomly for extra randomness
-        polygon.angle = random.uniform(0, 2 * math.pi)
-
-        polygon.pos = Vector(
-            random.uniform(pos_bounds[0].x, pos_bounds[1].x),
-            random.uniform(pos_bounds[0].y, pos_bounds[1].y),
-        )
-
-        return polygon
 
     def __repr__(self) -> str:
         return f"ConvexPolygon({self.name}, pos={self.pos}"  # , vel={self.vel}, acc={self.acc}, mass={self.mass}, vertices={self.vertices})"
