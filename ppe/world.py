@@ -12,11 +12,7 @@ class World:
         for obj in self.objects:
             obj.update(dt)
 
-        for obj in self.objects:
-            obj.color = (255, 255, 255)
-
         collisions = get_collisions(self.objects)
         for coll in collisions:
             # TODO handle collison: update velocities
-            coll.obj1.color = (255, 0, 0)
             handle_collision(coll)
