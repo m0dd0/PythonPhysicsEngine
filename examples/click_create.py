@@ -14,11 +14,12 @@ RADIUS_BOUNDS = (0.1, 0.3)
 RECTANGLE_SIDE_BOUNDS = (0.1, 0.5)
 FLOOR_VERTICES = [Vector(2, 1), Vector(2, 1.2), Vector(7, 1.2), Vector(7, 1)]
 GRAVIY = Vector(0, -9.81)
+BOUNCINESS = 0.8
 
 SCREEN_DIMENSIONS_WORLD = (9, 5)
 SCALE = 150
 BACKGROUND_COLOR = (255, 255, 255)
-OBJECT_COLOR = Bold_5.colors.copy()
+OBJECT_COLORS = Bold_5.colors.copy()
 
 FPS = 60
 STEPS_PER_FRAME = 10
@@ -54,24 +55,26 @@ if __name__ == "__main__":
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = pygame.mouse.get_pos()
                 if event.button == 1:  # left click
-                    random_rectangle = ConvexPolygon.create_rectangle(
-                        pos=visualizer.pixel_2_world_coord(Vector(x, y)),
-                        height=random.uniform(*RECTANGLE_SIDE_BOUNDS),
-                        width=random.uniform(*RECTANGLE_SIDE_BOUNDS),
+                    world.objects.append(
+                        ConvexPolygon.create_rectangle(
+                            pos=visualizer.pixel_2_world_coord(Vector(x, y)),
+                            height=random.uniform(*RECTANGLE_SIDE_BOUNDS),
+                            width=random.uniform(*RECTANGLE_SIDE_BOUNDS),
+                            style_attributes={"color": random.choice(OBJECT_COLORS)},
+                            acc=GRAVIY,
+                            bounciness=BOUNCINESS,
+                        )
                     )
-                    random_rectangle.style_attributes["color"] = random.choice(
-                        OBJECT_COLOR
-                    )
-                    random_rectangle.acc = GRAVIY
-                    world.objects.append(random_rectangle)
                 elif event.button == 3:  # right click
-                    random_ball = Ball(
-                        pos=visualizer.pixel_2_world_coord(Vector(x, y)),
-                        radius=random.uniform(*RADIUS_BOUNDS),
+                    world.objects.append(
+                        Ball(
+                            pos=visualizer.pixel_2_world_coord(Vector(x, y)),
+                            radius=random.uniform(*RADIUS_BOUNDS),
+                            style_attributes={"color": random.choice(OBJECT_COLORS)},
+                            acc=GRAVIY,
+                            bounciness=BOUNCINESS,
+                        )
                     )
-                    random_ball.style_attributes["color"] = random.choice(OBJECT_COLOR)
-                    random_ball.acc = GRAVIY
-                    world.objects.append(random_ball)
 
         physic_step_start = time.perf_counter()
         for _ in range(STEPS_PER_FRAME):
