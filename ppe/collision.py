@@ -119,8 +119,11 @@ def handle_collision(collision: Collision):
         / ((1 / collision.obj1.mass) + (1 / collision.obj2.mass))
     )
 
-    collision.obj1.vel += impulse / collision.obj1.mass * collision.normal
-    collision.obj2.vel -= impulse / collision.obj2.mass * collision.normal
+    # avoid that fixed objects get a velocity value after a collision
+    if not collision.obj1.fixed:
+        collision.obj1.vel += impulse / collision.obj1.mass * collision.normal
+    if not collision.obj2.fixed:
+        collision.obj2.vel -= impulse / collision.obj2.mass * collision.normal
 
     collision.obj1.on_collision(collision)
     collision.obj2.on_collision(collision)

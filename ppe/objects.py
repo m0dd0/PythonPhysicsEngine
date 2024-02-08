@@ -13,6 +13,9 @@ from ppe.collision import (
     ball_ball_collision,
 )
 
+STEP_DISTANCE_WARNING_THRESHOLD = 0.05
+STEP_ANGLE_WARNING_THRESHOLD = 5 * (2 * math.pi / 360)  # 5 degree
+
 
 class GameObject(ABC):
     def __init__(
@@ -42,6 +45,12 @@ class GameObject(ABC):
         self._name = name
         self._bounciness = bounciness
         self._collision_callbacks = collision_callbacks
+
+        if self._fixed and self._mass != float("inf"):
+            raise ValueError("Fixed objects must have infinite mass")
+
+        if self._mass <= 0:
+            raise ValueError("Mass must be positive")
 
         self._bbox = None
         self._update_bbox()
@@ -82,6 +91,12 @@ class GameObject(ABC):
     def mass(self, value: float):
         self._mass = value
 
+        if self._fixed and self._mass != float("inf"):
+            raise ValueError("Fixed objects must have infinite mass")
+
+        if self._mass <= 0:
+            raise ValueError("Mass must be positive")
+
     @property
     def angle(self):
         return self._angle
@@ -118,6 +133,9 @@ class GameObject(ABC):
     @fixed.setter
     def fixed(self, value: bool):
         self._fixed = value
+
+        if self._fixed and self._mass != float("inf"):
+            raise ValueError("Fixed objects must have infinite mass")
 
     @property
     def style_attributes(self):
@@ -160,20 +178,24 @@ class GameObject(ABC):
 
     def update(self, dt: float):
         # account for angular acceleration
+        angle_delta = self.angular_vel * dt + 0.5 * self.angular_acc * dt**2
+        if angle_delta > STEP_ANGLE_WARNING_THRESHOLD:
+            logging.warning(f"Large angle delta in a single step: {angle_delta}")
         self.angular_vel += self.angular_acc * dt
-        self.angle += self.angular_vel * dt
+        self.angle += angle_delta
 
-        if self.fixed:
-            return
+        # also fixed objects can have a velocity and acceleration in theory
+        # fixed only means that they are not moved during collision resolution
+        # if self.fixed:
+        #     return
 
         # we do NOT use verlet integration as we want to be able to set the velocity directly
         # while this does not represent a real world physics, it is useful for the game
-        self.vel += self.acc * dt
-
-        pos_delta = self.vel * dt
-        if pos_delta.magnitude() > 0.05:
+        pos_delta = self.vel * dt + 0.5 * self.acc * dt**2
+        if pos_delta.magnitude() > STEP_DISTANCE_WARNING_THRESHOLD:
             logging.warning(f"Large position delta in a single step: {pos_delta}")
-        self.pos = self.pos + pos_delta
+        self.vel += self.acc * dt
+        self.pos += pos_delta
 
     def collides_with(self, other: "GameObject") -> Collision:
         if not bounding_box_collision(self, other):
@@ -229,7 +251,7 @@ class Ball(GameObject):
             pos,
             vel,
             acc,
-            mass,
+            mass if not fixed else float("inf"),
             angle,
             angular_vel,
             angular_acc,
@@ -253,7 +275,7 @@ class Ball(GameObject):
             random.uniform(pos_bounds[0].x, pos_bounds[1].x),
             random.uniform(pos_bounds[0].y, pos_bounds[1].y),
         )
-        return Ball(pos, radius, *args, **kwargs)
+        return cls(pos, radius, *args, **kwargs)
 
     @property
     def radius(self):
@@ -328,7 +350,7 @@ class ConvexPolygon(GameObject):
             pos,
             vel,
             acc,
-            mass,
+            mass if not fixed else float("inf"),
             0,
             angular_vel,
             angular_acc,
@@ -376,7 +398,7 @@ class ConvexPolygon(GameObject):
         half_width = width / 2
         half_height = height / 2
 
-        polygon = ConvexPolygon(
+        polygon = cls(
             [
                 Vector(-half_width, -half_height) + pos,
                 Vector(-half_width, half_height) + pos,
@@ -416,7 +438,7 @@ class ConvexPolygon(GameObject):
             Vector(ellpise_a * math.cos(t), ellipse_b * math.sin(t)) for t in ts
         ]
 
-        polygon = ConvexPolygon(vertices, *args, **kwargs)
+        polygon = cls(vertices, *args, **kwargs)
 
         # rotate the polygon randomly for extra randomness
         polygon.angle = random.uniform(0, 2 * math.pi)
