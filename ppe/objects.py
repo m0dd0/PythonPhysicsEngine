@@ -221,15 +221,15 @@ class Ball(GameObject):
         cls,
         pos_bounds: Tuple[Vector, Vector],
         radius_bounds: Tuple[float, float],
-        mass_bounds: Tuple[float, float],
+        *args,
+        **kwargs,
     ) -> "Ball":
         radius = random.uniform(*radius_bounds)
-        mass = random.uniform(*mass_bounds)
         pos = Vector(
             random.uniform(pos_bounds[0].x, pos_bounds[1].x),
             random.uniform(pos_bounds[0].y, pos_bounds[1].y),
         )
-        return Ball(pos, Vector(0, 0), Vector(0, 0), 0, 0, mass, radius)
+        return Ball(pos, radius, *args, **kwargs)
 
     @property
     def radius(self):
@@ -344,7 +344,7 @@ class ConvexPolygon(GameObject):
 
     @classmethod
     def create_rectangle(
-        cls, pos: Vector, width: float, height: float
+        cls, pos: Vector, width: float, height: float, *args, **kwargs
     ) -> "ConvexPolygon":
         half_width = width / 2
         half_height = height / 2
@@ -356,6 +356,8 @@ class ConvexPolygon(GameObject):
                 Vector(half_width, half_height) + pos,
                 Vector(half_width, -half_height) + pos,
             ],
+            *args,
+            **kwargs,
         )
 
         return polygon
@@ -366,6 +368,8 @@ class ConvexPolygon(GameObject):
         pos_bounds: Tuple[Vector, Vector],
         extend_bounds: Tuple[float, float],
         n_vertices_bounds: Tuple[int, int],
+        *args,
+        **kwargs,
     ) -> "ConvexPolygon":
         n_vertices = random.randint(*n_vertices_bounds)
 
@@ -384,7 +388,7 @@ class ConvexPolygon(GameObject):
             Vector(ellpise_a * math.cos(t), ellipse_b * math.sin(t)) for t in ts
         ]
 
-        polygon = ConvexPolygon(vertices)
+        polygon = ConvexPolygon(vertices, *args, **kwargs)
 
         # rotate the polygon randomly for extra randomness
         polygon.angle = random.uniform(0, 2 * math.pi)
