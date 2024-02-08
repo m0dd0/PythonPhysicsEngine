@@ -1,8 +1,9 @@
 import time
 import random
+import logging
 
 import pygame
-from palettable.cartocolors.diverging import Earth_5
+from palettable.cartocolors.qualitative import Bold_5
 
 from ppe.world import World
 from ppe.vector import Vector
@@ -11,17 +12,18 @@ from ppe.visualization import PyGameVisualizer
 
 RADIUS_BOUNDS = (0.1, 0.3)
 RECTANGLE_SIDE_BOUNDS = (0.1, 0.5)
-
 FLOOR_VERTICES = [Vector(2, 1), Vector(2, 1.2), Vector(7, 1.2), Vector(7, 1)]
+GRAVIY = Vector(0, -9.81)
 
 SCREEN_DIMENSIONS_WORLD = (9, 5)
 SCALE = 150
-BACKGROUND_COLOR = Earth_5.colors[2]
-OBJECT_COLOR = Earth_5.colors.copy()
-OBJECT_COLOR.remove(BACKGROUND_COLOR)
+BACKGROUND_COLOR = (255, 255, 255)
+OBJECT_COLOR = Bold_5.colors.copy()
 
 FPS = 60
-STEPS_PER_FRAME = 1
+STEPS_PER_FRAME = 10
+
+logging.basicConfig(level=logging.WARNING)
 
 if __name__ == "__main__":
     floor = ConvexPolygon(
@@ -35,7 +37,7 @@ if __name__ == "__main__":
         name="floor",
     )
 
-    world = World([floor])
+    world = World([floor], world_bbox=(Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)))
 
     screen = pygame.display.set_mode(
         (SCREEN_DIMENSIONS_WORLD[0] * SCALE, SCREEN_DIMENSIONS_WORLD[1] * SCALE)
@@ -60,6 +62,7 @@ if __name__ == "__main__":
                     random_rectangle.style_attributes["color"] = random.choice(
                         OBJECT_COLOR
                     )
+                    random_rectangle.acc = GRAVIY
                     world.objects.append(random_rectangle)
                 elif event.button == 3:  # right click
                     random_ball = Ball(
@@ -67,6 +70,7 @@ if __name__ == "__main__":
                         radius=random.uniform(*RADIUS_BOUNDS),
                     )
                     random_ball.style_attributes["color"] = random.choice(OBJECT_COLOR)
+                    random_ball.acc = GRAVIY
                     world.objects.append(random_ball)
 
         physic_step_start = time.perf_counter()
@@ -80,9 +84,9 @@ if __name__ == "__main__":
         pygame.display.flip()
         render_step_duration = time.perf_counter() - render_step_start
 
-        print(f"{physic_step_duration:.3f}s, {render_step_duration:.3f}s")
+        logging.info(f"{physic_step_duration:.3f}s, {render_step_duration:.3f}s")
         if physic_step_duration + render_step_duration > 1 / FPS:
-            print(
+            logging.warning(
                 f"Warning: frame took {physic_step_duration + render_step_duration:.3f}s, "
                 f"which is longer than 1/{FPS:.0f}s"
             )

@@ -1,5 +1,5 @@
 import math
-from typing import List
+from typing import List, Tuple
 
 from ppe.vector import Vector
 
@@ -10,7 +10,7 @@ class Collision:
     ):
         self.obj1 = obj1
         self.obj2 = obj2
-        self.normal = normal  # normal ponints outwards from obj1
+        self.normal = normal  # normal ponints outwards from obj1 and is normalized
         self.depth = depth
 
     def __repr__(self) -> str:
@@ -21,14 +21,15 @@ def bounding_box_collision(obj1: "GameObject", obj2: "GameObject") -> bool:
     bbox1_min, bbox1_max = obj1.bbox
     bbox2_min, bbox2_max = obj2.bbox
     return (
-        bbox1_min.x <= bbox2_max.x
-        and bbox1_max.x >= bbox2_min.x
-        and bbox1_min.y <= bbox2_max.y
-        and bbox1_max.y >= bbox2_min.y
+        bbox1_min.x < bbox2_max.x
+        and bbox1_max.x > bbox2_min.x
+        and bbox1_min.y < bbox2_max.y
+        and bbox1_max.y > bbox2_min.y
     )
 
 
 def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
+    # FIXME seems like it detects collisions liek the bbox
     collisions = []
     p0 = ball.pos
     for i, p1 in enumerate(polygon.vertices):
@@ -39,7 +40,9 @@ def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
         ) / math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2)
         if d < ball.radius:
             edge = p2 - p1
-            normal = Vector(edge.y, -edge.x).normalize()
+            normal = Vector(
+                edge.y, -edge.x
+            ).normalize()  # FIXME this is inaccurate for collsions on corner
             collisions.append(Collision(polygon, ball, normal, ball.radius - d))
 
     if not collisions:
@@ -105,12 +108,26 @@ def handle_collision(collision: Collision):
 
     # move objects so that they don't overlap anymore
     if not collision.obj1.fixed and not collision.obj2.fixed:
-        collision.obj1.move_by(-collision.normal * (collision.depth / 2))
-        collision.obj2.move_by(collision.normal * (collision.depth / 2))
+        collision.obj1.pos -= collision.normal * (collision.depth / 2)
+        collision.obj2.pos += collision.normal * (collision.depth / 2)
     elif collision.obj1.fixed:
-        collision.obj2.move_by(collision.normal * collision.depth)
+        collision.obj2.pos += collision.normal * collision.depth
     else:
-        collision.obj1.move_by(-collision.normal * collision.depth)
+        collision.obj1.pos -= collision.normal * collision.depth
 
     # change velocities
     # https://en.wikipedia.org/wiki/Collision_response
+    # https://www.chrishecker.com/images/e/e7/Gdmphys3.pdf
+    e = min(collision.obj1.bounciness, collision.obj2.bounciness)
+    impulse = (
+        -(1 + e)
+        * (collision.obj1.vel - collision.obj2.vel).dot(collision.normal)
+        / ((1 / collision.obj1.mass) + (1 / collision.obj2.mass))
+    )
+
+    collision.obj1.vel += impulse / collision.obj1.mass * collision.normal
+    collision.obj2.vel -= impulse / collision.obj2.mass * collision.normal
+
+
+def point_in_box(point: Vector, box: Tuple[Vector, Vector]) -> bool:
+    return box[0].x <= point.x <= box[1].x and box[0].y <= point.y <= box[1].y

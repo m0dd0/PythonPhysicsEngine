@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple, List, Iterator, Dict, Any
 import random
 import math
+import logging
 
 from ppe.vector import Vector
 from ppe.collision import (
@@ -25,6 +26,7 @@ class GameObject(ABC):
         fixed: bool,
         style_attributes: Dict[Any, Any],
         name: str,
+        bounciness: float,
     ):
         self._pos = pos
         self._vel = vel
@@ -35,6 +37,10 @@ class GameObject(ABC):
         self._fixed = fixed
         self._style_attributes = style_attributes
         self._name = name
+        self._bounciness = bounciness
+
+        if not 0 <= self._bounciness <= 1:
+            raise ValueError("Bounciness must be between 0 and 1")
 
         self._bbox = None
         self._update_bbox()
@@ -124,14 +130,32 @@ class GameObject(ABC):
     def area(self):
         return self._area
 
+    @property
+    def bounciness(self):
+        return self._bounciness
+
+    @bounciness.setter
+    def bounciness(self, value: float):
+        self._bounciness = value
+
+        if not 0 <= self._bounciness <= 1:
+            raise ValueError("Bounciness must be between 0 and 1")
+
     def __repr__(self) -> str:
         return f"GameObject({self.name}, pos={self.pos}, vel={self.vel}, acc={self.acc}, mass={self.mass})"
 
     def update(self, dt: float):
+        if self.fixed:
+            return
+
         # we do NOT use verlet integration as we want to be able to set the velocity directly
         # while this does not represent a real world physics, it is useful for the game
         self.vel = self.vel + self.acc * dt
-        self.pos = self.pos + self.vel * dt
+
+        pos_delta = self.vel * dt
+        if pos_delta.magnitude() > 0.05:
+            logging.warning(f"Large position delta in a single step: {pos_delta}")
+        self.pos = self.pos + pos_delta
 
         # TODO account for angular velocity
 
@@ -176,6 +200,7 @@ class Ball(GameObject):
         fixed: bool = False,
         style_attributes: Dict[Any, Any] = None,
         name: str = None,
+        bounciness: float = 1,
     ):
         self._radius = radius
         super().__init__(
@@ -188,6 +213,7 @@ class Ball(GameObject):
             fixed=fixed,
             style_attributes=style_attributes or {},
             name=name,
+            bounciness=bounciness,
         )
 
     @classmethod
@@ -259,6 +285,7 @@ class ConvexPolygon(GameObject):
         fixed: bool = False,
         style_attributes: Dict[Any, Any] = None,
         name: str = None,
+        bounciness: float = 1,
     ):
         assert len(vertices) >= 3
 
@@ -281,6 +308,7 @@ class ConvexPolygon(GameObject):
             fixed=fixed,
             style_attributes=style_attributes or {},
             name=name,
+            bounciness=bounciness,
         )
 
     @property
@@ -307,6 +335,7 @@ class ConvexPolygon(GameObject):
     @angle.setter
     def angle(self, value: float):
         value %= 2 * math.pi
+        # FIXME rotate around center of mass
         for i, vertex in enumerate(self._vertices):
             self._vertices[i] = (vertex - self.pos).rotate(value) + self.pos
 

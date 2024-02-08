@@ -1,11 +1,15 @@
-from typing import List
+from typing import List, Tuple
 
 from ppe.objects import GameObject
-from ppe.collision import get_collisions, handle_collision
+from ppe.collision import get_collisions, handle_collision, point_in_box
+from ppe.vector import Vector
 
 
 class World:
-    def __init__(self, objects: List[GameObject]):
+    def __init__(
+        self, objects: List[GameObject], world_bbox: Tuple[Vector, Vector] = None
+    ):
+        self.world_bbox = world_bbox
         self.objects = objects
 
     def update(self, dt: float):
@@ -16,3 +20,9 @@ class World:
         for coll in collisions:
             # TODO handle collison: update velocities
             handle_collision(coll)
+
+        if self.world_bbox:
+            objects_in_world = [
+                obj for obj in self.objects if point_in_box(obj.pos, self.world_bbox)
+            ]
+            self.objects = objects_in_world
