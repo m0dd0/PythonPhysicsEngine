@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Iterator, Dict, Any
+from typing import Tuple, List, Iterator, Dict, Any, Callable
 import random
 import math
 import logging
@@ -27,6 +27,7 @@ class GameObject(ABC):
         style_attributes: Dict[Any, Any],
         name: str,
         bounciness: float,
+        collision_callbacks: List[Callable],
     ):
         self._pos = pos
         self._vel = vel
@@ -38,6 +39,7 @@ class GameObject(ABC):
         self._style_attributes = style_attributes
         self._name = name
         self._bounciness = bounciness
+        self._collision_callbacks = collision_callbacks
 
         if not 0 <= self._bounciness <= 1:
             raise ValueError("Bounciness must be between 0 and 1")
@@ -141,6 +143,14 @@ class GameObject(ABC):
         if not 0 <= self._bounciness <= 1:
             raise ValueError("Bounciness must be between 0 and 1")
 
+    @property
+    def collision_callbacks(self):
+        return self._collision_callbacks
+
+    @collision_callbacks.setter
+    def collision_callbacks(self, value: List[Callable]):
+        self._collision_callbacks = value
+
     def __repr__(self) -> str:
         return f"GameObject({self.name}, pos={self.pos}, vel={self.vel}, acc={self.acc}, mass={self.mass})"
 
@@ -174,6 +184,10 @@ class GameObject(ABC):
         else:
             raise ValueError(f"Unknown object types {type(self)} and {type(other)}")
 
+    def on_collision(self, collision: Collision):
+        for callback in self.collision_callbacks:
+            callback(self, collision)
+
     @abstractmethod
     def _update_bbox(self):
         raise NotImplementedError()
@@ -201,6 +215,7 @@ class Ball(GameObject):
         style_attributes: Dict[Any, Any] = None,
         name: str = None,
         bounciness: float = 1,
+        collision_callbacks: List[Callable] = None,
     ):
         self._radius = radius
         super().__init__(
@@ -214,6 +229,7 @@ class Ball(GameObject):
             style_attributes=style_attributes or {},
             name=name,
             bounciness=bounciness,
+            collision_callbacks=collision_callbacks or [],
         )
 
     @classmethod
@@ -286,6 +302,7 @@ class ConvexPolygon(GameObject):
         style_attributes: Dict[Any, Any] = None,
         name: str = None,
         bounciness: float = 1,
+        collision_callbacks: List[Callable] = None,
     ):
         assert len(vertices) >= 3
 
@@ -309,6 +326,7 @@ class ConvexPolygon(GameObject):
             style_attributes=style_attributes or {},
             name=name,
             bounciness=bounciness,
+            collision_callbacks=collision_callbacks or [],
         )
 
     @property

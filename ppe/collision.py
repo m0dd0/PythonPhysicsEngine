@@ -128,6 +128,9 @@ def handle_collision(collision: Collision):
     collision.obj1.vel += impulse / collision.obj1.mass * collision.normal
     collision.obj2.vel -= impulse / collision.obj2.mass * collision.normal
 
+    collision.obj1.on_collision(collision)
+    collision.obj2.on_collision(collision)
+
 
 def point_in_box(point: Vector, box: Tuple[Vector, Vector]) -> bool:
     return box[0].x <= point.x <= box[1].x and box[0].y <= point.y <= box[1].y

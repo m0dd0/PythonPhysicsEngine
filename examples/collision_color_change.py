@@ -26,17 +26,24 @@ MANUAL_MOVEMENT_PER_STEP = 0.01
 
 logging.basicConfig(level=logging.WARNING)
 
+
+def collision_callback(obj, coll):
+    obj.style_attributes = {"color": COLLISION_COLOR}
+
+
 if __name__ == "__main__":
     box = ConvexPolygon.create_rectangle(
         pos=BOX_INITIAL_POS,
         height=BOX_SIZE[0],
         width=BOX_SIZE[1],
         style_attributes={"color": OBJECT_COLOR},
+        collision_callbacks=[collision_callback],
     )
     ball = Ball(
         pos=BALL_INITIAL_POS,
         radius=BALL_RADIUS,
         style_attributes={"color": OBJECT_COLOR},
+        collision_callbacks=[collision_callback],
     )
 
     world = World(
@@ -58,7 +65,6 @@ if __name__ == "__main__":
 
         # control ball with arrow keys
         keys = pygame.key.get_pressed()
-        print(keys)
         if keys[pygame.K_RIGHT]:
             ball.pos += Vector(MANUAL_MOVEMENT_PER_STEP, 0)
         elif keys[pygame.K_LEFT]:
