@@ -159,6 +159,10 @@ class GameObject(ABC):
         return f"GameObject({self.name}, pos={self.pos}, vel={self.vel}, acc={self.acc}, mass={self.mass})"
 
     def update(self, dt: float):
+        # account for angular acceleration
+        self.angular_vel += self.angular_acc * dt
+        self.angle += self.angular_vel * dt
+
         if self.fixed:
             return
 
@@ -170,10 +174,6 @@ class GameObject(ABC):
         if pos_delta.magnitude() > 0.05:
             logging.warning(f"Large position delta in a single step: {pos_delta}")
         self.pos = self.pos + pos_delta
-
-        # account for angular acceleration
-        self.angular_vel += self.angular_acc * dt
-        self.angle += self.angular_vel * dt
 
     def collides_with(self, other: "GameObject") -> Collision:
         if not bounding_box_collision(self, other):

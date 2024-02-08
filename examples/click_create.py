@@ -14,7 +14,7 @@ RADIUS_BOUNDS = (0.1, 0.3)
 RECTANGLE_SIDE_BOUNDS = (0.1, 0.5)
 FLOOR_VERTICES = [Vector(2, 1), Vector(2, 1.2), Vector(7, 1.2), Vector(7, 1)]
 GRAVIY = Vector(0, -9.81)
-BOUNCINESS = 1.1
+BOUNCINESS = 0.8
 
 SCREEN_DIMENSIONS_WORLD = (9, 5)
 SCALE = 150
@@ -36,6 +36,7 @@ if __name__ == "__main__":
         fixed=True,
         style_attributes={"color": (0, 0, 0)},
         name="floor",
+        bounciness=BOUNCINESS,
     )
 
     world = World([floor], world_bbox=(Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)))
