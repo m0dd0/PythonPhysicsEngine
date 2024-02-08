@@ -29,26 +29,36 @@ def bounding_box_collision(obj1: "GameObject", obj2: "GameObject") -> bool:
 
 
 def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
-    # FIXME seems like it detects collisions liek the bbox
-    collisions = []
-    p0 = ball.pos
-    for i, p1 in enumerate(polygon.vertices):
-        p2 = polygon.vertices[(i + 1) % len(polygon.vertices)]
-        # see https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
-        d = abs(
-            (p2.x - p1.x) * (p1.y - p0.y) - (p1.x - p0.x) * (p2.y - p1.y)
-        ) / math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2)
-        if d < ball.radius:
-            edge = p2 - p1
-            normal = Vector(
-                edge.y, -edge.x
-            ).normalize()  # FIXME this is inaccurate for collsions on corner
-            collisions.append(Collision(polygon, ball, normal, ball.radius - d))
+    ball_axis = None
+    ball_axis_magnitude = float("inf")
+    for vertex in polygon.vertices:
+        axis = vertex - ball.pos  # from ball to vertex
+        if axis.magnitude() < ball_axis_magnitude:
+            ball_axis = axis
+            ball_axis_magnitude = axis.magnitude()
 
-    if not collisions:
-        return None
+    min_depth = float("inf")
+    min_depth_collision = None
 
-    return min(collisions, key=lambda c: c.depth)
+    for normal in list(polygon.get_normals()) + [ball_axis]:
+        min1, max1 = polygon.projected_extends(normal)
+        min2, max2 = ball.projected_extends(normal)
+
+        if max1 < min2 or max2 < min1:
+            return None
+
+        depth = min(max1, max2) - max(min1, min2)
+        if depth < min_depth:
+            min_depth = depth
+            min_depth_collision = Collision(polygon, ball, normal, depth)
+
+    # in case we have multiple normals lying on the same line (e.g. rectangle) we need to make sure that the normal
+    # points to the second object so that the objects can be separated correctly
+    direction = min_depth_collision.obj2.pos - min_depth_collision.obj1.pos
+    if direction.dot(min_depth_collision.normal) < 0:
+        min_depth_collision.normal *= -1
+
+    return min_depth_collision
 
 
 def polygon_polygon_collision(

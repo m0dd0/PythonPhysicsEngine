@@ -22,7 +22,7 @@ COLLISION_COLOR = (255, 0, 0)
 
 FPS = 60
 STEPS_PER_FRAME = 10
-MANUAL_MOVEMENT_PER_STEP = 0.01
+MANUAL_MOVEMENT_PER_STEP = 0.03
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -88,8 +88,8 @@ if __name__ == "__main__":
         logging.info(f"{physic_step_duration:.3f}s, {render_step_duration:.3f}s")
         if physic_step_duration + render_step_duration > 1 / FPS:
             logging.warning(
-                f"Warning: frame took {physic_step_duration + render_step_duration:.3f}s, "
-                f"which is longer than 1/{FPS:.0f}s"
+                f"Warning: frame took {physic_step_duration} + {render_step_duration:.3f} = {physic_step_duration + render_step_duration:.3f}s, "
+                f"which is longer than 1/{FPS:.0f}s = {1/FPS:.3f}s."
             )
 
         clock.tick(FPS)
