@@ -98,6 +98,14 @@ class GameObject(ABC):
             raise ValueError("Mass must be positive")
 
     @property
+    def density(self):
+        return self._mass / self._area
+
+    @density.setter
+    def density(self, value: float):
+        self.mass = value * self._area
+
+    @property
     def angle(self):
         return self._angle
 
