@@ -111,7 +111,8 @@ def handle_collision(collision: Collision):
     # change velocities
     # https://en.wikipedia.org/wiki/Collision_response
     # https://www.chrishecker.com/images/e/e7/Gdmphys3.pdf
-    e = min(collision.obj1.bounciness, collision.obj2.bounciness)
+    # not sure if min or average of bouncieness models reality better
+    e = (collision.obj1.bounciness + collision.obj2.bounciness) / 2
     impulse = (
         -(1 + e)
         * (collision.obj1.vel - collision.obj2.vel).dot(collision.normal)

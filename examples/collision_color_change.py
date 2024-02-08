@@ -1,6 +1,6 @@
 import time
-import random
 import logging
+import math
 
 import pygame
 
@@ -11,10 +11,13 @@ from ppe.visualization import PyGameVisualizer
 
 BALL_RADIUS = 0.5
 BALL_INITIAL_POS = Vector(1, 1)
-FIXED_BOX_POS = Vector(3, 3)
+FIXED_BOX_POS = Vector(2, 3)
 FIXED_BOX_SIZE = (1, 1)
-FIXED_BALL_POS = Vector(6, 3)
+FIXED_BALL_POS = Vector(4, 3)
 FIXED_BALL_RADIUS = 0.5
+ROTATING_RECTANGLE_SIZE = (0.2, 2)
+ROTATING_RECTANGLE_POSITON = Vector(7, 3)
+ROTATING_RECTANGLE_ANGULAR_VEL = 50 * (2 * math.pi / 360)  # 50 degree per second
 
 SCREEN_DIMENSIONS_WORLD = (9, 5)
 SCALE = 150
@@ -40,22 +43,35 @@ if __name__ == "__main__":
         width=FIXED_BOX_SIZE[1],
         style_attributes={"color": OBJECT_COLOR},
         collision_callbacks=[collision_callback],
+        name="fixed_box",
     )
     fixed_ball = Ball(
         pos=FIXED_BALL_POS,
         radius=FIXED_BALL_RADIUS,
         style_attributes={"color": OBJECT_COLOR},
         collision_callbacks=[collision_callback],
+        name="fixed_ball",
+    )
+    rotating_rectangle = ConvexPolygon.create_rectangle(
+        pos=ROTATING_RECTANGLE_POSITON,
+        height=ROTATING_RECTANGLE_SIZE[0],
+        width=ROTATING_RECTANGLE_SIZE[1],
+        style_attributes={"color": OBJECT_COLOR},
+        angular_vel=ROTATING_RECTANGLE_ANGULAR_VEL,
+        collision_callbacks=[collision_callback],
+        name="rotating_rectangle",
+        fixed=True,
     )
     ball = Ball(
         pos=BALL_INITIAL_POS,
         radius=BALL_RADIUS,
         style_attributes={"color": OBJECT_COLOR},
         collision_callbacks=[collision_callback],
+        name="ball",
     )
 
     world = World(
-        [fixed_box, fixed_ball, ball],
+        [fixed_box, fixed_ball, rotating_rectangle, ball],
         world_bbox=(Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)),
     )
 

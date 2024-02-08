@@ -23,6 +23,7 @@ class GameObject(ABC):
         mass: float,  # in kilogram
         angle: float,  # in radian
         angular_vel: float,  # in radian per second
+        angular_acc: float,  # in radian per second squared
         fixed: bool,
         style_attributes: Dict[Any, Any],
         name: str,
@@ -35,14 +36,12 @@ class GameObject(ABC):
         self._mass = mass
         self._angle = angle
         self._angular_vel = angular_vel
+        self._angular_acc = angular_acc
         self._fixed = fixed
         self._style_attributes = style_attributes
         self._name = name
         self._bounciness = bounciness
         self._collision_callbacks = collision_callbacks
-
-        if not 0 <= self._bounciness <= 1:
-            raise ValueError("Bounciness must be between 0 and 1")
 
         self._bbox = None
         self._update_bbox()
@@ -101,6 +100,14 @@ class GameObject(ABC):
         self._angular_vel = value
 
     @property
+    def angular_acc(self):
+        return self._angular_acc
+
+    @angular_acc.setter
+    def angular_acc(self, value: float):
+        self._angular_acc = value
+
+    @property
     def bbox(self):
         return self._bbox
 
@@ -140,9 +147,6 @@ class GameObject(ABC):
     def bounciness(self, value: float):
         self._bounciness = value
 
-        if not 0 <= self._bounciness <= 1:
-            raise ValueError("Bounciness must be between 0 and 1")
-
     @property
     def collision_callbacks(self):
         return self._collision_callbacks
@@ -160,14 +164,16 @@ class GameObject(ABC):
 
         # we do NOT use verlet integration as we want to be able to set the velocity directly
         # while this does not represent a real world physics, it is useful for the game
-        self.vel = self.vel + self.acc * dt
+        self.vel += self.acc * dt
 
         pos_delta = self.vel * dt
         if pos_delta.magnitude() > 0.05:
             logging.warning(f"Large position delta in a single step: {pos_delta}")
         self.pos = self.pos + pos_delta
 
-        # TODO account for angular velocity
+        # account for angular acceleration
+        self.angular_vel += self.angular_acc * dt
+        self.angle += self.angular_vel * dt
 
     def collides_with(self, other: "GameObject") -> Collision:
         if not bounding_box_collision(self, other):
@@ -210,6 +216,7 @@ class Ball(GameObject):
         acc: Vector = Vector(0, 0),
         angle: float = 0,
         angular_vel: float = 0,
+        angular_acc: float = 0,
         mass: float = 1,
         fixed: bool = False,
         style_attributes: Dict[Any, Any] = None,
@@ -225,6 +232,7 @@ class Ball(GameObject):
             mass,
             angle,
             angular_vel,
+            angular_acc,
             fixed=fixed,
             style_attributes=style_attributes or {},
             name=name,
@@ -298,6 +306,7 @@ class ConvexPolygon(GameObject):
         acc: Vector = Vector(0, 0),
         mass: float = 1,
         angular_vel: float = 0,
+        angular_acc: float = 0,
         fixed: bool = False,
         style_attributes: Dict[Any, Any] = None,
         name: str = None,
@@ -322,6 +331,7 @@ class ConvexPolygon(GameObject):
             mass,
             0,
             angular_vel,
+            angular_acc,
             fixed=fixed,
             style_attributes=style_attributes or {},
             name=name,
@@ -352,17 +362,16 @@ class ConvexPolygon(GameObject):
 
     @angle.setter
     def angle(self, value: float):
-        value %= 2 * math.pi
-        # FIXME rotate around center of mass
+        delta = value - self._angle
         for i, vertex in enumerate(self._vertices):
-            self._vertices[i] = (vertex - self.pos).rotate(value) + self.pos
+            self._vertices[i] = (vertex - self.pos).rotate(delta) + self.pos
 
-        self._angle = value
+        self._angle = value % (2 * math.pi)
         self._update_bbox()
 
     @classmethod
     def create_rectangle(
-        cls, pos: Vector, width: float, height: float, *args, **kwargs
+        cls, pos: Vector, width: float, height: float, angle: float = 0, *args, **kwargs
     ) -> "ConvexPolygon":
         half_width = width / 2
         half_height = height / 2
@@ -377,6 +386,7 @@ class ConvexPolygon(GameObject):
             *args,
             **kwargs,
         )
+        polygon.angle = angle
 
         return polygon
 
