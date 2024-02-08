@@ -84,10 +84,14 @@ def ball_ball_collision(ball1: "Ball", ball2: "Ball") -> Collision:
     return None
 
 
-def get_collisions(objects: List["GameObject"]) -> List[Collision]:
+def get_collisions(
+    objects: List["GameObject"], ingore_fixed_object_collisions: bool = False
+) -> List[Collision]:
     collisions = []
     for i, obj1 in enumerate(objects):
         for obj2 in objects[i + 1 :]:
+            if ingore_fixed_object_collisions and obj1.fixed and obj2.fixed:
+                continue
             coll = obj1.collides_with(obj2)
             if coll is not None:
                 collisions.append(coll)

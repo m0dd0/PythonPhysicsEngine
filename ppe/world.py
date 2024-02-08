@@ -18,7 +18,6 @@ class World:
 
         collisions = get_collisions(self.objects)
         for coll in collisions:
-            # TODO handle collison: update velocities
             handle_collision(coll)
 
         if self.world_bbox:
