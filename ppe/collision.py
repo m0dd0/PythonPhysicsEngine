@@ -1,5 +1,5 @@
-import math
-from typing import List, Tuple
+from itertools import chain
+from typing import List, Tuple, Iterable
 
 from ppe.vector import Vector
 
@@ -28,6 +28,31 @@ def bounding_box_collision(obj1: "GameObject", obj2: "GameObject") -> bool:
     )
 
 
+def _sat(obj1: "GameObject", obj2: "GameObject", axes: Iterable[Vector]) -> Collision:
+    min_depth = float("inf")
+    min_depth_collision = None
+
+    for axis in axes:
+        min1, max1 = obj1.projected_extends(axis)
+        min2, max2 = obj2.projected_extends(axis)
+
+        if max1 < min2 or max2 < min1:
+            return None
+
+        depth = min(max1, max2) - max(min1, min2)
+        if depth < min_depth:
+            min_depth = depth
+            min_depth_collision = Collision(obj1, obj2, axis, depth)
+
+    # in case we have multiple normals lying on the same line (e.g. rectangle) we need to make sure that the normal
+    # points to the second object so that the objects can be separated correctly
+    direction = min_depth_collision.obj2.pos - min_depth_collision.obj1.pos
+    if direction.dot(min_depth_collision.normal) < 0:
+        min_depth_collision.normal *= -1
+
+    return min_depth_collision
+
+
 def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
     ball_axis = None
     ball_axis_magnitude = float("inf")
@@ -37,58 +62,16 @@ def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
             ball_axis = axis
             ball_axis_magnitude = axis.magnitude()
 
-    min_depth = float("inf")
-    min_depth_collision = None
+    axes = chain(polygon.get_normals(), [ball_axis])
 
-    for normal in list(polygon.get_normals()) + [ball_axis]:
-        min1, max1 = polygon.projected_extends(normal)
-        min2, max2 = ball.projected_extends(normal)
-
-        if max1 < min2 or max2 < min1:
-            return None
-
-        depth = min(max1, max2) - max(min1, min2)
-        if depth < min_depth:
-            min_depth = depth
-            min_depth_collision = Collision(polygon, ball, normal, depth)
-
-    # in case we have multiple normals lying on the same line (e.g. rectangle) we need to make sure that the normal
-    # points to the second object so that the objects can be separated correctly
-    direction = min_depth_collision.obj2.pos - min_depth_collision.obj1.pos
-    if direction.dot(min_depth_collision.normal) < 0:
-        min_depth_collision.normal *= -1
-
-    return min_depth_collision
+    return _sat(ball, polygon, axes)
 
 
 def polygon_polygon_collision(
     polygon1: "ConvexPolygon", polygon2: "ConvexPolygon"
 ) -> Collision:
-    # SAT
-    min_depth = float("inf")
-    min_depth_collision = None
-    for normal_poly in [polygon1, polygon2]:
-        other_poly = polygon1 if normal_poly is polygon2 else polygon2
-
-        for normal in normal_poly.get_normals():
-            min1, max1 = normal_poly.projected_extends(normal)
-            min2, max2 = other_poly.projected_extends(normal)
-
-            if max1 < min2 or max2 < min1:
-                return None
-
-            depth = min(max1, max2) - max(min1, min2)
-            if depth < min_depth:
-                min_depth = depth
-                min_depth_collision = Collision(normal_poly, other_poly, normal, depth)
-
-    # in case we have multiple normals lying on the same line (e.g. rectangle) we need to make sure that the normal
-    # points to the second object so that the objects can be separated correctly
-    direction = min_depth_collision.obj2.pos - min_depth_collision.obj1.pos
-    if direction.dot(min_depth_collision.normal) < 0:
-        min_depth_collision.normal *= -1
-
-    return min_depth_collision
+    axes = chain(polygon1.get_normals(), polygon2.get_normals())
+    return _sat(polygon1, polygon2, axes)
 
 
 def ball_ball_collision(ball1: "Ball", ball2: "Ball") -> Collision:

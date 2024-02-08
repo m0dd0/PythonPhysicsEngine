@@ -10,9 +10,11 @@ from ppe.objects import Ball, ConvexPolygon
 from ppe.visualization import PyGameVisualizer
 
 BALL_RADIUS = 0.5
-BALL_INITIAL_POS = Vector(3, 3)
-BOX_INITIAL_POS = Vector(5, 3)
-BOX_SIZE = (1, 1)
+BALL_INITIAL_POS = Vector(1, 1)
+FIXED_BOX_POS = Vector(3, 3)
+FIXED_BOX_SIZE = (1, 1)
+FIXED_BALL_POS = Vector(6, 3)
+FIXED_BALL_RADIUS = 0.5
 
 SCREEN_DIMENSIONS_WORLD = (9, 5)
 SCALE = 150
@@ -32,10 +34,16 @@ def collision_callback(obj, coll):
 
 
 if __name__ == "__main__":
-    box = ConvexPolygon.create_rectangle(
-        pos=BOX_INITIAL_POS,
-        height=BOX_SIZE[0],
-        width=BOX_SIZE[1],
+    fixed_box = ConvexPolygon.create_rectangle(
+        pos=FIXED_BOX_POS,
+        height=FIXED_BOX_SIZE[0],
+        width=FIXED_BOX_SIZE[1],
+        style_attributes={"color": OBJECT_COLOR},
+        collision_callbacks=[collision_callback],
+    )
+    fixed_ball = Ball(
+        pos=FIXED_BALL_POS,
+        radius=FIXED_BALL_RADIUS,
         style_attributes={"color": OBJECT_COLOR},
         collision_callbacks=[collision_callback],
     )
@@ -47,7 +55,8 @@ if __name__ == "__main__":
     )
 
     world = World(
-        [box, ball], world_bbox=(Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD))
+        [fixed_box, fixed_ball, ball],
+        world_bbox=(Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)),
     )
 
     screen = pygame.display.set_mode(
