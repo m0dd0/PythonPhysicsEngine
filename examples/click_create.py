@@ -3,7 +3,6 @@ import random
 import logging
 
 import pygame
-from palettable.cartocolors.qualitative import Bold_5
 
 from ppe.world import World
 from ppe.vector import Vector
@@ -19,7 +18,7 @@ BOUNCINESS = 0.8
 SCREEN_DIMENSIONS_WORLD = (9, 5)
 SCALE = 150
 BACKGROUND_COLOR = (255, 255, 255)
-OBJECT_COLORS = Bold_5.colors.copy()
+OBJECT_COLORS = ["#ffbe0b", "#fb5607", "#ff006e", "#8338ec", "#3a86ff"]
 
 FPS = 60
 STEPS_PER_FRAME = 10
@@ -91,8 +90,8 @@ if __name__ == "__main__":
         logging.info(f"{physic_step_duration:.3f}s, {render_step_duration:.3f}s")
         if physic_step_duration + render_step_duration > 1 / FPS:
             logging.warning(
-                f"Warning: frame took {physic_step_duration + render_step_duration:.3f}s, "
-                f"which is longer than 1/{FPS:.0f}s"
+                f"Warning: frame took {physic_step_duration:.3f} + {render_step_duration:.3f} = {physic_step_duration + render_step_duration:.3f}s, "
+                f"which is longer than 1/{FPS:.0f}s = {1/FPS:.3f}s."
             )
 
         clock.tick(FPS)
