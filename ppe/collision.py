@@ -1,20 +1,21 @@
 from itertools import chain
 from typing import List, Tuple, Iterable
+from dataclasses import dataclass
 
 from ppe.vector import Vector
 
 
-class Collision:
-    def __init__(
-        self, obj1: "GameObject", obj2: "GameObject", normal: Vector, depth: float
-    ):
-        self.obj1 = obj1
-        self.obj2 = obj2
-        self.normal = normal  # normal ponints outwards from obj1 and is normalized
-        self.depth = depth
+import dataclasses
 
-    def __repr__(self) -> str:
-        return f"Collision({self.obj1}, {self.obj2}, normal={self.normal}, depth={self.depth})"
+
+@dataclasses.dataclass
+class Collision:
+    obj1: "GameObject"
+    obj2: "GameObject"
+    normal: Vector  # normal points outwards from obj1 and is normalized
+    depth: float
+    contact_point_1: Vector
+    contact_point_2: Vector
 
 
 def bounding_box_collision(obj1: "GameObject", obj2: "GameObject") -> bool:
@@ -42,7 +43,7 @@ def _sat(obj1: "GameObject", obj2: "GameObject", axes: Iterable[Vector]) -> Coll
         depth = min(max1, max2) - max(min1, min2)
         if depth < min_depth:
             min_depth = depth
-            min_depth_collision = Collision(obj1, obj2, axis, depth)
+            min_depth_collision = Collision(obj1, obj2, axis, depth, None, None)
 
     # in case we have multiple normals lying on the same line (e.g. rectangle) we need to make sure that the normal
     # points to the second object so that the objects can be separated correctly
@@ -64,7 +65,16 @@ def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
 
     axes = chain(polygon.get_normals(), [ball_axis])
 
-    return _sat(ball, polygon, axes)
+    collision = _sat(ball, polygon, axes)
+    # !!! contact points are not calculated in _sat
+    # the collision returned by _sat has a normal which always points from obj1 to obj2
+    # obj1 is the ball and obj2 is the polygon
+    if collision is not None:
+        collision.contact_point_1 = ball.pos + collision.normal * (
+            ball.radius - collision.depth
+        )
+
+    return collision
 
 
 def polygon_polygon_collision(
@@ -72,6 +82,7 @@ def polygon_polygon_collision(
 ) -> Collision:
     axes = chain(polygon1.get_normals(), polygon2.get_normals())
     return _sat(polygon1, polygon2, axes)
+    # !!! contact points are not calculated in _sat
 
 
 def ball_ball_collision(ball1: "Ball", ball2: "Ball") -> Collision:
@@ -79,7 +90,14 @@ def ball_ball_collision(ball1: "Ball", ball2: "Ball") -> Collision:
     dist = delta.magnitude()
     if dist < ball1.radius + ball2.radius:
         normal = delta.normalize()
-        return Collision(ball1, ball2, normal, ball1.radius + ball2.radius - dist)
+        return Collision(
+            ball1,
+            ball2,
+            normal,
+            ball1.radius + ball2.radius - dist,
+            ball1.pos + normal * ball1.radius,
+            None,
+        )
 
     return None
 

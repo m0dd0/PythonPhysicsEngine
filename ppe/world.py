@@ -11,6 +11,11 @@ class World:
     ):
         self.world_bbox = world_bbox
         self.objects = objects
+        self._collisions = tuple()
+
+    @property
+    def collisions(self):
+        return self._collisions
 
     def update(self, dt: float):
         for obj in self.objects:
@@ -26,3 +31,5 @@ class World:
                 obj for obj in self.objects if point_in_box(obj.pos, self.world_bbox)
             ]
             self.objects = objects_in_world
+
+        self._collisions = tuple(collisions)
