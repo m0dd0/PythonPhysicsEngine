@@ -27,38 +27,41 @@ COLLISION_COLOR = (255, 0, 0)
 COLLISION_POINT_RECT_SIZE = 0.1
 
 FPS = 60
-STEPS_PER_FRAME = 10
+STEPS_PER_FRAME = 1
 MANUAL_MOVEMENT_PER_STEP = 0.03
 
 logging.basicConfig(level=logging.WARNING)
 
 
 def collision_callback(obj, coll):
-    # coll_rect_world = [
-    #     Vector(
-    #         coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
-    #         coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
-    #     ),
-    #     Vector(
-    #         coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
-    #         coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
-    #     ),
-    #     Vector(
-    #         coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
-    #         coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
-    #     ),
-    #     Vector(
-    #         coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
-    #         coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
-    #     ),
-    # ]
-
-    # coll_rect_pixel = [visualizer.world_2_pixel_coord(pos) for pos in coll_rect_world]
-
-    # pygame.draw.polygon(
-    #     screen, COLLISION_COLOR, [v.to_tuple() for v in coll_rect_pixel]
-    # )
     pass
+
+
+def draw_collision_point(screen, visualizer, coll):
+    coll_rect_world = [
+        Vector(
+            coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
+            coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
+        ),
+        Vector(
+            coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
+            coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
+        ),
+        Vector(
+            coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
+            coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
+        ),
+        Vector(
+            coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
+            coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
+        ),
+    ]
+
+    coll_rect_pixel = [visualizer.world_2_pixel_coord(pos) for pos in coll_rect_world]
+
+    pygame.draw.polygon(
+        screen, COLLISION_COLOR, [v.to_tuple() for v in coll_rect_pixel]
+    )
 
 
 if __name__ == "__main__":
@@ -132,6 +135,8 @@ if __name__ == "__main__":
         render_step_start = time.perf_counter()
         screen.fill(BACKGROUND_COLOR)
         visualizer.draw(world)
+        for coll in world.collisions:
+            draw_collision_point(screen, visualizer, coll)
         pygame.display.flip()
         render_step_duration = time.perf_counter() - render_step_start
 

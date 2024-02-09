@@ -60,7 +60,7 @@ def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
     for vertex in polygon.vertices:
         axis = vertex - ball.pos  # from ball to vertex
         if axis.magnitude() < ball_axis_magnitude:
-            ball_axis = axis
+            ball_axis = axis.normalize()
             ball_axis_magnitude = axis.magnitude()
 
     axes = chain(polygon.get_normals(), [ball_axis])
