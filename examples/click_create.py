@@ -43,7 +43,7 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode(
         (SCREEN_DIMENSIONS_WORLD[0] * SCALE, SCREEN_DIMENSIONS_WORLD[1] * SCALE)
     )
-    visualizer = PyGameVisualizer(world, screen, scale=SCALE)
+    visualizer = PyGameVisualizer(screen, scale=SCALE)
 
     clock = pygame.time.Clock()
 
@@ -83,7 +83,7 @@ if __name__ == "__main__":
 
         render_step_start = time.perf_counter()
         screen.fill(BACKGROUND_COLOR)
-        visualizer.draw()
+        visualizer.draw(world)
         pygame.display.flip()
         render_step_duration = time.perf_counter() - render_step_start
 

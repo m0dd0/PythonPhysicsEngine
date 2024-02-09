@@ -24,6 +24,7 @@ SCALE = 150
 BACKGROUND_COLOR = (0, 0, 0)
 OBJECT_COLOR = (255, 255, 255)
 COLLISION_COLOR = (255, 0, 0)
+COLLISION_POINT_RECT_SIZE = 0.1
 
 FPS = 60
 STEPS_PER_FRAME = 10
@@ -33,10 +34,39 @@ logging.basicConfig(level=logging.WARNING)
 
 
 def collision_callback(obj, coll):
-    obj.style_attributes = {"color": COLLISION_COLOR}
+    # coll_rect_world = [
+    #     Vector(
+    #         coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
+    #         coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
+    #     ),
+    #     Vector(
+    #         coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
+    #         coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
+    #     ),
+    #     Vector(
+    #         coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
+    #         coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
+    #     ),
+    #     Vector(
+    #         coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
+    #         coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
+    #     ),
+    # ]
+
+    # coll_rect_pixel = [visualizer.world_2_pixel_coord(pos) for pos in coll_rect_world]
+
+    # pygame.draw.polygon(
+    #     screen, COLLISION_COLOR, [v.to_tuple() for v in coll_rect_pixel]
+    # )
+    pass
 
 
 if __name__ == "__main__":
+    screen = pygame.display.set_mode(
+        (SCREEN_DIMENSIONS_WORLD[0] * SCALE, SCREEN_DIMENSIONS_WORLD[1] * SCALE)
+    )
+    visualizer = PyGameVisualizer(screen, scale=SCALE)
+
     fixed_box = ConvexPolygon.create_rectangle(
         pos=FIXED_BOX_POS,
         height=FIXED_BOX_SIZE[0],
@@ -75,11 +105,6 @@ if __name__ == "__main__":
         world_bbox=(Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)),
     )
 
-    screen = pygame.display.set_mode(
-        (SCREEN_DIMENSIONS_WORLD[0] * SCALE, SCREEN_DIMENSIONS_WORLD[1] * SCALE)
-    )
-    visualizer = PyGameVisualizer(world, screen, scale=SCALE)
-
     clock = pygame.time.Clock()
 
     running = True
@@ -106,7 +131,7 @@ if __name__ == "__main__":
 
         render_step_start = time.perf_counter()
         screen.fill(BACKGROUND_COLOR)
-        visualizer.draw()
+        visualizer.draw(world)
         pygame.display.flip()
         render_step_duration = time.perf_counter() - render_step_start
 
