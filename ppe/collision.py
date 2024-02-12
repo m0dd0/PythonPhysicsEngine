@@ -34,9 +34,10 @@ def _sat(obj1: "GameObject", obj2: "GameObject", axes: Iterable[Vector]) -> Coll
     min_depth_collision = None
 
     for axis in axes:
-        min1, max1 = obj1.projected_extends(axis)
-        min2, max2 = obj2.projected_extends(axis)
+        min1, max1, min_vertex_1, max_vertex_1 = obj1.projected_extends(axis)
+        min2, max2, min_vertex_2, max_vertex_2 = obj2.projected_extends(axis)
 
+        # we found an axis along whic the objects projectsion do NOT overlap
         if max1 < min2 or max2 < min1:
             return None
 
@@ -66,9 +67,11 @@ def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
     axes = chain(polygon.get_normals(), [ball_axis])
 
     collision = _sat(ball, polygon, axes)
+
     # !!! contact points are not calculated in _sat
     # the collision returned by _sat has a normal which always points from obj1 to obj2
-    # obj1 is the ball and obj2 is the polygon
+    # obj1 is the ball and obj2 is the polygon. This males it easy to calculate the contact point
+    # without having to reiterate over the axes
     if collision is not None:
         collision.contact_point_1 = ball.pos + collision.normal * (
             ball.radius - collision.depth

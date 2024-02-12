@@ -233,7 +233,7 @@ class GameObject(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def projected_extends(self, axis: Vector) -> Tuple[float, float]:
+    def projected_extends(self, axis: Vector) -> Tuple[float, float, Vector, Vector]:
         raise NotImplementedError()
 
 
@@ -321,11 +321,16 @@ class Ball(GameObject):
         else:
             raise ValueError(f"Unknown object type {type(other)}")
 
-    def projected_extends(self, axis: Vector) -> Tuple[float, float]:
+    def projected_extends(self, axis: Vector) -> Tuple[float, float, Vector, Vector]:
         # https://en.wikipedia.org/wiki/Vector_projection#Vector_projection_2
         center = self.pos
-        proj_dist = center.dot(axis) / axis.magnitude()
-        return proj_dist - self._radius, proj_dist + self._radius
+        pojected_center = center.dot(axis)  # / axis.magnitude()
+        return (
+            pojected_center - self._radius,
+            pojected_center + self._radius,
+            center - axis * self.radius,
+            center + axis * self.radius,
+        )
 
 
 class ConvexPolygon(GameObject):
@@ -401,7 +406,7 @@ class ConvexPolygon(GameObject):
 
     @classmethod
     def create_rectangle(
-        cls, pos: Vector, width: float, height: float, angle: float = 0, *args, **kwargs
+        cls, pos: Vector, width: float, height: float, *args, angle: float = 0, **kwargs
     ) -> "ConvexPolygon":
         half_width = width / 2
         half_height = height / 2
@@ -525,16 +530,22 @@ class ConvexPolygon(GameObject):
         else:
             raise ValueError(f"Unknown object type {type(other)}")
 
-    def projected_extends(self, axis: Vector) -> Tuple[float, float]:
+    def projected_extends(self, axis: Vector) -> Tuple[float, float, Vector, Vector]:
         min_proj = float("inf")
         max_proj = float("-inf")
-        axis_magnitude = axis.magnitude()
+        min_vertex = None
+        max_vertex = None
+        # axis_magnitude = axis.magnitude() # should be always 1
         for vertex in self._vertices:
-            proj_dist = vertex.dot(axis) / axis_magnitude
-            min_proj = min(min_proj, proj_dist)
-            max_proj = max(max_proj, proj_dist)
+            proj_dist = vertex.dot(axis)  # / axis_magnitude
+            if proj_dist < min_proj:
+                min_proj = proj_dist
+                min_vertex = vertex
+            if proj_dist > max_proj:
+                max_proj = proj_dist
+                max_vertex = vertex
 
-        return min_proj, max_proj
+        return min_proj, max_proj, min_vertex, max_vertex
 
     def get_normals(self) -> Iterator[Vector]:
         for i, p1 in enumerate(self.vertices):

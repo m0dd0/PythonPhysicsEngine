@@ -35,7 +35,7 @@ if __name__ == "__main__":
         acc=Vector(0, 0),
         mass=float("inf"),
         angular_vel=0,
-        fixed=True,
+        fixed=False,
         style_attributes={"color": STATIONARY_BOX_COLOR},
         name="stationary_box",
     )
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         acc=Vector(0, 0),
         mass=1,
         angular_vel=0,
-        fixed=True,
+        fixed=False,
         style_attributes={"color": MOVING_BOX_COLOR},
         name="moving_box",
     )
