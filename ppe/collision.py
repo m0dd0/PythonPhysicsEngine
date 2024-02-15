@@ -29,21 +29,40 @@ def bounding_box_collision(obj1: "GameObject", obj2: "GameObject") -> bool:
     )
 
 
-def _sat(obj1: "GameObject", obj2: "GameObject", axes: Iterable[Vector]) -> Collision:
+def _sat(
+    obj1: "GameObject",
+    obj2: "GameObject",
+    axes_1: Iterable[Vector],
+    axes_2: List[Vector],
+) -> Collision:
+    """Execute the Separating Axis Theorem (SAT) to check if two objects collide.
+
+    Args:
+        obj1 (GameObject): The first object
+        obj2 (GameObject): _description_
+        axes (Iterable[Vector]): _description_
+
+    Returns:
+        Collision: _description_
+    """
     min_depth = float("inf")
     min_depth_collision = None
 
-    for axis in axes:
-        min1, max1, min_vertex_1, max_vertex_1 = obj1.projected_extends(axis)
-        min2, max2, min_vertex_2, max_vertex_2 = obj2.projected_extends(axis)
+    for axis in axes_1:
+        min1, max1, min_vertices_1, max_vertices_1 = obj1.projected_extends(axis)
+        min2, max2, min_vertices_2, max_vertices_2 = obj2.projected_extends(axis)
 
-        # we found an axis along whic the objects projectsion do NOT overlap
-        if max1 < min2 or max2 < min1:
+        # axis points away from obj1 so the projection of the veritces is
+        # min_vertices_1 -> max_vertices_1 -> min_vertices_2 -> max_vertices_2 in case of no overlap OR
+        # min_vertices_1 -> min_vertices_2 -> max_vertices_1 -> max_vertices_2 in case of overlap
+        if max2 < min1:
             return None
 
-        depth = min(max1, max2) - max(min1, min2)
+        # depth = min(max1, max2) - max(min1, min2)
+        depth = max1 - min2
         if depth < min_depth:
             min_depth = depth
+            if 
             min_depth_collision = Collision(obj1, obj2, axis, depth, None, None)
 
     # in case we have multiple normals lying on the same line (e.g. rectangle) we need to make sure that the normal
@@ -83,9 +102,18 @@ def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
 def polygon_polygon_collision(
     polygon1: "ConvexPolygon", polygon2: "ConvexPolygon"
 ) -> Collision:
-    axes = chain(polygon1.get_normals(), polygon2.get_normals())
-    return _sat(polygon1, polygon2, axes)
-    # !!! contact points are not calculated in _sat
+    # axes = chain(polygon1.get_normals(), polygon2.get_normals())
+    # return _sat(polygon1, polygon2, axes)
+
+    n_vertices = len(polygon1.vertices)
+    for i in range(n_vertices):
+        p1 = polygon1.vertices[i]
+        p2 = polygon2.vertices[(i + 1) % n_vertices]
+        edge = p2 - p1
+        normal = Vector(edge.y, -edge.x).normalize()
+
+        for p3 in polygon2.vertices:
+            proj_dist = p3.dot(normal)
 
 
 def ball_ball_collision(ball1: "Ball", ball2: "Ball") -> Collision:

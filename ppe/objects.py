@@ -233,7 +233,9 @@ class GameObject(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def projected_extends(self, axis: Vector) -> Tuple[float, float, Vector, Vector]:
+    def projected_extends(
+        self, axis: Vector
+    ) -> Tuple[float, float, List[Vector], List[Vector]]:
         raise NotImplementedError()
 
 
@@ -321,15 +323,17 @@ class Ball(GameObject):
         else:
             raise ValueError(f"Unknown object type {type(other)}")
 
-    def projected_extends(self, axis: Vector) -> Tuple[float, float, Vector, Vector]:
+    def projected_extends(
+        self, axis: Vector
+    ) -> Tuple[float, float, List[Vector], List[Vector]]:
         # https://en.wikipedia.org/wiki/Vector_projection#Vector_projection_2
         center = self.pos
         pojected_center = center.dot(axis)  # / axis.magnitude()
         return (
             pojected_center - self._radius,
             pojected_center + self._radius,
-            center - axis * self.radius,
-            center + axis * self.radius,
+            [center - axis * self.radius],
+            [center + axis * self.radius],
         )
 
 
@@ -348,14 +352,15 @@ class ConvexPolygon(GameObject):
         bounciness: float = 1,
         collision_callbacks: List[Callable] = None,
     ):
-        assert len(vertices) >= 3
-
         self._vertices = vertices
+
         if not self._is_convex():
             raise ValueError("Polygon is not convex")
-
         if not self._is_anticlockwise():
             self._vertices = list(reversed(self._vertices))
+        self._remove_coaligned_vertices()
+        if len(self._vertices) < 3:
+            raise ValueError("Polygon must have at least 3 vertices")
 
         pos = self._compute_center_of_mass()
 
@@ -487,6 +492,22 @@ class ConvexPolygon(GameObject):
             )
         return total < 0
 
+    def _remove_coaligned_vertices(self):
+        n = len(self._vertices)
+        vertices = []
+
+        for i in range(n):
+            p1 = self._vertices[i]
+            p2 = self._vertices[(i + 1) % n]
+            p3 = self._vertices[(i + 2) % n]
+            edge1 = p2 - p1
+            edge2 = p3 - p2
+
+            if edge1.cross(edge2) != 0:
+                vertices.append(p2)
+
+        self._vertices = vertices
+
     def _update_bbox(self) -> Tuple[Vector, Vector]:
         xs = [v.x for v in self._vertices]
         ys = [v.y for v in self._vertices]
@@ -530,22 +551,28 @@ class ConvexPolygon(GameObject):
         else:
             raise ValueError(f"Unknown object type {type(other)}")
 
-    def projected_extends(self, axis: Vector) -> Tuple[float, float, Vector, Vector]:
+    def projected_extends(
+        self, axis: Vector
+    ) -> Tuple[float, float, List[Vector], List[Vector]]:
         min_proj = float("inf")
         max_proj = float("-inf")
-        min_vertex = None
-        max_vertex = None
+        min_vertices = []
+        max_vertices = []
         # axis_magnitude = axis.magnitude() # should be always 1
         for vertex in self._vertices:
             proj_dist = vertex.dot(axis)  # / axis_magnitude
             if proj_dist < min_proj:
                 min_proj = proj_dist
-                min_vertex = vertex
+                min_vertices = [vertex]
+            elif proj_dist == min_proj:
+                min_vertices.append(vertex)
             if proj_dist > max_proj:
                 max_proj = proj_dist
-                max_vertex = vertex
+                max_vertices = [vertex]
+            elif proj_dist == max_proj:
+                max_vertices.append(vertex)
 
-        return min_proj, max_proj, min_vertex, max_vertex
+        return min_proj, max_proj, min_vertices, max_vertices
 
     def get_normals(self) -> Iterator[Vector]:
         for i, p1 in enumerate(self.vertices):
