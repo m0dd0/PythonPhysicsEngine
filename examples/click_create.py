@@ -1,6 +1,7 @@
 import time
 import random
 import logging
+from typing import Tuple
 
 import pygame
 
@@ -9,15 +10,10 @@ from ppe.vector import Vector
 from ppe.bodies import Ball, ConvexPolygon
 from ppe.visualization import PyGameVisualizer
 
-RADIUS_BOUNDS = (0.1, 0.3)
-RECTANGLE_SIDE_BOUNDS = (0.1, 0.5)
-FLOOR_VERTICES = [Vector(2, 1), Vector(2, 1.2), Vector(7, 1.2), Vector(7, 1)]
 GRAVIY = Vector(0, -9.81)
 BOUNCINESS = 0.8
 
 SCREEN_DIMENSIONS_WORLD = (9, 5)
-SCALE = 150
-BACKGROUND_COLOR = (255, 255, 255)
 OBJECT_COLORS = ["#ffbe0b", "#fb5607", "#ff006e", "#8338ec", "#3a86ff"]
 
 FPS = 60
@@ -25,9 +21,12 @@ STEPS_PER_FRAME = 10
 
 logging.basicConfig(level=logging.WARNING)
 
-if __name__ == "__main__":
+
+def setup(
+    scale, screen_dimensions_world, background_color
+) -> Tuple[World, PyGameVisualizer]:
     floor = ConvexPolygon(
-        vertices=FLOOR_VERTICES,
+        vertices=[Vector(2, 1), Vector(2, 1.2), Vector(7, 1.2), Vector(7, 1)],
         vel=Vector(0, 0),
         acc=Vector(0, 0),
         mass=float("inf"),
@@ -41,25 +40,33 @@ if __name__ == "__main__":
     world = World([floor], world_bbox=(Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)))
 
     screen = pygame.display.set_mode(
-        (SCREEN_DIMENSIONS_WORLD[0] * SCALE, SCREEN_DIMENSIONS_WORLD[1] * SCALE)
+        (screen_dimensions_world[0] * scale, screen_dimensions_world[1] * scale)
     )
-    visualizer = PyGameVisualizer(screen, scale=SCALE)
+    visualizer = PyGameVisualizer(screen, background_color, scale=scale)
+
+    return world, visualizer
+
+
+if __name__ == "__main__":
+    world, visualizer = setup(150, (9, 5), (255, 255, 255))
 
     clock = pygame.time.Clock()
 
     running = True
     while running:
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = pygame.mouse.get_pos()
                 if event.button == 1:  # left click
                     world.bodies.append(
                         ConvexPolygon.create_rectangle(
                             pos=visualizer.pixel_2_world_coord(Vector(x, y)),
-                            height=random.uniform(*RECTANGLE_SIDE_BOUNDS),
-                            width=random.uniform(*RECTANGLE_SIDE_BOUNDS),
+                            height=random.uniform(0.1, 0.5),
+                            width=random.uniform(0.1, 0.5),
                             style_attributes={"color": random.choice(OBJECT_COLORS)},
                             acc=GRAVIY,
                             bounciness=BOUNCINESS,
@@ -69,7 +76,7 @@ if __name__ == "__main__":
                     world.bodies.append(
                         Ball(
                             pos=visualizer.pixel_2_world_coord(Vector(x, y)),
-                            radius=random.uniform(*RADIUS_BOUNDS),
+                            radius=random.uniform(0.1, 0.3),
                             style_attributes={"color": random.choice(OBJECT_COLORS)},
                             acc=GRAVIY,
                             bounciness=BOUNCINESS,
@@ -78,20 +85,17 @@ if __name__ == "__main__":
 
         physic_step_start = time.perf_counter()
         for _ in range(STEPS_PER_FRAME):
+            # substepping (multiple physics steps per frame)
             world.update(1 / (FPS * STEPS_PER_FRAME))
         physic_step_duration = time.perf_counter() - physic_step_start
 
         render_step_start = time.perf_counter()
-        screen.fill(BACKGROUND_COLOR)
         visualizer.draw(world)
         pygame.display.flip()
         render_step_duration = time.perf_counter() - render_step_start
 
-        logging.info(f"{physic_step_duration:.3f}s, {render_step_duration:.3f}s")
-        if physic_step_duration + render_step_duration > 1 / FPS:
-            logging.warning(
-                f"Warning: frame took {physic_step_duration:.3f} + {render_step_duration:.3f} = {physic_step_duration + render_step_duration:.3f}s, "
-                f"which is longer than 1/{FPS:.0f}s = {1/FPS:.3f}s."
-            )
+        logging.info(
+            f"frame time: {1/FPS}, physic step: {physic_step_duration:.3f}s, render step: {render_step_duration:.3f}s"
+        )
 
         clock.tick(FPS)

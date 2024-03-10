@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 import pygame
 
@@ -43,6 +43,7 @@ class PyGameVisualizer(Visualizer):
     def __init__(
         self,
         screen: pygame.Surface,
+        backgound_color: Tuple = (255, 255, 255),
         scale: float = 100,
         viewport_offset=None,
     ):
@@ -77,3 +78,7 @@ class PyGameVisualizer(Visualizer):
             visual_attributes["color"],
             [self.world_2_pixel_coord(v).to_tuple() for v in polygon.vertices],
         )
+
+    def draw(self, world: World):
+        self.screen.fill(self.backgound_color)
+        return super().draw(world)

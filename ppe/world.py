@@ -34,6 +34,9 @@ class World:
         # TODO figure out way to treat external forces
         self.solver.solve(collisions, self.joints, [], dt)
 
+        for body in self.bodies:
+            self.integrator.integrate(body, dt)
+
         if self.world_bbox:
             bodies_in_world = [
                 obj
