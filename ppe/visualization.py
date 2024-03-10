@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import pygame
 
 from ppe.world import World
-from ppe.objects import Ball, ConvexPolygon
+from ppe.bodies import Ball, ConvexPolygon
 from ppe.vector import Vector
 
 
@@ -65,7 +65,7 @@ class PyGameVisualizer(Visualizer):
     def draw_ball(self, ball: Ball):
         pygame.draw.circle(
             self.screen,
-            ball.style_attributes["color"],
+            ball.visual_attributes["color"],
             self.world_2_pixel_coord(ball.pos).to_tuple(),
             ball.radius * self.scale,
         )
@@ -73,6 +73,6 @@ class PyGameVisualizer(Visualizer):
     def draw_polygon(self, polygon: ConvexPolygon):
         pygame.draw.polygon(
             self.screen,
-            polygon.style_attributes["color"],
+            polygon.visual_attributes["color"],
             [self.world_2_pixel_coord(v).to_tuple() for v in polygon.vertices],
         )

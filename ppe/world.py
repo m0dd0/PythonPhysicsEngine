@@ -1,14 +1,12 @@
 from typing import List, Tuple
 
-from ppe.objects import GameObject
-from ppe.collision import get_collisions, handle_collision, point_in_box
+from ppe.bodies import Body
+from ppe.collision.base import get_collisions, handle_collision, point_in_box
 from ppe.vector import Vector
 
 
 class World:
-    def __init__(
-        self, objects: List[GameObject], world_bbox: Tuple[Vector, Vector] = None
-    ):
+    def __init__(self, objects: List[Body], world_bbox: Tuple[Vector, Vector] = None):
         self.world_bbox = world_bbox
         self.objects = objects
         self._collisions = tuple()

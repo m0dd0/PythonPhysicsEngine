@@ -1,0 +1,37 @@
+@startuml
+class Body {
+    shape: Shape
+    mass: float
+    velocity: Vector
+    angular_velocity: float
+    acceleration: Vector
+    angular_acceleration: float
+    visual_attributes: Dict
+}
+interface Shape {
+    vertices: List[Vector]
+    area: float
+    com: Vector
+    inertia: float
+    rotate(angle: float)
+    translate(offset: Vector)
+    _compute_bbox()
+    _compute_inertia()
+
+}
+class Circle
+class ConvexPolygon
+Shape <|-- Circle 
+Shape <|-- ConvexPolygon
+Body o-- Shape: shape
+
+class Collision {
+    body1: Body
+    body2: Body
+    normal: Vector
+    penetration: float
+    contact_point: Vector
+}
+
+class Constraint
+@enduml

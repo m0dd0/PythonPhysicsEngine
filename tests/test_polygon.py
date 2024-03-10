@@ -1,6 +1,6 @@
 import pytest
 
-from ppe.objects import ConvexPolygon
+from ppe.bodies import ConvexPolygon
 from ppe.vector import Vector
 
 VERTICES_CLOCKWISE = [

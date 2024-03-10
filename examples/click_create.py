@@ -6,7 +6,7 @@ import pygame
 
 from ppe.world import World
 from ppe.vector import Vector
-from ppe.objects import Ball, ConvexPolygon
+from ppe.bodies import Ball, ConvexPolygon
 from ppe.visualization import PyGameVisualizer
 
 RADIUS_BOUNDS = (0.1, 0.3)
