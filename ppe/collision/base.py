@@ -1,11 +1,11 @@
-from typing import List, Tuple
+from typing import List
 import dataclasses
-import abc
 
 from ppe.bodies import Body
 from ppe.vector import Vector
-from ppe.collision.broad_phase import AABB
-from ppe.collision.narrow_phase import SAT
+
+from ppe.collision.broad_phase import BroadPhase, AABB
+from ppe.collision.narrow_phase import NarrowPhase, SAT
 
 
 @dataclasses.dataclass
@@ -16,18 +16,6 @@ class Collision:
     depth: float
     contact_point_1: Vector
     contact_point_2: Vector
-
-
-class BroadPhase(abc.ABC):
-    @abc.abstractmethod
-    def __call__(self, objects: List["Body"]) -> List[Tuple[Body, Body]]:
-        raise NotImplementedError
-
-
-class NarrowPhase(abc.ABC):
-    @abc.abstractmethod
-    def __call__(self, collision_candidates: List[Collision]) -> List[Collision]:
-        raise NotImplementedError
 
 
 class CollisionDetector:

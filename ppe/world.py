@@ -1,13 +1,13 @@
 from typing import List, Tuple
 
 from ppe.collision.base import CollisionDetector
-from ppe.solver.impulse_based import ImpulseSolver
-from ppe.solver.base import Solver
+from ppe.solvers.impulse_based import ImpulseBasedSolver
+from ppe.solvers.base import Solver
 from ppe.bodies import Body
 from ppe.vector import Vector
 from ppe.joints import Joint
 from ppe.integrators import Integrator
-from ppt.integrators import Euler
+from ppe.integrators import Euler
 
 
 class World:
@@ -25,7 +25,7 @@ class World:
         self.joints = joints
 
         self.collision_detector = collision_detector or CollisionDetector()
-        self.solver = solver or ImpulseSolver()
+        self.solver = solver or ImpulseBasedSolver()
         self.integrator = integrator or Euler()
 
     def update(self, dt: float):

@@ -1,11 +1,17 @@
 from typing import List
+import abc
 
 from ppe.bodies import Body
-from ppe.collision.base import BroadPhase, Collision
 
 
-class SAT(BroadPhase):
-    def __call__(self, bodies: List[Body]) -> List[Collision]:
+class NarrowPhase(abc.ABC):
+    @abc.abstractmethod
+    def __call__(self, collision_candidates: List["Collision"]) -> List["Collision"]:
+        raise NotImplementedError
+
+
+class SAT(NarrowPhase):
+    def __call__(self, bodies: List[Body]) -> List["Collision"]:
         # TODO
         raise NotImplementedError
 
