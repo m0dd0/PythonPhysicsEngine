@@ -9,7 +9,8 @@ class IntegratorBase(abc.ABC):
 
 class Euler(IntegratorBase):
     def integrate(self, body, dt):
-        body.pos += body.vel * dt
+        delta_com = body.vel * dt
+        body.shape.translate(delta_com)
         body.vel += body.acc * dt
         # body.acc = body.force / body.mass
 

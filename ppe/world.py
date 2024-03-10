@@ -41,7 +41,7 @@ class World:
             bodies_in_world = [
                 obj
                 for obj in self.bodies
-                if self.world_bbox[0].x < obj.pos.x < self.world_bbox[1].x
-                and self.world_bbox[0].y < obj.pos.y < self.world_bbox[1].y
+                if self.world_bbox[0].x < obj.shape.com.x < self.world_bbox[1].x
+                and self.world_bbox[0].y < obj.shape.com.y < self.world_bbox[1].y
             ]
             self.bodies = bodies_in_world

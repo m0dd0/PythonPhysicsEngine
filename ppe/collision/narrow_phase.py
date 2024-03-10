@@ -9,13 +9,13 @@ class NarrowPhaseBase(abc.ABC):
     @abc.abstractmethod
     def __call__(
         self, collision_candidates: List[Tuple[Body, Body]]
-    ) -> List["Collision"]:
+    ) -> List[Collision]:
         raise NotImplementedError
 
 
 class SAT(NarrowPhaseBase):
     def ball_ball_collision(self, ball1: Ball, ball2: Ball) -> List[Collision]:
-        delta = ball2.shape.com - ball1.shape.com
+        delta = ball2.com - ball1.com
         dist = delta.magnitude()
 
         if dist < ball1.radius + ball2.radius:
@@ -26,7 +26,7 @@ class SAT(NarrowPhaseBase):
                     bodyB=ball2,
                     normal=normal,
                     depth=ball1.radius + ball2.radius - dist,
-                    contact_point_1=ball1.pos + normal * ball1.radius,
+                    contact_point_1=ball1.com + normal * ball1.radius,
                 )
             ]
 
@@ -34,17 +34,49 @@ class SAT(NarrowPhaseBase):
 
     def ball_polygon_collision(
         self, ball: Ball, polygon: ConvexPolygon
-    ) -> List["Collision"]:
+    ) -> List[Collision]:
+        # https://www.youtube.com/watch?v=vWs33LVrs74
+        # ball_axis = None
+        # ball_axis_magnitude = float("inf")
+
+        # for vertex in polygon.vertices:
+        #     axis = vertex - ball.com  # from ball to vertex
+        #     if axis.magnitude() < ball_axis_magnitude:
+        #         ball_axis = axis.normalize()
+        #         ball_axis_magnitude = axis.magnitude()
+
+        # axes = chain(polygon.get_normals(), [ball_axis])
+
+        # collision = _sat(ball, polygon, axes)
+        # # !!! contact points are not calculated in _sat
+        # # the collision returned by _sat has a normal which always points from obj1 to obj2
+        # # obj1 is the ball and obj2 is the polygon
+        # if collision is not None:
+        #     collision.contact_point_1 = ball.pos + collision.normal * (
+        #         ball.radius - collision.depth
+        #     )
+
+        # return collision
         raise NotImplementedError
 
     def polygon_polygon_collision(
         self, polygon1: ConvexPolygon, polygon2: ConvexPolygon
-    ) -> List["Collision"]:
-        raise NotImplementedError
+    ) -> List[Collision]:
+        collision_normal = None
+        min_penetration = float("inf")
+
+        for axis in polygon1.normals:
+            min1, max1 = polygon1.projected_extends(axis)
+            min2, max2 = polygon2.projected_extends(axis)
+
+            if max1 < min2 or max2 < min1:
+                return []
 
     def __call__(
         self, collision_candidates: List[Tuple[Body, Body]]
     ) -> List[Collision]:
+        # https://research.ncl.ac.uk/game/mastersdegree/gametechnologies/previousinformation/physics4collisiondetection/2017%20Tutorial%204%20-%20Collision%20Detection.pdf
+
         collisions = []
 
         for body1, body2 in collision_candidates:
@@ -135,35 +167,3 @@ class GJK(NarrowPhaseBase):
 #     axes = chain(polygon1.get_normals(), polygon2.get_normals())
 #     return _sat(polygon1, polygon2, axes)
 #     # !!! contact points are not calculated in _sat
-
-
-# def ball_ball_collision(ball1: "Ball", ball2: "Ball") -> Collision:
-#     delta = ball2.pos - ball1.pos
-#     dist = delta.magnitude()
-#     if dist < ball1.radius + ball2.radius:
-#         normal = delta.normalize()
-#         return Collision(
-#             ball1,
-#             ball2,
-#             normal,
-#             ball1.radius + ball2.radius - dist,
-#             ball1.pos + normal * ball1.radius,
-#             None,
-#         )
-
-#     return None
-
-
-# def get_collisions(
-#     objects: List["GameObject"], ingore_fixed_object_collisions: bool = False
-# ) -> List[Collision]:
-#     collisions = []
-#     for i, obj1 in enumerate(objects):
-#         for obj2 in objects[i + 1 :]:
-#             if ingore_fixed_object_collisions and obj1.fixed and obj2.fixed:
-#                 continue
-#             coll = obj1.collides_with(obj2)
-#             if coll is not None:
-#                 collisions.append(coll)
-
-#     return collisions

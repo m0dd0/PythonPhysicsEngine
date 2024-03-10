@@ -49,6 +49,7 @@ class PyGameVisualizer(Visualizer):
     ):
         super().__init__(scale, viewport_offset)
         self.screen = screen
+        self.backgound_color = backgound_color
 
     def world_2_pixel_coord(self, pos: Vector) -> Vector:
         pos = pos - self.viewport_offset  # coordinates in meters relative to viewport
@@ -68,7 +69,7 @@ class PyGameVisualizer(Visualizer):
         pygame.draw.circle(
             self.screen,
             visual_attributes["color"],
-            self.world_2_pixel_coord(ball.pos).to_tuple(),
+            self.world_2_pixel_coord(ball.com).to_tuple(),
             ball.radius * self.scale,
         )
 

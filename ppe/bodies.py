@@ -134,19 +134,21 @@ class ConvexPolygon(Shape):
 
         super().__init__(vertices)
 
+        self._normals = None
+
     @classmethod
     def create_rectangle(
         cls,
-        pos: Vector,
+        com: Vector,
         width: float,
         height: float,
         angle: float = 0,
     ) -> "ConvexPolygon":
         vertices = [
-            Vector(-width / 2, -height / 2) + pos,
-            Vector(-width / 2, height / 2) + pos,
-            Vector(width / 2, height / 2) + pos,
-            Vector(width / 2, -height / 2) + pos,
+            Vector(-width / 2, -height / 2) + com,
+            Vector(-width / 2, height / 2) + com,
+            Vector(width / 2, height / 2) + com,
+            Vector(width / 2, -height / 2) + com,
         ]
         polygon = cls(vertices)
         polygon.rotate(angle)
@@ -156,7 +158,7 @@ class ConvexPolygon(Shape):
     @classmethod
     def create_random(
         cls,
-        pos_bounds: Tuple[Vector, Vector],
+        com_bounds: Tuple[Vector, Vector],
         extend_bounds: Tuple[float, float],
         n_vertices_bounds: Tuple[int, int],
     ) -> "ConvexPolygon":
@@ -178,8 +180,8 @@ class ConvexPolygon(Shape):
         ]
 
         pos = Vector(
-            random.uniform(pos_bounds[0].x, pos_bounds[1].x),
-            random.uniform(pos_bounds[0].y, pos_bounds[1].y),
+            random.uniform(com_bounds[0].x, com_bounds[1].x),
+            random.uniform(com_bounds[0].y, com_bounds[1].y),
         )
         vertices = [v + pos for v in vertices]
 
@@ -190,6 +192,12 @@ class ConvexPolygon(Shape):
         polygon.rotate(angle)
 
         return polygon
+
+    @property
+    def normals(self):
+        if self._normals is None:
+            self._normals = self._compute_normals()
+        return self._normals
 
     def _compute_bbox(self) -> Tuple[Vector]:
         xs = [v.x for v in self._vertices]
@@ -220,6 +228,19 @@ class ConvexPolygon(Shape):
         area = area / 2
 
         return area
+
+    def _compute_normals(self):
+        normals = []
+        for i in range(len(self._vertices)):
+            j = (i + 1) % len(self._vertices)
+            edge = self._vertices[j] - self._vertices[i]
+            normal = edge.rotate(math.pi * 0.5).normalize()
+            normals.append(normal)
+        return normals
+
+    def rotate(self, angle: float):
+        self._normals = None
+        super().rotate(angle)
 
 
 class Body:

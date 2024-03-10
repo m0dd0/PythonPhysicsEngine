@@ -62,21 +62,25 @@ if __name__ == "__main__":
                 x, y = pygame.mouse.get_pos()
                 if event.button == 1:  # left click
                     world.bodies.append(
-                        ConvexPolygon.create_rectangle(
-                            pos=visualizer.pixel_2_world_coord(Vector(x, y)),
-                            height=random.uniform(0.1, 0.5),
-                            width=random.uniform(0.1, 0.5),
-                            style_attributes={"color": random.choice(OBJECT_COLORS)},
+                        Body(
+                            shape=ConvexPolygon.create_rectangle(
+                                com=visualizer.pixel_2_world_coord(Vector(x, y)),
+                                height=random.uniform(0.1, 0.5),
+                                width=random.uniform(0.1, 0.5),
+                            ),
+                            visual_attributes={"color": random.choice(OBJECT_COLORS)},
                             acc=GRAVIY,
                             bounciness=BOUNCINESS,
                         )
                     )
                 elif event.button == 3:  # right click
                     world.bodies.append(
-                        Ball(
-                            pos=visualizer.pixel_2_world_coord(Vector(x, y)),
-                            radius=random.uniform(0.1, 0.3),
-                            style_attributes={"color": random.choice(OBJECT_COLORS)},
+                        Body(
+                            shape=Ball(
+                                pos=visualizer.pixel_2_world_coord(Vector(x, y)),
+                                radius=random.uniform(0.1, 0.3),
+                            ),
+                            visual_attributes={"color": random.choice(OBJECT_COLORS)},
                             acc=GRAVIY,
                             bounciness=BOUNCINESS,
                         )
