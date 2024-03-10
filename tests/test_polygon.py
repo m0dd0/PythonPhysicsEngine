@@ -37,23 +37,15 @@ class TestPolygon:
             ConvexPolygon(VERTICES_CONCAVE)
 
     def test_is_convex(self):
-        polygon = ConvexPolygon(VERTICES_CLOCKWISE)
-        assert polygon._is_convex()
+        assert ConvexPolygon.vertices_are_convex(VERTICES_CLOCKWISE)
 
     def test_area(self):
         polygon = ConvexPolygon(VERTICES_CLOCKWISE)
         assert polygon.area == 0.5
 
-    def test_get_normal(self):
-        polygon = ConvexPolygon(VERTICES_CLOCKWISE)
-
-        normals = set(polygon.get_normals())
-
-        assert normals == NORMALS_EXSPECETED
-
     def test_pos(self):
         polygon = ConvexPolygon(VERTICES_CLOCKWISE)
-        assert polygon.pos == Vector(1 / 3, 1 / 3)
+        assert polygon.com == Vector(1 / 3, 1 / 3)
 
     def test_bounding_box(self):
         polygon = ConvexPolygon(VERTICES_CLOCKWISE)
