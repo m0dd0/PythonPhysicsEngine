@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from ppe.collision.base import CollisionDetector
+from ppe.collision.collision_detector import CollisionDetector
 from ppe.solvers.impulse_based import ImpulseBasedSolver
 from ppe.solvers.base import SolverBase
 from ppe.bodies import Body

@@ -1,21 +1,10 @@
 from typing import List
-import dataclasses
 
 from ppe.bodies import Body
-from ppe.vector import Vector
 
 from ppe.collision.broad_phase import BroadPhaseBase, AABB
 from ppe.collision.narrow_phase import NarrowPhaseBase, SAT
-
-
-@dataclasses.dataclass
-class Collision:
-    bodyA: Body
-    bodyB: Body
-    normal: Vector  # normal points outwards from obj1 and is normalized
-    depth: float
-    contact_point_1: Vector
-    contact_point_2: Vector
+from ppe.collision.collision_data import Collision
 
 
 class CollisionDetector:

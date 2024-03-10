@@ -1,7 +1,7 @@
 from ppe.solvers.base import SolverBase
 from typing import List
 
-from ppe.collision.base import Collision
+from ppe.collision.collision_detector import Collision
 from ppe.joints import Joint
 
 

@@ -1,7 +1,8 @@
 from typing import List, Tuple
 import abc
 
-from ppe.bodies import Body
+from ppe.bodies import Body, Ball, ConvexPolygon
+from ppe.collision.collision_data import Collision
 
 
 class NarrowPhaseBase(abc.ABC):
@@ -13,9 +14,69 @@ class NarrowPhaseBase(abc.ABC):
 
 
 class SAT(NarrowPhaseBase):
+    def ball_ball_collision(self, ball1: Ball, ball2: Ball) -> List[Collision]:
+        delta = ball2.shape.com - ball1.shape.com
+        dist = delta.magnitude()
+
+        if dist < ball1.radius + ball2.radius:
+            normal = delta.normalize()
+            return [
+                Collision(
+                    bodyA=ball1,
+                    bodyB=ball2,
+                    normal=normal,
+                    depth=ball1.radius + ball2.radius - dist,
+                    contact_point_1=ball1.pos + normal * ball1.radius,
+                )
+            ]
+
+        return []
+
+    def ball_polygon_collision(
+        self, ball: Ball, polygon: ConvexPolygon
+    ) -> List["Collision"]:
+        raise NotImplementedError
+
+    def polygon_polygon_collision(
+        self, polygon1: ConvexPolygon, polygon2: ConvexPolygon
+    ) -> List["Collision"]:
+        raise NotImplementedError
+
     def __call__(
         self, collision_candidates: List[Tuple[Body, Body]]
-    ) -> List["Collision"]:
+    ) -> List[Collision]:
+        collisions = []
+
+        for body1, body2 in collision_candidates:
+            if isinstance(body1.shape, Ball) and isinstance(body2.shape, Ball):
+                coll = self.ball_ball_collision(body1, body2)
+            elif isinstance(body1.shape, Ball) and isinstance(
+                body2.shape, ConvexPolygon
+            ):
+                coll = self.ball_polygon_collision(body1, body2)
+            elif isinstance(body1.shape, ConvexPolygon) and isinstance(
+                body2.shape, Ball
+            ):
+                coll = self.ball_polygon_collision(body2, body1)
+            elif isinstance(body1.shape, ConvexPolygon) and isinstance(
+                body2.shape, ConvexPolygon
+            ):
+                coll = self.polygon_polygon_collision(body1, body2)
+            else:
+                raise ValueError(
+                    f"Unsupported collision between {type(body1)} and {type(body2)}"
+                )
+
+            if coll is not None:
+                collisions.extend(coll)
+
+        return collisions
+
+
+class GJK(NarrowPhaseBase):
+    def __call__(
+        self, collision_candidates: List[Tuple[Body, Body]]
+    ) -> List[Collision]:
         # TODO
         raise NotImplementedError
 
