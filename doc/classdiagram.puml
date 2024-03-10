@@ -1,15 +1,69 @@
 @startuml
-class Body {
-    shape: Shape
+class collision.base.Collision {
+    normal: Vector
+    penetration: float
+    contact_point: Vector
+}
+
+interface collision.broad_phase.BroadPhaseBase {
+    get_potential_collisions(bodies: Body[]): Collision[]
+}
+
+interface collision.narrow_phase.NarrowPhaseBase {
+    get_collisions(bodies: Body[]): Collision[]
+}
+
+class collision.base.CollisionDetector {
+    get_collisions(bodies: Body[]): Collision[]
+}
+
+class collision.broad_phase.AABB {
+    get_collisions(bodies: Body[]): Collision[]
+}
+
+class collision.narrow_phase.SAT {
+    get_collisions(bodies: Body[]): Collision[]
+}
+
+collision.base.CollisionDetector o-- collision.broad_phase.BroadPhaseBase: broad_phase
+collision.base.CollisionDetector o-- collision.narrow_phase.NarrowPhaseBase: narrow_phase
+collision.broad_phase.BroadPhaseBase <|-- collision.broad_phase.AABB
+collision.narrow_phase.NarrowPhaseBase <|-- collision.narrow_phase.SAT
+collision.base.Collision o-- bodies.Body: bodyA
+collision.base.Collision o-- bodies.Body: bodyB
+
+
+interface solvers.SolverBase {
+    solve(collisions: Collision[], joints: Joint[], forces, dt: float)
+}
+
+class solvers.ImpulseBasedSolver {
+    solve(collisions: Collision[], joints: Joint[], forces, dt: float)
+}
+
+class solvers.PositionBasedSolver {
+    solve(collisions: Collision[], joints: Joint[], forces, dt: float)
+}
+
+solvers.SolverBase <|-- solvers.ImpulseBasedSolver
+solvers.SolverBase <|-- solvers.PositionBasedSolver
+
+
+class bodies.Body {
     mass: float
     velocity: Vector
-    angular_velocity: float
     acceleration: Vector
+    angular_velocity: float
     angular_acceleration: float
+    kinematic: bool
+    bounciness: float
+    friction_coefficient: float
     visual_attributes: Dict
+    name: str
 }
-interface Shape {
-    vertices: List[Vector]
+
+abstract class bodies.Shape {
+    vertices: Vector[]
     area: float
     com: Vector
     inertia: float
@@ -17,21 +71,87 @@ interface Shape {
     translate(offset: Vector)
     _compute_bbox()
     _compute_inertia()
-
+    _compute_com()
 }
-class Circle
-class ConvexPolygon
-Shape <|-- Circle 
-Shape <|-- ConvexPolygon
-Body o-- Shape: shape
-
-class Collision {
-    body1: Body
-    body2: Body
-    normal: Vector
-    penetration: float
-    contact_point: Vector
+class bodies.Circle {
+    _compute_bbox()
+    _compute_inertia()
+    _compute_com()
+}
+class bodies.ConvexPolygon{
+    _compute_bbox()
+    _compute_inertia()
+    _compute_com()
 }
 
-class Constraint
+bodies.Shape <|-- bodies.Circle 
+bodies.Shape <|-- bodies.ConvexPolygon
+bodies.Body o-- bodies.Shape: shape
+
+
+interface integrators.IntegratorBase {
+    integrate(bodies: Body[], dt: float)
+}
+
+class integrators.EulerIntegrator {
+    integrate(bodies: Body[], dt: float)
+}
+
+integrators.IntegratorBase <|-- integrators.EulerIntegrator
+
+
+class joints.Joint {
+}
+
+class vector.Vector {
+    x: float
+    y: float
+    __add__(other: Vector): Vector
+    __sub__(other: Vector): Vector
+    __mul__(other: float): Vector
+    __rmul__(other: float): Vector
+    __truediv__(other: float): Vector
+    __eq__(other: Vector): bool
+    __repr__(): str
+    __hash__(): int
+    magnitude(): float
+    normalize(): Vector
+    dot(other: Vector): float
+    cross(other: Vector): float
+    rotate(angle: float): Vector
+    to_tuple(): Tuple
+}
+
+abstract class visualization.VisualizerBase {
+    scale: float
+    viewport_offset: Vector
+    draw_ball(ball: Ball, visual_attributes: Dict)
+    draw_polygon(polygon: ConvexPolygon, visual_attributes: Dict)
+    draw(bodies: Body[])
+    pixel_2_worlf_coord(pixel: Vector): Vector
+    world_2_pixel_coord(world: Vector): Vector
+}
+
+class visualization.PygameVisualizer {
+    screen: pygame.Surface
+    scale: float
+    viewport_offset: Vector
+    draw_ball(ball: Ball, visual_attributes: Dict)
+    draw_polygon(polygon: ConvexPolygon, visual_attributes: Dict)
+    pixel_2_worlf_coord(pixel: Vector): Vector
+    world_2_pixel_coord(world: Vector): Vector
+}
+
+visualization.VisualizerBase <|-- visualization.PygameVisualizer
+
+
+class world.World {
+    world_bbox: Tuple
+    update(dt: float)
+}
+world.World o-- "many" bodies.Body: bodies
+world.World o-- "many" joints.Joint: joints
+world.World o-- solvers.SolverBase: solver
+world.World o-- integrators.IntegratorBase: integrator
+world.World o-- collision.base.CollisionDetector: collision_detector
 @enduml
