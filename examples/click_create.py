@@ -55,7 +55,7 @@ if __name__ == "__main__":
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = pygame.mouse.get_pos()
                 if event.button == 1:  # left click
-                    world.objects.append(
+                    world.bodies.append(
                         ConvexPolygon.create_rectangle(
                             pos=visualizer.pixel_2_world_coord(Vector(x, y)),
                             height=random.uniform(*RECTANGLE_SIDE_BOUNDS),
@@ -66,7 +66,7 @@ if __name__ == "__main__":
                         )
                     )
                 elif event.button == 3:  # right click
-                    world.objects.append(
+                    world.bodies.append(
                         Ball(
                             pos=visualizer.pixel_2_world_coord(Vector(x, y)),
                             radius=random.uniform(*RADIUS_BOUNDS),

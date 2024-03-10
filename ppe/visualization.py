@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import Any, Dict
 
 import pygame
 
 from ppe.world import World
-from ppe.bodies import Ball, ConvexPolygon
+from ppe.bodies import Body, Ball, ConvexPolygon
 from ppe.vector import Vector
 
 
@@ -13,21 +14,21 @@ class Visualizer(ABC):
         self.viewport_offset = viewport_offset or Vector(0, 0)
 
     @abstractmethod
-    def draw_ball(self, ball: Ball):
+    def draw_ball(self, ball: Ball, visual_attributes: Dict[Any, Any]):
         raise NotImplementedError()
 
     @abstractmethod
-    def draw_polygon(self, polygon: ConvexPolygon):
+    def draw_polygon(self, polygon: ConvexPolygon, visual_attributes: Dict[Any, Any]):
         raise NotImplementedError()
 
     def draw(self, world: World):
-        for obj in world.objects:
-            if isinstance(obj, Ball):
-                self.draw_ball(obj)
-            elif isinstance(obj, ConvexPolygon):
-                self.draw_polygon(obj)
+        for body in world.bodies:
+            if isinstance(body.shape, Ball):
+                self.draw_ball(body.shape, body.visual_attributes)
+            elif isinstance(body.shape, ConvexPolygon):
+                self.draw_polygon(body.shape, body.visual_attributes)
             else:
-                raise ValueError(f"Unknown object type {type(obj)}")
+                raise ValueError(f"Unknown object type {type(body)}")
 
     @abstractmethod
     def pixel_2_world_coord(self, pos: Vector) -> Vector:
@@ -62,17 +63,17 @@ class PyGameVisualizer(Visualizer):
 
         return pos
 
-    def draw_ball(self, ball: Ball):
+    def draw_ball(self, ball: Ball, visual_attributes: Dict[Any, Any]):
         pygame.draw.circle(
             self.screen,
-            ball.visual_attributes["color"],
+            visual_attributes["color"],
             self.world_2_pixel_coord(ball.pos).to_tuple(),
             ball.radius * self.scale,
         )
 
-    def draw_polygon(self, polygon: ConvexPolygon):
+    def draw_polygon(self, polygon: ConvexPolygon, visual_attributes: Dict[Any, Any]):
         pygame.draw.polygon(
             self.screen,
-            polygon.visual_attributes["color"],
+            visual_attributes["color"],
             [self.world_2_pixel_coord(v).to_tuple() for v in polygon.vertices],
         )
