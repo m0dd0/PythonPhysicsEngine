@@ -2,11 +2,11 @@ from typing import List, Tuple
 
 from ppe.collision.base import CollisionDetector
 from ppe.solvers.impulse_based import ImpulseBasedSolver
-from ppe.solvers.base import Solver
+from ppe.solvers.base import SolverBase
 from ppe.bodies import Body
 from ppe.vector import Vector
 from ppe.joints import Joint
-from ppe.integrators import Integrator
+from ppe.integrators import IntegratorBase
 from ppe.integrators import Euler
 
 
@@ -17,8 +17,8 @@ class World:
         joints=List[Joint],
         world_bbox: Tuple[Vector, Vector] = None,
         collision_detector: CollisionDetector = None,
-        solver: Solver = None,
-        integrator: Integrator = None,
+        solver: SolverBase = None,
+        integrator: IntegratorBase = None,
     ):
         self.world_bbox = world_bbox
         self.bodies = bodies
@@ -31,6 +31,7 @@ class World:
     def update(self, dt: float):
         collisions = self.collision_detector.get_collisions(self.bodies)
 
+        # TODO figure out way to treat external forces
         self.solver.solve(collisions, self.joints, [], dt)
 
         if self.world_bbox:

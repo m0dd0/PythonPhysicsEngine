@@ -4,8 +4,8 @@ import dataclasses
 from ppe.bodies import Body
 from ppe.vector import Vector
 
-from ppe.collision.broad_phase import BroadPhase, AABB
-from ppe.collision.narrow_phase import NarrowPhase, SAT
+from ppe.collision.broad_phase import BroadPhaseBase, AABB
+from ppe.collision.narrow_phase import NarrowPhaseBase, SAT
 
 
 @dataclasses.dataclass
@@ -20,7 +20,7 @@ class Collision:
 
 class CollisionDetector:
     def __init__(
-        self, broad_phase: BroadPhase = None, narrow_phase: NarrowPhase = None
+        self, broad_phase: BroadPhaseBase = None, narrow_phase: NarrowPhaseBase = None
     ):
         self.broad_phase = broad_phase or AABB()
         self.narrow_phase = narrow_phase or SAT()

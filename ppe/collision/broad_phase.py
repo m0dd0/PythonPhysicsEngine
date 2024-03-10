@@ -4,13 +4,13 @@ import abc
 from ppe.bodies import Body
 
 
-class BroadPhase(abc.ABC):
+class BroadPhaseBase(abc.ABC):
     @abc.abstractmethod
-    def __call__(self, objects: List[Body]) -> List[Tuple[Body, Body]]:
+    def __call__(self, bodies: List[Body]) -> List[Tuple[Body, Body]]:
         raise NotImplementedError
 
 
-class AABB(BroadPhase):
+class AABB(BroadPhaseBase):
     def __call__(self, bodies: List[Body]) -> List[Tuple[Body, Body]]:
         # TODO
         raise NotImplementedError

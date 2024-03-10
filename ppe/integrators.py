@@ -1,13 +1,13 @@
 import abc
 
 
-class Integrator(abc.ABC):
+class IntegratorBase(abc.ABC):
     @abc.abstractmethod
     def integrate(self, body, dt):
         raise NotImplementedError
 
 
-class Euler(Integrator):
+class Euler(IntegratorBase):
     def integrate(self, body, dt):
         body.pos += body.vel * dt
         body.vel += body.acc * dt

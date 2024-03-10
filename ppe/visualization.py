@@ -4,7 +4,7 @@ from typing import Any, Dict
 import pygame
 
 from ppe.world import World
-from ppe.bodies import Body, Ball, ConvexPolygon
+from ppe.bodies import Ball, ConvexPolygon
 from ppe.vector import Vector
 
 
