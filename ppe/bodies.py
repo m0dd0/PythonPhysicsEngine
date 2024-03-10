@@ -130,7 +130,7 @@ class ConvexPolygon(Shape):
             raise ValueError("Polygon is not convex")
 
         if not ConvexPolygon.vertices_are_anticlockwise(vertices):
-            vertices = list(reversed(self._vertices))
+            vertices = list(reversed(vertices))
 
         super().__init__(vertices)
 
@@ -210,7 +210,7 @@ class ConvexPolygon(Shape):
             area += factor
         return Vector(cx, cy) / (3 * area)
 
-    def _update_area(self) -> float:
+    def _compute_area(self) -> float:
         # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
         n = len(self._vertices)
         area = 0

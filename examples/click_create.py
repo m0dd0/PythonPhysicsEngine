@@ -7,15 +7,12 @@ import pygame
 
 from ppe.world import World
 from ppe.vector import Vector
-from ppe.bodies import Ball, ConvexPolygon
+from ppe.bodies import Ball, ConvexPolygon, Body
 from ppe.visualization import PyGameVisualizer
 
 GRAVIY = Vector(0, -9.81)
 BOUNCINESS = 0.8
-
-SCREEN_DIMENSIONS_WORLD = (9, 5)
 OBJECT_COLORS = ["#ffbe0b", "#fb5607", "#ff006e", "#8338ec", "#3a86ff"]
-
 FPS = 60
 STEPS_PER_FRAME = 10
 
@@ -25,19 +22,21 @@ logging.basicConfig(level=logging.WARNING)
 def setup(
     scale, screen_dimensions_world, background_color
 ) -> Tuple[World, PyGameVisualizer]:
-    floor = ConvexPolygon(
-        vertices=[Vector(2, 1), Vector(2, 1.2), Vector(7, 1.2), Vector(7, 1)],
+    floor = Body(
+        shape=ConvexPolygon(
+            vertices=[Vector(2, 1), Vector(2, 1.2), Vector(7, 1.2), Vector(7, 1)]
+        ),
         vel=Vector(0, 0),
         acc=Vector(0, 0),
         mass=float("inf"),
         angular_vel=0,
-        fixed=True,
-        style_attributes={"color": (0, 0, 0)},
+        kinematic=True,
+        visual_attributes={"color": (0, 0, 0)},
         name="floor",
         bounciness=BOUNCINESS,
     )
 
-    world = World([floor], world_bbox=(Vector(0, 0), Vector(*SCREEN_DIMENSIONS_WORLD)))
+    world = World([floor], world_bbox=(Vector(0, 0), Vector(*screen_dimensions_world)))
 
     screen = pygame.display.set_mode(
         (screen_dimensions_world[0] * scale, screen_dimensions_world[1] * scale)
