@@ -12,4 +12,5 @@ class Collision:
     bodyB: Body
     normal: Vector  # normal points outwards from obj1 and is normalized
     depth: float
-    contact_point_1: Vector
+    penetrating_point: Vector
+    # the penetrating point is the point of the object which is deepest inside the other object whose normal was used as the collision normal
