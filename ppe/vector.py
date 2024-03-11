@@ -60,6 +60,9 @@ class Vector:
     def magnitude(self) -> float:
         return math.sqrt(self._x**2 + self._y**2)
 
+    def squared_magnitude(self) -> float:
+        return self._x**2 + self._y**2
+
     def normalize(self) -> "Vector":
         return self * (1 / self.magnitude())
 
