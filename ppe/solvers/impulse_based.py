@@ -23,12 +23,12 @@ class ImpulseBasedSolver(SolverBase):
             # it might also cause numerical instability
             # TODO check for alternative approach in e.g. pixelphysics tutiral
             if not coll.bodyA.kinematic and not coll.bodyB.kinematic:
-                coll.bodyA.shape.com -= coll.normal * coll.depth * 0.5
-                coll.bodyB.shape.com += coll.normal * coll.depth * 0.5
+                coll.bodyA.shape.translate(-coll.normal * coll.depth * 0.5)
+                coll.bodyB.shape.translate(coll.normal * coll.depth * 0.5)
             elif coll.bodyA.kinematic:
-                coll.bodyB.shape.com += coll.normal * coll.depth
+                coll.bodyB.shape.translate(coll.normal * coll.depth)
             else:
-                coll.bodyA.shape.com -= coll.normal * coll.depth
+                coll.bodyA.shape.translate(-coll.normal * coll.depth)
 
             restitution = (coll.bodyA.bounciness + coll.bodyB.bounciness) * 0.5
 
