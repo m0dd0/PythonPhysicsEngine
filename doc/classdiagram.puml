@@ -3,6 +3,7 @@ class collision.base.Collision {
     normal: Vector
     penetration: float
     contact_point: Vector
+    depth: float
 }
 
 interface collision.broad_phase.BroadPhaseBase {

@@ -7,7 +7,16 @@ from ppe.vector import Vector
 
 
 class Shape(abc.ABC):
+    """A Shape class represents a geometric shape in 2D space. It includes also the position of the shape in space.
+    It is defined by a set of vertices and provides methods to compute properties like the center of mass, area, and bounding box.
+    """
+
     def __init__(self, vertices: List[Vector]):
+        """Initializes the Shape with the given list of vertices.
+
+        Args:
+            vertices (List[Vector]): A list of vertices that define the shape.
+        """
         self._vertices = vertices
 
         self._com = self._compute_com()
@@ -35,17 +44,37 @@ class Shape(abc.ABC):
 
     @abc.abstractmethod
     def _compute_com(self) -> Vector:
+        """Computes the center of mass of the shape.
+
+        Returns:
+            Vector: The center of mass of the shape.
+        """
         raise NotImplementedError
 
     @abc.abstractmethod
     def _compute_area(self) -> float:
+        """Computes the area of the shape.
+
+        Returns:
+            float: The area of the shape.
+        """
         raise NotImplementedError
 
     @abc.abstractmethod
     def _compute_bbox(self) -> Tuple[Vector, Vector]:
+        """Computes the bounding box of the shape.
+
+        Returns:
+            Tuple[Vector, Vector]: The minimum and maximum coordinates of the bounding box.
+        """
         raise NotImplementedError
 
     def rotate(self, angle: float):
+        """Rotates the shape by the given angle around its center of mass by updating the vertices.
+
+        Args:
+            angle (float): The angle in radians by which to rotate the shape.
+        """
         # updates the vertices and sets the bbox to None
         rotated_vertices = []
         for vertex in self._vertices:
@@ -56,6 +85,11 @@ class Shape(abc.ABC):
         self._vertices = rotated_vertices
 
     def translate(self, delta: Vector):
+        """Translates the shape by the given delta vector by updating the vertices.
+
+        Args:
+            delta (Vector): The delta vector by which to translate the shape.
+        """
         # updates the vertices, com and sets the bbox to None
         # there might be a tiny bit more efficient way to do this by using numpy
         self._vertices = [v + delta for v in self._vertices]
@@ -65,6 +99,12 @@ class Shape(abc.ABC):
 
 class Ball(Shape):
     def __init__(self, pos: Vector, radius: float):
+        """Initializes the Ball with the given position and radius. The intersction of a horizontal line with the ball are the vertices.
+
+        Args:
+            pos (Vector): The position of the center of the ball.
+            radius (float): The radius of the ball.
+        """
         self._radius = radius
         super().__init__([pos - Vector(radius, 0), pos + Vector(radius, 0)])
 
@@ -74,6 +114,15 @@ class Ball(Shape):
         pos_bounds: Tuple[Vector, Vector],
         radius_bounds: Tuple[float, float],
     ) -> "Ball":
+        """Creates a random Ball with a random position and radius within the given bounds.
+
+        Args:
+            pos_bounds (Tuple[Vector, Vector]): The minimum and maximum position of the center of the ball.
+            radius_bounds (Tuple[float, float]): The minimum and maximum radius of the ball.
+
+        Returns:
+            Ball: The created random Ball.
+        """
         radius = random.uniform(*radius_bounds)
         pos = Vector(
             random.uniform(pos_bounds[0].x, pos_bounds[1].x),
@@ -124,6 +173,14 @@ class ConvexPolygon(Shape):
         return total < 0
 
     def __init__(self, vertices: List[Vector]):
+        """Initializes the ConvexPolygon with the given list of vertices. The vertices must be in counter-clockwise order.
+
+        Args:
+            vertices (List[Vector]):
+
+        Raises:
+            ValueError: _description_
+        """
         assert len(vertices) >= 3
 
         if not ConvexPolygon.vertices_are_convex(vertices):

@@ -7,6 +7,12 @@ from ppe.collision.collision_data import Collision
 
 
 class NarrowPhaseBase(abc.ABC):
+    """The NarrowPhaseBase class is an abstract class for narrow phase collision detection.
+    It is used to detect collisions between pairs of bodies that are collision candidates.
+    The interface is a single method __call__ which takes a list of pairs of bodies and returns a list of collisions.
+    The list of collisions is either empty if there are no collisions or contains one or two collisions if there is a collision.
+    """
+
     @abc.abstractmethod
     def __call__(
         self, collision_candidates: List[Tuple[Body, Body]]
@@ -15,7 +21,21 @@ class NarrowPhaseBase(abc.ABC):
 
 
 class SAT(NarrowPhaseBase):
+    """The SAT class is a narrow phase collision detection algorithm that uses the Separating Axis Theorem (SAT).
+    We use different methods for different shapes to detect collisions.
+    """
+
     def ball_ball_collision(self, ball1: Body, ball2: Body) -> List[Collision]:
+        """Detects collisions between two balls by checking if the distance between their centers is less than the sum of their radii.
+
+        Args:
+            ball1 (Body): The first ball.
+            ball2 (Body): The second ball.
+
+        Returns:
+            List[Collision]: A list of collisions between the balls.
+                The list is either empty if there are no collisions or contains one collision if there is a collision.
+        """
         assert isinstance(ball1.shape, Ball) and isinstance(ball2.shape, Ball)
 
         delta = ball2.shape.com - ball1.shape.com  # from ball1 to ball2
@@ -37,6 +57,17 @@ class SAT(NarrowPhaseBase):
         return []
 
     def ball_polygon_collision(self, ball: Body, polygon: Body) -> List[Collision]:
+        """Detects collisions between a ball and a convex polygon by checking the normals
+        of the polygon and the axis from the ball to the closest vertex of the polygon.
+
+        Args:
+            ball (Body): The ball.
+            polygon (Body): The convex polygon.
+
+        Returns:
+            List[Collision]: A list of collisions between the ball and the polygon.
+                The list is either empty if there are no collisions or contains one collision if there is a collision.
+        """
         assert isinstance(ball.shape, Ball) and isinstance(polygon.shape, ConvexPolygon)
 
         # https://www.youtube.com/watch?v=vWs33LVrs74
@@ -45,12 +76,12 @@ class SAT(NarrowPhaseBase):
         collision = None
 
         # first we analyze the normals of the polygon as potential separating axes
-        for axis, normal_point_1 in zip(polygon.shape.normals, polygon.shape.vertices):
+        for axis, polygon_vertex in zip(polygon.shape.normals, polygon.shape.vertices):
             # projection length of the points associated with the normal on the normal
-            projected_normal_points = axis.dot(normal_point_1)
+            projected_polygon_vertex = axis.dot(polygon_vertex)
             projected_ball_center = axis.dot(ball.shape.com)
             penetration_depth = (
-                projected_normal_points - projected_ball_center + ball.shape.radius
+                projected_polygon_vertex - projected_ball_center + ball.shape.radius
             )
 
             # there is a gap when the closest point of the ball is in front of the normal
@@ -100,20 +131,69 @@ class SAT(NarrowPhaseBase):
     def polygon_polygon_collision(
         self, polygon1: Body, polygon2: Body
     ) -> List[Collision]:
+        """Detects collisions between two convex polygons by checking the normals of both polygons.
+
+        Args:
+            polygon1 (Body): The first convex polygon.
+            polygon2 (Body): The second convex polygon.
+
+        Returns:
+            List[Collision]: A list of collisions between the polygons.
+                The list is either empty if there are no collisions or contains one collision if there is a collision.
+                If there are two penetrating points at the same depth, two collisions are created.
+        """
         assert isinstance(polygon1.shape, ConvexPolygon) and isinstance(
             polygon2.shape, ConvexPolygon
         )
 
-        # collision_normal = None
-        # min_penetration = float("inf")
+        min_penetration_depth = math.inf
+        collisions = []
 
-        # for axis in polygon1.normals:
-        #     min1, max1 = polygon1.projected_extends(axis)
-        #     min2, max2 = polygon2.projected_extends(axis)
+        for penetrated_polygon, penetrating_polygon in [
+            (polygon1, polygon2),
+            (polygon2, polygon1),
+        ]:
+            for axis, normal_vertex in zip(
+                penetrated_polygon.shape.normals, penetrated_polygon.shape.vertices
+            ):
+                normal_vertex_projected = axis.dot(normal_vertex)
+                min_projected, max_projected = math.inf, -math.inf
+                potential_penetrating_points = []
 
-        #     if max1 < min2 or max2 < min1:
-        #         return []
-        raise NotImplementedError
+                # we project all vertices of the other polygon on the axis and look for the
+                # minimum and maximum projected values. For the minimum we also store the vertex
+                for vertex in penetrating_polygon.shape.vertices:
+                    projected_vertex = axis.dot(vertex)
+                    if min_projected > projected_vertex:
+                        min_projected = projected_vertex
+                        potential_penetrating_points = [vertex]
+                    elif min_projected == projected_vertex:
+                        potential_penetrating_points.append(vertex)
+                    if max_projected < projected_vertex:
+                        max_projected = projected_vertex
+
+                if (
+                    min_projected > normal_vertex_projected
+                    and max_projected > normal_vertex_projected
+                ):
+                    # we found a separating axis
+                    return []
+                elif min_projected < normal_vertex_projected < max_projected:
+                    penetration_depth = abs(normal_vertex_projected) - abs(
+                        min_projected
+                    )
+                    if penetration_depth <= min_penetration_depth:
+                        min_penetration_depth = penetration_depth
+                        collision = Collision(
+                            bodyA=penetrated_polygon,
+                            bodyB=penetrating_polygon,
+                            normal=axis,
+                            depth=penetration_depth,
+                            penetrating_point=potential_penetrating_points[0],
+                        )
+                        collisions.append(collision)
+
+        return collisions
 
     def __call__(
         self, collision_candidates: List[Tuple[Body, Body]]
@@ -179,34 +259,3 @@ class GJK(NarrowPhaseBase):
 #         min_depth_collision.normal *= -1
 
 #     return min_depth_collision
-
-
-# def ball_polygon_collision(ball: "Ball", polygon: "ConvexPolygon") -> Collision:
-#     ball_axis = None
-#     ball_axis_magnitude = float("inf")
-#     for vertex in polygon.vertices:
-#         axis = vertex - ball.pos  # from ball to vertex
-#         if axis.magnitude() < ball_axis_magnitude:
-#             ball_axis = axis.normalize()
-#             ball_axis_magnitude = axis.magnitude()
-
-#     axes = chain(polygon.get_normals(), [ball_axis])
-
-#     collision = _sat(ball, polygon, axes)
-#     # !!! contact points are not calculated in _sat
-#     # the collision returned by _sat has a normal which always points from obj1 to obj2
-#     # obj1 is the ball and obj2 is the polygon
-#     if collision is not None:
-#         collision.contact_point_1 = ball.pos + collision.normal * (
-#             ball.radius - collision.depth
-#         )
-
-#     return collision
-
-
-# def polygon_polygon_collision(
-#     polygon1: "ConvexPolygon", polygon2: "ConvexPolygon"
-# ) -> Collision:
-#     axes = chain(polygon1.get_normals(), polygon2.get_normals())
-#     return _sat(polygon1, polygon2, axes)
-#     # !!! contact points are not calculated in _sat

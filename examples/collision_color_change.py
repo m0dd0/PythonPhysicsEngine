@@ -1,13 +1,13 @@
-# import time
-# import logging
-# import math
+import time
+import logging
+import math
 
-# import pygame
+import pygame
 
-# from ppe.world import World
-# from ppe.vector import Vector
-# from ppe.bodies import Ball, ConvexPolygon
-# from ppe.visualization import PyGameVisualizer
+from ppe.world import World
+from ppe.vector import Vector
+from ppe.bodies import Ball, ConvexPolygon
+from ppe.visualization import PyGameVisualizer
 
 # BALL_RADIUS = 0.5
 # BALL_INITIAL_POS = Vector(1, 1)
@@ -19,16 +19,16 @@
 # ROTATING_RECTANGLE_POSITON = Vector(7, 3)
 # ROTATING_RECTANGLE_ANGULAR_VEL = 50 * (2 * math.pi / 360)  # 50 degree per second
 
-# SCREEN_DIMENSIONS_WORLD = (9, 5)
-# SCALE = 150
-# BACKGROUND_COLOR = (0, 0, 0)
-# OBJECT_COLOR = (255, 255, 255)
-# COLLISION_COLOR = (255, 0, 0)
-# COLLISION_POINT_RECT_SIZE = 0.1
+SCREEN_DIMENSIONS_WORLD = (9, 5)
+SCALE = 150
+BACKGROUND_COLOR = (0, 0, 0)
+OBJECT_COLOR = (255, 255, 255)
+COLLISION_COLOR = (255, 0, 0)
+COLLISION_POINT_RECT_SIZE = 0.1
 
-# FPS = 60
-# STEPS_PER_FRAME = 1
-# MANUAL_MOVEMENT_PER_STEP = 0.03
+FPS = 60
+STEPS_PER_FRAME = 1
+MANUAL_MOVEMENT_PER_STEP = 0.03
 
 # logging.basicConfig(level=logging.WARNING)
 
@@ -37,31 +37,31 @@
 #     pass
 
 
-# def draw_collision_point(screen, visualizer, coll):
-#     coll_rect_world = [
-#         Vector(
-#             coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
-#             coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
-#         ),
-#         Vector(
-#             coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
-#             coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
-#         ),
-#         Vector(
-#             coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
-#             coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
-#         ),
-#         Vector(
-#             coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
-#             coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
-#         ),
-#     ]
+def draw_collision_point(screen, visualizer, coll):
+    coll_rect_world = [
+        Vector(
+            coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
+            coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
+        ),
+        Vector(
+            coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
+            coll.contact_point_1.y - COLLISION_POINT_RECT_SIZE / 2,
+        ),
+        Vector(
+            coll.contact_point_1.x + COLLISION_POINT_RECT_SIZE / 2,
+            coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
+        ),
+        Vector(
+            coll.contact_point_1.x - COLLISION_POINT_RECT_SIZE / 2,
+            coll.contact_point_1.y + COLLISION_POINT_RECT_SIZE / 2,
+        ),
+    ]
 
-#     coll_rect_pixel = [visualizer.world_2_pixel_coord(pos) for pos in coll_rect_world]
+    coll_rect_pixel = [visualizer.world_2_pixel_coord(pos) for pos in coll_rect_world]
 
-#     pygame.draw.polygon(
-#         screen, COLLISION_COLOR, [v.to_tuple() for v in coll_rect_pixel]
-#     )
+    pygame.draw.polygon(
+        screen, COLLISION_COLOR, [v.to_tuple() for v in coll_rect_pixel]
+    )
 
 
 # if __name__ == "__main__":
