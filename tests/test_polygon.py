@@ -50,3 +50,7 @@ class TestPolygon:
     def test_bounding_box(self):
         polygon = ConvexPolygon(VERTICES_CLOCKWISE)
         assert polygon.bbox == (Vector(0, 0), Vector(1, 1))
+
+    def test_normals(self):
+        polygon = ConvexPolygon(VERTICES_CLOCKWISE)
+        assert set(polygon.normals) == set(NORMALS_EXSPECETED)

@@ -135,6 +135,7 @@ class ConvexPolygon(Shape):
         super().__init__(vertices)
 
         self._normals = None
+        # self._edges = None
 
     @classmethod
     def create_rectangle(
@@ -199,6 +200,12 @@ class ConvexPolygon(Shape):
             self._normals = self._compute_normals()
         return self._normals
 
+    # @property
+    # def edges(self):
+    #     if self._edges is None:
+    #         self._edges = self._compute_edges()
+    #     return self._edges
+
     def _compute_bbox(self) -> Tuple[Vector]:
         xs = [v.x for v in self._vertices]
         ys = [v.y for v in self._vertices]
@@ -238,9 +245,21 @@ class ConvexPolygon(Shape):
             normals.append(normal)
         return normals
 
+    # def _compute_edges(self):
+    #     edges = []
+    #     for i in range(len(self._vertices)):
+    #         j = (i + 1) % len(self._vertices)
+    #         edges.append((self._vertices[i], self._vertices[j]))
+    #     return edges
+
     def rotate(self, angle: float):
         self._normals = None
+        # self._edges = None
         super().rotate(angle)
+
+    # def translate(self, delta: Vector):
+    #     self._edges = None
+    #     super().translate(delta)
 
 
 class Body:
