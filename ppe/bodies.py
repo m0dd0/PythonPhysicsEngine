@@ -148,8 +148,18 @@ class Ball(Shape):
 
 
 class ConvexPolygon(Shape):
+    """A ConvexPolygon class represents a convex polygon in 2D space. It is defined by a set of vertices in counter-clockwise order."""
+
     @staticmethod
     def vertices_are_convex(vertices: List[Vector]) -> bool:
+        """Checks if the given vertices define a convex polygon.
+
+        Args:
+            vertices (List[Vector]): A list of vertices that define the polygon.
+
+        Returns:
+            bool: True if the polygon is convex, False otherwise.
+        """
         n = len(vertices)
         vertex_signs = []
         for i in range(n):
@@ -165,6 +175,14 @@ class ConvexPolygon(Shape):
 
     @staticmethod
     def vertices_are_anticlockwise(vertices: List[Vector]) -> bool:
+        """Checks if the given vertices are in counter-clockwise order.
+
+        Args:
+            vertices (List[Vector]): A list of vertices.
+
+        Returns:
+            bool: True if the vertices are in counter-clockwise order, False otherwise.
+        """
         n = len(vertices)
         total = 0
         for i in range(n):
@@ -179,7 +197,7 @@ class ConvexPolygon(Shape):
             vertices (List[Vector]):
 
         Raises:
-            ValueError: _description_
+            ValueError: If the vertices do not define a convex polygon or are not in counter-clockwise order.
         """
         assert len(vertices) >= 3
 
@@ -192,7 +210,6 @@ class ConvexPolygon(Shape):
         super().__init__(vertices)
 
         self._normals = None
-        # self._edges = None
 
     @classmethod
     def create_rectangle(
@@ -202,6 +219,17 @@ class ConvexPolygon(Shape):
         height: float,
         angle: float = 0,
     ) -> "ConvexPolygon":
+        """Creates a rectangle with the given center of mass, width, height, and rotation angle.
+
+        Args:
+            com (Vector): The center of mass of the rectangle.
+            width (float): The width of the rectangle.
+            height (float): The height of the rectangle.
+            angle (float, optional): The rotation angle of the rectangle in radians. Defaults to 0.
+
+        Returns:
+            ConvexPolygon: The created rectangle.
+        """
         vertices = [
             Vector(-width / 2, -height / 2) + com,
             Vector(-width / 2, height / 2) + com,
@@ -220,6 +248,17 @@ class ConvexPolygon(Shape):
         extend_bounds: Tuple[float, float],
         n_vertices_bounds: Tuple[int, int],
     ) -> "ConvexPolygon":
+        """Creates a random ConvexPolygon with a random center of mass, extends, and number of vertices within the given bounds.
+        The vertices are distributed on an ellipse and then randomly perturbed.
+
+        Args:
+            com_bounds (Tuple[Vector, Vector]): The minimum and maximum center of mass of the polygon.
+            extend_bounds (Tuple[float, float]): The minimum and maximum extends of the ellipse.
+            n_vertices_bounds (Tuple[int, int]): The minimum and maximum number of vertices.
+
+        Returns:
+            ConvexPolygon: The created random ConvexPolygon.
+        """
         n_vertices = random.randint(*n_vertices_bounds)
 
         # the extends of the ellipse
@@ -256,12 +295,6 @@ class ConvexPolygon(Shape):
         if self._normals is None:
             self._normals = self._compute_normals()
         return self._normals
-
-    # @property
-    # def edges(self):
-    #     if self._edges is None:
-    #         self._edges = self._compute_edges()
-    #     return self._edges
 
     def _compute_bbox(self) -> Tuple[Vector]:
         xs = [v.x for v in self._vertices]
@@ -302,24 +335,16 @@ class ConvexPolygon(Shape):
             normals.append(normal)
         return normals
 
-    # def _compute_edges(self):
-    #     edges = []
-    #     for i in range(len(self._vertices)):
-    #         j = (i + 1) % len(self._vertices)
-    #         edges.append((self._vertices[i], self._vertices[j]))
-    #     return edges
-
     def rotate(self, angle: float):
         self._normals = None
-        # self._edges = None
         super().rotate(angle)
-
-    # def translate(self, delta: Vector):
-    #     self._edges = None
-    #     super().translate(delta)
 
 
 class Body:
+    """A Body class represents a physical body in 2D space. It includes the shape of the
+    body, mass, velocity, acceleration, angular velocity, angular acceleration, and other physical properties.
+    """
+
     def __init__(
         self,
         shape: Shape,
@@ -334,6 +359,21 @@ class Body:
         visual_attributes: Dict[Any, Any] = None,
         name: str = None,
     ):
+        """Initializes the Body with the given shape, mass, velocity, acceleration, angular velocity, angular acceleration, and other physical properties.
+
+        Args:
+            shape (Shape): The shape of the body.
+            mass (float, optional): The mass of the body in kilogram. Defaults to 1.
+            vel (Vector, optional): The velocity of the body in meter per second. Defaults to Vector(0, 0).
+            acc (Vector, optional): The acceleration of the body in meter per second squared. Defaults to Vector(0, 0).
+            angular_vel (float, optional): The angular velocity of the body in radian per second. Defaults to 0.
+            angular_acc (float, optional): The angular acceleration of the body in radian per second squared. Defaults to 0.
+            kinematic (bool, optional): If True, the body is kinematic and does not move. Defaults to False.
+            bounciness (float, optional): The bounciness of the body. Defaults to 1.
+            friction_coefficient (float, optional): The friction coefficient of the body. Defaults to 0.
+            visual_attributes (Dict[Any, Any], optional): The visual attributes of the body. Defaults to None.
+            name (str, optional): The name of the body. Defaults to None.
+        """
         self.shape = shape
         self.mass = mass
         self.vel = vel

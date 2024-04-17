@@ -1,18 +1,33 @@
 import abc
+from ppe.bodies import Body
 
 
 class IntegratorBase(abc.ABC):
+    """The IntegratorBase class is an abstract class for integrators.
+    Integrators are used to integrate the state of a body over time.
+    """
+
     @abc.abstractmethod
-    def integrate(self, body, dt):
+    def integrate(self, body: Body, dt: float):
+        """Integrates the state of the given body over the time step dt.
+
+        Args:
+            body (Body): The body to integrate.
+            dt (float): The time step for the integration.
+        """
         raise NotImplementedError
 
 
 class Euler(IntegratorBase):
-    def integrate(self, body, dt):
+    """The Euler class is an integrator that uses the Euler method to integrate the state of a body over time.
+    The Euler method is a simple and fast method that is easy to implement.
+    It is a first-order method that is not very accurate, but it is often used as a baseline for comparison with more advanced integrators.
+    """
+
+    def integrate(self, body: Body, dt: float):
         delta_com = body.vel * dt
         body.shape.translate(delta_com)
         body.vel += body.acc * dt
-        # body.acc = body.force / body.mass
 
 
 # TODO implement the following integrators and check the correctness of AI suggestions

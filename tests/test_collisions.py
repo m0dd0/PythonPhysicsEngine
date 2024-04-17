@@ -5,6 +5,60 @@ from ppe.collision.narrow_phase import SAT
 from ppe.vector import Vector
 
 
+class TestAABBCollision:
+    def test_no_collision(self):
+        ball1 = Body(shape=Ball(radius=1, pos=Vector(0, 0)))
+        ball2 = Body(shape=Ball(radius=1, pos=Vector(3, 0)))
+
+        assert SAT().ball_ball_collision(ball1, ball2) == []
+
+    def test_collision_same_size(self):
+        ball1 = Body(shape=Ball(radius=1, pos=Vector(0, 0)))
+        ball2 = Body(shape=Ball(radius=1, pos=Vector(1.8, 0)))
+        # overlap of 0.2
+
+        collision = SAT().ball_ball_collision(ball1, ball2)
+        assert len(collision) == 1
+
+        collision = collision[0]
+
+        assert (
+            collision.bodyA == ball1
+            and collision.bodyB == ball2
+            and collision.normal == Vector(1, 0)
+            and collision.penetrating_point == Vector(0.8, 0)
+        ) or (
+            collision.bodyA == ball2
+            and collision.bodyB == ball1
+            and collision.normal == Vector(-1, 0)
+            and collision.penetrating_point == Vector(1, 0)
+        )
+        assert collision.depth == pytest.approx(0.2)
+        assert collision.normal.magnitude() == 1
+
+    def test_collision_different_size(self):
+        ball1 = Body(shape=Ball(radius=2, pos=Vector(0, 0)))
+        ball2 = Body(shape=Ball(radius=1, pos=Vector(2.7, 0)))
+        # overlap of 0.3
+
+        collision = SAT().ball_ball_collision(ball1, ball2)
+        assert len(collision) == 1
+
+        collision = collision[0]
+
+        assert (
+            collision.bodyA == ball1
+            and collision.bodyB == ball2
+            and collision.normal == Vector(1, 0)
+            and collision.penetrating_point == Vector(1.7, 0)
+        ) or (
+            collision.bodyA == ball2
+            and collision.bodyB == ball1
+            and collision.normal == Vector(-1, 0)
+            and collision.penetrating_point == Vector(2, 0)
+        )
+
+
 class TestSATBallBallCollision:
     def test_no_collision(self):
         ball1 = Body(shape=Ball(radius=1, pos=Vector(0, 0)))
