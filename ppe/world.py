@@ -35,7 +35,7 @@ class World:
         self.world_bbox = world_bbox
         self.bodies = bodies
         self.joints = joints
-        self.collisions = None
+        self.collisions = []
 
         self.collision_detector = collision_detector or CollisionDetector()
         self.solver = solver or ImpulseBasedSolver()
