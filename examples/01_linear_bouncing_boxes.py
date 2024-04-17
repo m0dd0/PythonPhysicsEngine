@@ -1,12 +1,10 @@
-# import time
 # import logging
-# import math
 
 # import pygame
 
 # from ppe.world import World
 # from ppe.vector import Vector
-# from ppe.bodies import Ball, ConvexPolygon
+# from ppe.bodies import Ball, ConvexPolygon, Body
 # from ppe.visualization import PyGameVisualizer
 
 # STATIONARY_BOX_POS = Vector(5, 3)
