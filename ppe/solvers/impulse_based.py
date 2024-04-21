@@ -21,7 +21,6 @@ class ImpulseBasedSolver(SolverBase):
             # we never move kinematic objects
             # this might introduce new collisions, so we need to re-run the collision detection
             # it might also cause numerical instability
-            # TODO check for alternative approach in e.g. pixelphysics tutiral
             if not coll.bodyA.kinematic and not coll.bodyB.kinematic:
                 coll.bodyA.shape.translate(-coll.normal * coll.depth * 0.5)
                 coll.bodyB.shape.translate(coll.normal * coll.depth * 0.5)

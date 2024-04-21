@@ -15,11 +15,13 @@ SCALE = 150
 DISPLAYED_AREA = Vector(9, 5)
 
 FPS = 30
-STEPS_PER_FRAME = 3
+STEPS_PER_FRAME = 1
+
+DISPLACEMENT_ON_KEY_PRESS = 0.05
 
 
 def create_bodies():
-    stationary_box_1 = Body(
+    box_1 = Body(
         shape=ConvexPolygon.create_rectangle(
             com=Vector(6, 3),
             width=1,
@@ -33,12 +35,13 @@ def create_bodies():
         name="stationary_box",
     )
 
-    stationary_box_2 = Body(
-        ConvexPolygon.create_rectangle(
-            com=Vector(4, 3),
-            width=1,
-            height=1,
-        ),
+    box_2 = Body(
+        Ball(com=Vector(4, 3), radius=0.5),
+        # ConvexPolygon.create_rectangle(
+        #     com=Vector(4, 3),
+        #     width=1,
+        #     height=1,
+        # ),
         vel=Vector(0, 0),
         acc=Vector(0, 0),
         mass=1,
@@ -52,7 +55,7 @@ def create_bodies():
             com=Vector(1, 3),
             radius=0.5,
         ),
-        vel=Vector(1, 0),
+        vel=Vector(0, 0),
         acc=Vector(0, 0),
         mass=1,
         angular_vel=0,
@@ -60,12 +63,12 @@ def create_bodies():
         name="circle",
     )
 
-    return stationary_box_1, stationary_box_2, circle
+    return box_1, box_2, circle
 
 
 if __name__ == "__main__":
-    stationary_box_1, stationary_box_2, circle = create_bodies()
-    world = World([stationary_box_1, stationary_box_2, circle])
+    box_1, box_2, circle = create_bodies()
+    world = World([box_1, box_2, circle])
 
     screen = pygame.display.set_mode(
         (int(DISPLAYED_AREA.x * SCALE), int(DISPLAYED_AREA.y * SCALE))
@@ -80,13 +83,24 @@ if __name__ == "__main__":
             if event.type == pygame.QUIT:
                 running = False
 
+        # move circle with arrow keys
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            circle.shape.translate(Vector(-DISPLACEMENT_ON_KEY_PRESS, 0))
+        if keys[pygame.K_RIGHT]:
+            circle.shape.translate(Vector(DISPLACEMENT_ON_KEY_PRESS, 0))
+        if keys[pygame.K_UP]:
+            circle.shape.translate(Vector(0, DISPLACEMENT_ON_KEY_PRESS))
+        if keys[pygame.K_DOWN]:
+            circle.shape.translate(Vector(0, -DISPLACEMENT_ON_KEY_PRESS))
+
         physic_step_start = time.perf_counter()
         for _ in range(STEPS_PER_FRAME):
             world.update(1 / (FPS * STEPS_PER_FRAME))
         physic_step_duration = time.perf_counter() - physic_step_start
 
         screen.fill((255, 255, 255))
-        visualizer.draw(world, draw_bbox=True)
+        visualizer.draw(world, draw_bbox=True, draw_contact_manifold=True)
         pygame.display.flip()
 
         if physic_step_duration > 1 / FPS:

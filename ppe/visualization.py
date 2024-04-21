@@ -101,6 +101,7 @@ class PyGameVisualizer(Visualizer):
         self._bbox_color = (0, 0, 0)
         self._bbox_thickness = 1
         self._collision_manifold_color = (255, 0, 0)
+        self._collision_point_size = 10
 
     def world_2_pixel_coord(self, pos: Vector) -> Vector:
         pos = pos - self.viewport_offset  # coordinates in meters relative to viewport
@@ -123,6 +124,14 @@ class PyGameVisualizer(Visualizer):
             self.world_2_pixel_coord(ball.com).to_tuple(),
             ball.radius * self.scale,
         )
+        if not visual_attributes.get("rotation_line", False):
+            pygame.draw.line(
+                self.screen,
+                start_pos=self.world_2_pixel_coord(ball.com).to_tuple(),
+                end_pos=self.world_2_pixel_coord(ball.vertices[1]).to_tuple(),
+                color=visual_attributes.get("rotation_line_color", (0, 0, 0)),
+                width=visual_attributes.get("rotation_line_width", 1),
+            )
 
     def _draw_polygon(self, polygon: ConvexPolygon, visual_attributes: Dict[Any, Any]):
         pygame.draw.polygon(
@@ -148,8 +157,13 @@ class PyGameVisualizer(Visualizer):
         )
 
     def _draw_contact_manifold(self, collision: Collision):
-        # TODO
-        raise NotImplementedError()
+        pygame.draw.circle(
+            self.screen,
+            self._collision_manifold_color,
+            # collision.penetrating_point
+            self.world_2_pixel_coord(collision.penetrating_point).to_tuple(),
+            self._collision_point_size,
+        )
 
     def draw(
         self, world: World, draw_bbox: bool = False, draw_contact_manifold: bool = False
