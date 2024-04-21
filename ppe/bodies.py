@@ -331,7 +331,7 @@ class ConvexPolygon(Shape):
         for i in range(len(self._vertices)):
             j = (i + 1) % len(self._vertices)
             edge = self._vertices[j] - self._vertices[i]
-            normal = edge.rotate(math.pi * 0.5).normalize()
+            normal = edge.rotate(-math.pi * 0.5).normalize()
             normals.append(normal)
         return normals
 
