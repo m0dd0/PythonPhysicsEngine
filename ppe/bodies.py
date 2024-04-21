@@ -98,7 +98,7 @@ class Shape(abc.ABC):
 
 
 class Ball(Shape):
-    def __init__(self, pos: Vector, radius: float):
+    def __init__(self, com: Vector, radius: float):
         """Initializes the Ball with the given position and radius. The intersction of a horizontal line with the ball are the vertices.
 
         Args:
@@ -106,12 +106,12 @@ class Ball(Shape):
             radius (float): The radius of the ball.
         """
         self._radius = radius
-        super().__init__([pos - Vector(radius, 0), pos + Vector(radius, 0)])
+        super().__init__([com - Vector(radius, 0), com + Vector(radius, 0)])
 
     @classmethod
     def create_random(
         cls,
-        pos_bounds: Tuple[Vector, Vector],
+        com_bounds: Tuple[Vector, Vector],
         radius_bounds: Tuple[float, float],
     ) -> "Ball":
         """Creates a random Ball with a random position and radius within the given bounds.
@@ -125,8 +125,8 @@ class Ball(Shape):
         """
         radius = random.uniform(*radius_bounds)
         pos = Vector(
-            random.uniform(pos_bounds[0].x, pos_bounds[1].x),
-            random.uniform(pos_bounds[0].y, pos_bounds[1].y),
+            random.uniform(com_bounds[0].x, com_bounds[1].x),
+            random.uniform(com_bounds[0].y, com_bounds[1].y),
         )
         return cls(pos, radius)
 

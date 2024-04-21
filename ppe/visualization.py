@@ -98,6 +98,10 @@ class PyGameVisualizer(Visualizer):
         self.screen = screen
         self.backgound_color = background_color
 
+        self._bbox_color = (0, 0, 0)
+        self._bbox_thickness = 1
+        self._collision_manifold_color = (255, 0, 0)
+
     def world_2_pixel_coord(self, pos: Vector) -> Vector:
         pos = pos - self.viewport_offset  # coordinates in meters relative to viewport
         pos = pos * self.scale  # coordinates in pixels relative to viewport
@@ -128,18 +132,20 @@ class PyGameVisualizer(Visualizer):
         )
 
     def _draw_bbox(self, body: Body):
-        # pygame.draw.rect(
-        #     self.screen,
-        #     (0, 0, 0),
-        #     (
-        #         self.world_2_pixel_coord(body.bbox.lower_bound).to_tuple(),
-        #         self.world_2_pixel_coord(body.bbox.upper_bound).to_tuple(),
-        #     ),
-        #     1,
-        # )
-        # TODO
+        bottom, left = body.shape.bbox[0].to_tuple()
+        top, right = body.shape.bbox[1].to_tuple()
 
-        raise NotImplementedError()
+        pygame.draw.polygon(
+            self.screen,
+            self._bbox_color,
+            [
+                self.world_2_pixel_coord(Vector(top, left)).to_tuple(),
+                self.world_2_pixel_coord(Vector(top, right)).to_tuple(),
+                self.world_2_pixel_coord(Vector(bottom, right)).to_tuple(),
+                self.world_2_pixel_coord(Vector(bottom, left)).to_tuple(),
+            ],
+            self._bbox_thickness,
+        )
 
     def _draw_contact_manifold(self, collision: Collision):
         # TODO
