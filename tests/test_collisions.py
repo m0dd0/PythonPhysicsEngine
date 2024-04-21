@@ -7,14 +7,14 @@ from ppe.vector import Vector
 
 class TestAABBCollision:
     def test_no_collision(self):
-        ball1 = Body(shape=Ball(radius=1, pos=Vector(0, 0)))
-        ball2 = Body(shape=Ball(radius=1, pos=Vector(3, 0)))
+        ball1 = Body(shape=Ball(radius=1, com=Vector(0, 0)))
+        ball2 = Body(shape=Ball(radius=1, com=Vector(3, 0)))
 
         assert SAT().ball_ball_collision(ball1, ball2) == []
 
     def test_collision_same_size(self):
-        ball1 = Body(shape=Ball(radius=1, pos=Vector(0, 0)))
-        ball2 = Body(shape=Ball(radius=1, pos=Vector(1.8, 0)))
+        ball1 = Body(shape=Ball(radius=1, com=Vector(0, 0)))
+        ball2 = Body(shape=Ball(radius=1, com=Vector(1.8, 0)))
         # overlap of 0.2
 
         collision = SAT().ball_ball_collision(ball1, ball2)
@@ -37,8 +37,8 @@ class TestAABBCollision:
         assert collision.normal.magnitude() == 1
 
     def test_collision_different_size(self):
-        ball1 = Body(shape=Ball(radius=2, pos=Vector(0, 0)))
-        ball2 = Body(shape=Ball(radius=1, pos=Vector(2.7, 0)))
+        ball1 = Body(shape=Ball(radius=2, com=Vector(0, 0)))
+        ball2 = Body(shape=Ball(radius=1, com=Vector(2.7, 0)))
         # overlap of 0.3
 
         collision = SAT().ball_ball_collision(ball1, ball2)
@@ -61,14 +61,14 @@ class TestAABBCollision:
 
 class TestSATBallBallCollision:
     def test_no_collision(self):
-        ball1 = Body(shape=Ball(radius=1, pos=Vector(0, 0)))
-        ball2 = Body(shape=Ball(radius=1, pos=Vector(3, 0)))
+        ball1 = Body(shape=Ball(radius=1, com=Vector(0, 0)))
+        ball2 = Body(shape=Ball(radius=1, com=Vector(3, 0)))
 
         assert SAT().ball_ball_collision(ball1, ball2) == []
 
     def test_collision_same_size(self):
-        ball1 = Body(shape=Ball(radius=1, pos=Vector(0, 0)))
-        ball2 = Body(shape=Ball(radius=1, pos=Vector(1.8, 0)))
+        ball1 = Body(shape=Ball(radius=1, com=Vector(0, 0)))
+        ball2 = Body(shape=Ball(radius=1, com=Vector(1.8, 0)))
         # overlap of 0.2
 
         collision = SAT().ball_ball_collision(ball1, ball2)
@@ -91,8 +91,8 @@ class TestSATBallBallCollision:
         assert collision.normal.magnitude() == 1
 
     def test_collision_different_size(self):
-        ball1 = Body(shape=Ball(radius=2, pos=Vector(0, 0)))
-        ball2 = Body(shape=Ball(radius=1, pos=Vector(2.7, 0)))
+        ball1 = Body(shape=Ball(radius=2, com=Vector(0, 0)))
+        ball2 = Body(shape=Ball(radius=1, com=Vector(2.7, 0)))
         # overlap of 0.3
 
         collision = SAT().ball_ball_collision(ball1, ball2)
@@ -117,7 +117,7 @@ class TestSATBallPolygonCollision:
     def test_no_collision(self):
         # triangle with long side on x axis
         polygon = Body(shape=ConvexPolygon([Vector(0, 0), Vector(1, 1), Vector(2, 0)]))
-        ball = Body(shape=Ball(radius=1, pos=Vector(1, 3)))
+        ball = Body(shape=Ball(radius=1, com=Vector(1, 3)))
 
         assert SAT().ball_polygon_collision(ball, polygon) == []
 
@@ -125,7 +125,7 @@ class TestSATBallPolygonCollision:
         # triangle with long side on x axis
         polygon = Body(shape=ConvexPolygon([Vector(0, 0), Vector(1, 1), Vector(2, 0)]))
         # overlap of 0.1 at top corner of triangle
-        ball = Body(shape=Ball(radius=1, pos=Vector(1, 1.9)))
+        ball = Body(shape=Ball(radius=1, com=Vector(1, 1.9)))
 
         collision = SAT().ball_polygon_collision(ball, polygon)
         assert len(collision) == 1

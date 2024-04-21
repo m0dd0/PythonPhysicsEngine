@@ -53,4 +53,16 @@ class TestPolygon:
 
     def test_normals(self):
         polygon = ConvexPolygon(VERTICES_CLOCKWISE)
-        assert set(polygon.normals) == set(NORMALS_EXSPECETED)
+        # even though the __equal__ method of the vector class allows for a tolerance of
+        # 1e-5 hashes of vector with floating point inaccuracies have different hashes
+        # therefore we can not directly compare the sets as the __hash__ method is used
+        # and not the __equal__ method
+        # instead we order the normals by x and y and compare them one by one
+
+        sorted_normals = sorted(polygon.normals, key=lambda x: x.x)
+        sorted_normals = sorted(sorted_normals, key=lambda x: x.y)
+        sorted_normals_expected = sorted(NORMALS_EXSPECETED, key=lambda x: x.x)
+        sorted_normals_expected = sorted(sorted_normals_expected, key=lambda x: x.y)
+
+        for normal, normal_expected in zip(sorted_normals, sorted_normals_expected):
+            assert normal == normal_expected
