@@ -16,8 +16,8 @@ class Collision:
     If a collision occurs where 2 points are penetrating at the same depth, two collisions are created.
     """
 
-    bodyA: Body
-    bodyB: Body
+    bodyA: Body  # gets penetrated
+    bodyB: Body  # penetrates bodyA
     normal: Vector  # normal points outwards from objA and is normalized
     depth: float
     penetrating_point: Vector  # penetrating point of objB in objA

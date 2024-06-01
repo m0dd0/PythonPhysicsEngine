@@ -101,6 +101,8 @@ if __name__ == "__main__":
 
         screen.fill((255, 255, 255))
         visualizer.draw(world, draw_bbox=True, draw_contact_manifold=True)
+        if len(world.collisions) > 0:
+            print(world.collisions[0].normal, world.collisions[0].penetrating_point)
         pygame.display.flip()
 
         if physic_step_duration > 1 / FPS:

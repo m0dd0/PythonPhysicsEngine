@@ -72,19 +72,48 @@ class SAT(NarrowPhaseBase):
 
         # https://www.youtube.com/watch?v=vWs33LVrs74
 
+        # we also need to add a normal between the center of the ball and the closest point on the polyong
+        # this avoids that we miss a separating axis when the ball is close to the edge of a polygon
+        ball_axis = None
+        ball_axis_polygon_vertex = None
+        ball_axis_squared_magnitude = float("inf")
+        for vertex in polygon.shape.vertices:
+            # from vertex to ball (to be consistent with the other axis)
+            axis = ball.shape.com - vertex
+            new_squared_ball_axis_magnitude = axis.squared_magnitude()
+            if new_squared_ball_axis_magnitude < ball_axis_squared_magnitude:
+                ball_axis = axis  # / math.sqrt(new_squared_ball_axis_magnitude)
+                ball_axis_squared_magnitude = new_squared_ball_axis_magnitude
+                ball_axis_polygon_vertex = vertex
+        ball_axis = ball_axis.normalize()
+
+        # combine the edge-normal-pairs for both cases
+        normal_edge_pairs = list(zip(polygon.shape.normals, polygon.shape.vertices)) + [
+            (ball_axis, ball_axis_polygon_vertex)
+        ]
+
         min_penetration_depth = float("inf")
         collision = None
 
-        # first we analyze the normals of the polygon as potential separating axes
-        for axis, polygon_vertex in zip(polygon.shape.normals, polygon.shape.vertices):
-            # projection length of the points associated with the normal on the normal
+        for axis, polygon_vertex in normal_edge_pairs:
             projected_polygon_vertex = axis.dot(polygon_vertex)
             projected_ball_center = axis.dot(ball.shape.com)
+
+            if projected_polygon_vertex > projected_ball_center:
+                # the ball center is already behind the edge which corresponds to the normal
+                # this normaly means that ball is on the other side of the polygon and the
+                # collision is associated with the opposite normal
+                continue
+
+            # projected_ball_center > projected_polygon_vertex
+            # minimale distanz zwischen polygon und ball = projected_ball_center - projected_polygon_vertex - radius
+            # minimale distanz = -penetration
+            # -> penetration = radius + projected_polygon_vertex - projected_ball_center
             penetration_depth = (
-                projected_polygon_vertex - projected_ball_center + ball.shape.radius
+                ball.shape.radius + projected_polygon_vertex - projected_ball_center
             )
 
-            # there is a gap when the closest point of the ball is in front of the normal
+            # there is a gap when the penetration depthe is negative
             if penetration_depth < 0:
                 return []
 
@@ -99,32 +128,23 @@ class SAT(NarrowPhaseBase):
                 )
                 min_penetration_depth = penetration_depth
 
-        # we also need to check the axis from the ball to the closest vertex of the polygon
-        # this can be seen as equivalent to the normal of the edge of the polygon
-        # we use the sqaured magnitude to avoid the square root computation
-        ball_axis = None
-        ball_axis_squared_magnitude = float("inf")
-        for vertex in polygon.shape.vertices:
-            axis = vertex - ball.shape.com  # from ball to vertex
-            new_squared_ball_axis_magnitude = axis.squared_magnitude()
-            if new_squared_ball_axis_magnitude < ball_axis_squared_magnitude:
-                ball_axis = axis  # / math.sqrt(new_squared_ball_axis_magnitude)
-                ball_axis_squared_magnitude = new_squared_ball_axis_magnitude
+        # ball_axis = ball_axis.normalize()
+        # projected_ball_center = ball_axis.dot(ball.shape.com)
+        # projected_polygon_vertex = ball_axis.dot(polygon.shape.com)
+        # penetration_depth = (
+        #     projected_polygon_vertex - projected_ball_center + ball.shape.radius
+        # )
+        # if penetration_depth < 0:
+        #     return []
 
-        ball_axis_magnitude = math.sqrt(ball_axis_squared_magnitude)
-        # there is a collision if the ball is inside the polygon
-        penetration_depth = ball.shape.radius - ball_axis_magnitude
-        if penetration_depth < 0:
-            return []
-
-        if penetration_depth < min_penetration_depth:
-            collision = Collision(
-                bodyA=ball,
-                bodyB=polygon,
-                normal=ball_axis / ball_axis_magnitude,
-                depth=penetration_depth,
-                penetrating_point=ball.shape.com - ball_axis,
-            )
+        # if penetration_depth < min_penetration_depth:
+        #     collision = Collision(
+        #         bodyA=ball,
+        #         bodyB=polygon,
+        #         normal=ball_axis,
+        #         depth=penetration_depth,
+        #         penetrating_point=ball.shape.com - ball_axis,
+        #     )
 
         return [collision]
 

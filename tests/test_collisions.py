@@ -121,6 +121,27 @@ class TestSATBallPolygonCollision:
 
         assert SAT().ball_polygon_collision(ball, polygon) == []
 
+    def test_collision_on_edge(self):
+        box = Body(
+            shape=ConvexPolygon(
+                [Vector(0, 0), Vector(1, 0), Vector(1, 1), Vector(0, 1)]
+            )
+        )
+        circle = Body(shape=Ball(radius=0.5, com=Vector(0.5, 1.4)))
+        # -> collision on top edge with an penetratio of 0.1
+
+        collision = SAT().ball_polygon_collision(circle, box)
+
+        assert len(collision) == 1
+        collision = collision[0]
+
+        assert collision.bodyA == box
+        assert collision.bodyB == circle
+        assert collision.penetrating_point == Vector(0.5, 0.9)
+        assert collision.normal == Vector(
+            0, 1
+        )  # normal points outwards from penetrated object
+
     def test_collision_on_corner(self):
         # triangle with long side on x axis
         polygon = Body(shape=ConvexPolygon([Vector(0, 0), Vector(1, 1), Vector(2, 0)]))
