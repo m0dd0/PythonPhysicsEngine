@@ -1,8 +1,8 @@
-from ppe.solvers.base import SolverBase
+from _ppe.solvers.base import SolverBase
 from typing import List
 
-from ppe.collision.collision_detector import Collision
-from ppe.joints import Joint
+from _ppe.collision.collision_detector import Collision
+from _ppe.joints import Joint
 
 
 class ImpulseBasedSolver(SolverBase):

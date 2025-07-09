@@ -2,8 +2,8 @@ from typing import List, Tuple
 import abc
 import math
 
-from ppe.bodies import Body, Ball, ConvexPolygon
-from ppe.collision.collision_data import Collision
+from _ppe.bodies import Body, Ball, ConvexPolygon
+from _ppe.collision.collision_data import Collision
 
 
 class NarrowPhaseBase(abc.ABC):

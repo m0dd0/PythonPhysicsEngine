@@ -1,5 +1,5 @@
 import abc
-from ppe.bodies import Body
+from _ppe.bodies import Body
 
 
 class IntegratorBase(abc.ABC):

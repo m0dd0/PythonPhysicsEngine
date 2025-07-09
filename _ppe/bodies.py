@@ -3,7 +3,7 @@ from typing import Tuple, List, Dict, Any
 import random
 import math
 
-from ppe.vector import Vector
+from _ppe.vector import Vector
 
 
 class Shape(abc.ABC):

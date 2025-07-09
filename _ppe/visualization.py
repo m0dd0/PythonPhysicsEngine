@@ -3,10 +3,10 @@ from typing import Any, Dict, Tuple
 
 import pygame
 
-from ppe.world import World
-from ppe.bodies import Ball, ConvexPolygon, Body
-from ppe.vector import Vector
-from ppe.collision.collision_data import Collision
+from _ppe.world import World
+from _ppe.bodies import Ball, ConvexPolygon, Body
+from _ppe.vector import Vector
+from _ppe.collision.collision_data import Collision
 
 
 class Visualizer(ABC):

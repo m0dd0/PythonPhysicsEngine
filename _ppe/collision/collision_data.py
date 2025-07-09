@@ -2,8 +2,8 @@
 
 import dataclasses
 
-from ppe.vector import Vector
-from ppe.bodies import Body
+from _ppe.vector import Vector
+from _ppe.bodies import Body
 
 
 @dataclasses.dataclass

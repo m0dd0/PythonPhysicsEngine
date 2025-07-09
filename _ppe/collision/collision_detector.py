@@ -1,10 +1,10 @@
 from typing import List
 
-from ppe.bodies import Body
+from _ppe.bodies import Body
 
-from ppe.collision.broad_phase import BroadPhaseBase, AABB
-from ppe.collision.narrow_phase import NarrowPhaseBase, SAT
-from ppe.collision.collision_data import Collision
+from _ppe.collision.broad_phase import BroadPhaseBase, AABB
+from _ppe.collision.narrow_phase import NarrowPhaseBase, SAT
+from _ppe.collision.collision_data import Collision
 
 
 class CollisionDetector:

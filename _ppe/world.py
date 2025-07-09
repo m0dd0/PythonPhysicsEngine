@@ -1,13 +1,13 @@
 from typing import List, Tuple
 
-from ppe.collision.collision_detector import CollisionDetector
-from ppe.solvers.impulse_based import ImpulseBasedSolver
-from ppe.solvers.base import SolverBase
-from ppe.bodies import Body
-from ppe.vector import Vector
-from ppe.joints import Joint
-from ppe.integrators import IntegratorBase
-from ppe.integrators import Euler
+from _ppe.collision.collision_detector import CollisionDetector
+from _ppe.solvers.impulse_based import ImpulseBasedSolver
+from _ppe.solvers.base import SolverBase
+from _ppe.bodies import Body
+from _ppe.vector import Vector
+from _ppe.joints import Joint
+from _ppe.integrators import IntegratorBase
+from _ppe.integrators import Euler
 
 
 class World:
