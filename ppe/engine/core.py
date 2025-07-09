@@ -99,7 +99,7 @@ class Shape(ABC):
         """
         pass
 
-    # TODO check if caching of aabb and interatia improves performance
+    # TODO check if caching of aabb and interatia improves performance and by how much. try lru cache util and custom caching implemenation where we do not need to hash the inputs
 
 class CircleShape(Shape):
     def __init__(self, radius: float):

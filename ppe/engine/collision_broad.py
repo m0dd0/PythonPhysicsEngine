@@ -20,7 +20,7 @@ class AbstractBroadPhase(ABC):
             A list of tuples, where each tuple contains a pair of bodies
             that might be colliding.
         """
-        raise NotImplementedError
+        pass
 
 class BruteForceBroadPhase(AbstractBroadPhase):
     """A simple O(n^2) broad-phase that checks every body against every other."""
