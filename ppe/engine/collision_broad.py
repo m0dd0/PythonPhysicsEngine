@@ -2,10 +2,20 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 
-from core import Body, Vec2
+from ppe.engine.core import Body, Vec2
+from ppe.engine.debug import AbstractDebugDrawer
 
 class AbstractBroadPhase(ABC):
     """An abstract base class for all broad-phase collision detection strategies."""
+
+    def __init__(self, debug_drawer: AbstractDebugDrawer = None) -> None:
+        """
+        Initializes the broad-phase collision detection strategy.
+
+        Args:
+            debug_drawer: An optional debug drawer for visualizing the broad-phase.
+        """
+        self.debug_drawer = debug_drawer
 
     @abstractmethod
     def find_potential_pairs(self, bodies: List[Body]) -> List[Tuple[Body, Body]]:
@@ -25,9 +35,14 @@ class AbstractBroadPhase(ABC):
 class BruteForceBroadPhase(AbstractBroadPhase):
     """A simple O(n^2) broad-phase that checks every body against every other."""
 
-    def __init__(self) -> None:
-        """Initializes the BruteForceBroadPhase strategy."""
-        pass
+    def __init__(self, debug_drawer: AbstractDebugDrawer = None) -> None:
+        """
+        Initializes the brute-force broad-phase strategy.
+
+        Args:
+            debug_drawer: An optional debug drawer for visualizing the broad-phase.
+        """
+        super().__init__(debug_drawer)
 
     def find_potential_pairs(self, bodies: List[Body]) -> List[Tuple[Body, Body]]:
         """
@@ -54,9 +69,14 @@ class BruteForceBroadPhase(AbstractBroadPhase):
 class AABBBroadPhase(AbstractBroadPhase):
     """An efficient broad-phase using Axis-Aligned Bounding Boxes (AABB)."""
 
-    def __init__(self) -> None:
-        """Initializes the AABBBroadPhase strategy."""
-        pass
+    def __init__(self, debug_drawer: AbstractDebugDrawer = None) -> None:
+        """
+        Initializes the AABB broad-phase strategy.
+
+        Args:
+            debug_drawer: An optional debug drawer for visualizing the broad-phase.
+        """
+        super().__init__(debug_drawer)
 
     def _aabbs_overlap(self, min_a: Vec2, max_a: Vec2, min_b: Vec2, max_b: Vec2) -> bool:
         """Checks if two AABBs, defined by their min/max points, overlap."""
@@ -82,6 +102,14 @@ class AABBBroadPhase(AbstractBroadPhase):
         # although we plan to use caching in the future, this is a good first step this is saver for now
         body_aabbs = [body.get_aabb() for body in bodies]
 
+        if self.debug_drawer:
+            # draw the AABBs for debugging purposes
+            for body, (min_a, max_a) in zip(bodies, body_aabbs):
+                self.debug_drawer.draw_polygon(
+                    [min_a, Vec2(max_a.x, min_a.y), max_a, Vec2(min_a.x, max_a.y)],
+                    color="blue"
+                )
+
         potential_pairs = []
         for i, (body_a, (min_a, max_a)) in enumerate(zip(bodies, body_aabbs)):
             for body_b, (min_b, max_b) in zip(bodies[i + 1:], body_aabbs[i + 1:]):
@@ -91,6 +119,17 @@ class AABBBroadPhase(AbstractBroadPhase):
 
                 if self._aabbs_overlap(min_a, max_a, min_b, max_b):
                     potential_pairs.append((body_a, body_b))
+
+                    if self.debug_drawer:
+                        # draw the overlapping AABBs for debugging purposes
+                        self.debug_drawer.draw_polygon(
+                            [min_a, Vec2(max_a.x, min_a.y), max_a, Vec2(min_a.x, max_a.y)],
+                            color="red"
+                        )
+                        self.debug_drawer.draw_polygon(
+                            [min_b, Vec2(max_b.x, min_b.y), max_b, Vec2(min_b.x, max_b.y)],
+                            color="red"
+                        )
 
         # version without slicing might be a tiny bit faster:
         # for i in range(len(bodies)):
