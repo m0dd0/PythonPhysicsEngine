@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 
-from ppe.engine.core import Body, Vec2
+from ppe.engine.common import Body, Vec2
 from ppe.engine.debug import AbstractDebugDrawer
 
 class AbstractBroadPhase(ABC):

@@ -1,7 +1,7 @@
 import pygame
 
 from ppe.engine.debug import AbstractDebugDrawer
-from ppe.engine.core import Vec2
+from ppe.engine.common import Vec2
 
 class PyGameDebugDrawer(AbstractDebugDrawer):
     """A debug drawer that uses Pygame for rendering."""

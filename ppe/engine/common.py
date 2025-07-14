@@ -1,6 +1,6 @@
 import math
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 
 class Vec2:
@@ -48,11 +48,13 @@ class Body:
         self,
         shape: "Shape",
         position: Vec2,
-        mass: float,
+        mass: Union[float,None],
         restitution: float = 0.2,
-        static: bool = False,
         user_data: dict = None,
     ):
+        if mass is not None and mass <= 0:
+            raise ValueError("Mass must be positive or None for static bodies.")
+
         self.shape = shape
         self.position = position
         self.angle: float = 0.0
@@ -66,14 +68,12 @@ class Body:
         self.mass = mass
         self.restitution = restitution
 
-        if static or mass == 0:
+        if self.mass is None:
             self.inverse_mass: float = 0.0
             self.inverse_inertia: float = 0.0
         else:
             self.inverse_mass: float = 1.0 / mass
-            self.inverse_inertia: float = (
-                1.0 / self.shape.calculate_inertia(mass) if self.shape else 0.0
-            )
+            self.inverse_inertia: float = 1.0 / self.shape.calculate_inertia(mass)
 
         self.user_data = user_data
 
@@ -97,6 +97,13 @@ class Shape(ABC):
     in its own coordiante system. I.e. it does not know about the position of the body it is attached to.
     Thus most of its utility methods (that are dependent on the shape) require extra information from the body it is attached to.
     """
+
+    @abstractmethod
+    def get_type(self) -> str:
+        """Returns the type of the shape as a string."""
+        # we use a get_type method over isinstance checks to have less coupling between the shape and the rest of the code
+        # also it provides more flexibility for future shape types
+        pass
 
     @abstractmethod
     def calculate_inertia(self, mass: float) -> float:
@@ -124,6 +131,9 @@ class CircleShape(Shape):
     def __init__(self, radius: float):
         self.radius = radius
 
+    def get_type(self) -> str:
+        return "circle"
+
     def calculate_inertia(self, mass: float) -> float:
         return 0.5 * mass * self.radius * self.radius
 
@@ -139,6 +149,9 @@ class PolygonShape(Shape):
     def __init__(self, vertices: List[Vec2]):
         self.vertices = vertices
         # TODO check if caching rotated vertices improves performance
+
+    def get_type(self) -> str:
+        return "polygon"
 
     def calculate_inertia(self, mass: float) -> float:
         min_x = min(v.x for v in self.vertices)
@@ -178,6 +191,9 @@ class CompoundShape(Shape):
         """
         # TODO
         raise NotImplementedError("CompoundShape is not implemented yet.")
+    
+    def get_type(self) -> str:
+        return "compound"
 
     def get_aabb(self, position, angle) -> Tuple[Vec2, Vec2]:
         raise NotImplementedError("CompoundShape is not implemented yet.")
@@ -195,7 +211,11 @@ class Contact:
         self.penetration_depth = penetration_depth
 
 
-class DistanceJoint:
+class Joint(ABC):
+    pass
+
+
+class DistanceJoint(Joint):
     """A constraint that keeps two bodies at a fixed distance."""
 
     def __init__(

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from ppe.engine.core import Vec2
+from ppe.engine.common import Vec2
 
 class AbstractDebugDrawer(ABC):
     """An abstract base class for all debug drawer strategies."""
