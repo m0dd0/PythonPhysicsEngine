@@ -1,15 +1,22 @@
-# collision_handlers.py
-
 import math
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional
 
-# Import core data structures
 from ppe.engine.common import Body, CircleShape, PolygonShape, Contact, Vec2
+from ppe.engine.debug import AbstractDebugDrawer
 
 
 class AbstractCollisionHandler(ABC):
     """Defines the interface for a specific collision handler between two shapes."""
+
+    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None):
+        """
+        Initializes the collision handler.
+
+        Args:
+            debug_drawer: An optional debug drawer for visualizing collisions.
+        """
+        self.debug_drawer = debug_drawer
 
     @abstractmethod
     def generate_contact(self, body_a: Body, body_b: Body) -> Optional[Contact]:
@@ -34,7 +41,7 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
         """Checks for collision between two circles."""
         assert body_a.shape.get_type() == "circle"
         assert body_b.shape.get_type() == "circle"
-        
+
         shape_a: CircleShape = body_a.shape
         shape_b: CircleShape = body_b.shape
 
@@ -43,8 +50,20 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
 
         dist_sq = a_to_b.length_squared()
 
+        if self.debug_drawer:
+            # draw line from body_a to body_b in blue
+            self.debug_drawer.draw_line(
+                body_a.position, body_b.position, color=(0, 0, 255), arrow=True
+            )
+
         if dist_sq >= sum_radii * sum_radii:
             return None
+
+        if self.debug_drawer:
+            # draw line from body_a to body_b in red
+            self.debug_drawer.draw_line(
+                body_a.position, body_b.position, color=(255, 0, 0), arrow=True
+            )
 
         dist = math.sqrt(dist_sq)
         penetration = sum_radii - dist
@@ -82,12 +101,17 @@ class SatPolygonHandler(AbstractCollisionHandler):
 
         # Combine axes (prependicular to edges) from both polygons
         axes = []
-        for i, vert_a_i in enumerate(verts_a):
-            edge = verts_a[(i + 1) % len(verts_a)] - vert_a_i
-            axes.append(Vec2(-edge.y, edge.x).normalize())
-        for i, vert_b_i in enumerate(verts_b):
-            edge = verts_b[(i + 1) % len(verts_b)] - vert_b_i
-            axes.append(Vec2(-edge.y, edge.x).normalize())
+        for verts in (verts_a, verts_b):
+            for i, vert_i in enumerate(verts):
+                edge = verts[(i + 1) % len(verts)] - vert_i
+                axes.append(Vec2(-edge.y, edge.x).normalize())
+                if self.debug_drawer:
+                    self.debug_drawer.draw_line(
+                        vert_i,
+                        vert_i + Vec2(-edge.y, edge.x),
+                        arrow=True,
+                        color=(0, 0, 0),
+                    )
 
         for axis in axes:
             # check if the projection of the two polygons on this axis overlaps
@@ -102,8 +126,12 @@ class SatPolygonHandler(AbstractCollisionHandler):
                 min_overlap = overlap
                 collision_normal = axis
 
-        assert collision_normal is not None, "Collision normal should be set if we reach here."
-        assert 0 < min_overlap < float("inf"), "Overlap should be a positive finite value." 
+        assert (
+            collision_normal is not None
+        ), "Collision normal should be set if we reach here."
+        assert (
+            0 < min_overlap < float("inf")
+        ), "Overlap should be a positive finite value."
 
         # Ensure the normal points from body A to body B
         if (body_b.position - body_a.position).dot(collision_normal) < 0:
@@ -132,20 +160,30 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
         for i, p1 in enumerate(verts):
             # compute wdge vector on the polygon and the vector from the circle center to the polygon vertices on the edge
             p2 = verts[(i + 1) % len(verts)]
-            edge = p2 - p1 # from p1 to p2
-            line_vec = body_a.position - p1 # from p1 to circle center
+            edge = p2 - p1  # from p1 to p2
+            line_vec = body_a.position - p1  # from p1 to circle center
 
             # Project the circle center onto the edge to find the closest point
             t = line_vec.dot(edge) / edge.length_squared()
-            t = max(0, min(1, t)) # clamp t to [0, 1] (0 means closest point on the line is p1, 1 means p2)
+            t = max(
+                0, min(1, t)
+            )  # clamp t to [0, 1] (0 means closest point on the line is p1, 1 means p2)
             closest_on_edge = p1 + edge * t
+
+            if self.debug_drawer:
+                # draw line from circle center to closest point on edge in blue
+                self.debug_drawer.draw_line(
+                    body_a.position, closest_on_edge, color=(0, 0, 255)
+                )
 
             dist_sq = (body_a.position - closest_on_edge).length_squared()
             if dist_sq < min_dist_sq:
                 min_dist_sq = dist_sq
                 closest_point = closest_on_edge
 
-        assert closest_point is not None, "Closest point should be set if we reach here."
+        assert (
+            closest_point is not None
+        ), "Closest point should be set if we reach here."
 
         if min_dist_sq >= circle_shape.radius * circle_shape.radius:
             return None

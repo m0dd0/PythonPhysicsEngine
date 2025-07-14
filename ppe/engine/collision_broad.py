@@ -1,14 +1,14 @@
-
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from ppe.engine.common import Body, Vec2
 from ppe.engine.debug import AbstractDebugDrawer
 
+
 class AbstractBroadPhase(ABC):
     """An abstract base class for all broad-phase collision detection strategies."""
 
-    def __init__(self, debug_drawer: AbstractDebugDrawer = None) -> None:
+    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None) -> None:
         """
         Initializes the broad-phase collision detection strategy.
 
@@ -32,17 +32,9 @@ class AbstractBroadPhase(ABC):
         """
         pass
 
+
 class BruteForceBroadPhase(AbstractBroadPhase):
     """A simple O(n^2) broad-phase that checks every body against every other."""
-
-    def __init__(self, debug_drawer: AbstractDebugDrawer = None) -> None:
-        """
-        Initializes the brute-force broad-phase strategy.
-
-        Args:
-            debug_drawer: An optional debug drawer for visualizing the broad-phase.
-        """
-        super().__init__(debug_drawer)
 
     def find_potential_pairs(self, bodies: List[Body]) -> List[Tuple[Body, Body]]:
         """
@@ -58,27 +50,21 @@ class BruteForceBroadPhase(AbstractBroadPhase):
         """
         potential_pairs = []
         for i, body_a in enumerate(bodies):
-            for body_b in bodies[i + 1:]:
+            for body_b in bodies[i + 1 :]:
                 # Static bodies do not need to be checked against each other
                 if body_a.inverse_mass == 0 and body_b.inverse_mass == 0:
                     continue
-                
+
                 potential_pairs.append((body_a, body_b))
         return potential_pairs
+
 
 class AABBBroadPhase(AbstractBroadPhase):
     """An efficient broad-phase using Axis-Aligned Bounding Boxes (AABB)."""
 
-    def __init__(self, debug_drawer: AbstractDebugDrawer = None) -> None:
-        """
-        Initializes the AABB broad-phase strategy.
-
-        Args:
-            debug_drawer: An optional debug drawer for visualizing the broad-phase.
-        """
-        super().__init__(debug_drawer)
-
-    def _aabbs_overlap(self, min_a: Vec2, max_a: Vec2, min_b: Vec2, max_b: Vec2) -> bool:
+    def _aabbs_overlap(
+        self, min_a: Vec2, max_a: Vec2, min_b: Vec2, max_b: Vec2
+    ) -> bool:
         """Checks if two AABBs, defined by their min/max points, overlap."""
         if max_a.x < min_b.x or min_a.x > max_b.x:
             return False
@@ -107,12 +93,12 @@ class AABBBroadPhase(AbstractBroadPhase):
             for body, (min_a, max_a) in zip(bodies, body_aabbs):
                 self.debug_drawer.draw_polygon(
                     [min_a, Vec2(max_a.x, min_a.y), max_a, Vec2(min_a.x, max_a.y)],
-                    color="blue"
+                    color=(0, 0, 255),
                 )
 
         potential_pairs = []
         for i, (body_a, (min_a, max_a)) in enumerate(zip(bodies, body_aabbs)):
-            for body_b, (min_b, max_b) in zip(bodies[i + 1:], body_aabbs[i + 1:]):
+            for body_b, (min_b, max_b) in zip(bodies[i + 1 :], body_aabbs[i + 1 :]):
 
                 if body_a.inverse_mass == 0 and body_b.inverse_mass == 0:
                     continue
@@ -123,12 +109,22 @@ class AABBBroadPhase(AbstractBroadPhase):
                     if self.debug_drawer:
                         # draw the overlapping AABBs for debugging purposes
                         self.debug_drawer.draw_polygon(
-                            [min_a, Vec2(max_a.x, min_a.y), max_a, Vec2(min_a.x, max_a.y)],
-                            color="red"
+                            [
+                                min_a,
+                                Vec2(max_a.x, min_a.y),
+                                max_a,
+                                Vec2(min_a.x, max_a.y),
+                            ],
+                            color=(255, 0, 0),
                         )
                         self.debug_drawer.draw_polygon(
-                            [min_b, Vec2(max_b.x, min_b.y), max_b, Vec2(min_b.x, max_b.y)],
-                            color="red"
+                            [
+                                min_b,
+                                Vec2(max_b.x, min_b.y),
+                                max_b,
+                                Vec2(min_b.x, max_b.y),
+                            ],
+                            color=(255, 0, 0),
                         )
 
         # version without slicing might be a tiny bit faster:
