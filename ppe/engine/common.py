@@ -148,10 +148,22 @@ class CircleShape(Shape):
 class PolygonShape(Shape):
     def __init__(self, vertices: List[Vec2]):
         self.vertices = vertices
-        # TODO check if caching rotated vertices improves performance
 
     def get_type(self) -> str:
         return "polygon"
+    
+    def get_world_space_vertices(self, position: Vec2, angle: float) -> List[Vec2]:
+        """Calculates the world-space vertices of the polygon."""
+        # TODO check if caching rotated vertices improves performance
+        cos_angle = math.cos(angle)
+        sin_angle = math.sin(angle)
+        return [
+            Vec2(
+                v.x * cos_angle - v.y * sin_angle + position.x,
+                v.x * sin_angle + v.y * cos_angle + position.y,
+            )
+            for v in self.vertices
+        ]
 
     def calculate_inertia(self, mass: float) -> float:
         min_x = min(v.x for v in self.vertices)
@@ -164,39 +176,36 @@ class PolygonShape(Shape):
 
     def get_aabb(self, position: Vec2, angle: float) -> Tuple[Vec2, Vec2]:
         """Calculates the AABB of the polygon shape in world space."""
-        rotated_vertices = [
-            Vec2(
-                v.x * math.cos(angle) - v.y * math.sin(angle) + position.x,
-                v.x * math.sin(angle) + v.y * math.cos(angle) + position.y,
-            )
-            for v in self.vertices
-        ]
-
-        min_x = min(v.x for v in rotated_vertices)
-        max_x = max(v.x for v in rotated_vertices)
-        min_y = min(v.y for v in rotated_vertices)
-        max_y = max(v.y for v in rotated_vertices)
+        world_space_vertices = self.get_world_space_vertices(position, angle)
+        
+        min_x = min(v.x for v in world_space_vertices)
+        max_x = max(v.x for v in world_space_vertices)
+        min_y = min(v.y for v in world_space_vertices)
+        max_y = max(v.y for v in world_space_vertices)
 
         return Vec2(min_x, min_y), Vec2(max_x, max_y)
 
 
-class CompoundShape(Shape):
-    def __init__(self, sub_shapes: List[Tuple[Shape, Vec2, float]]):
-        """
-        Initializes a compound shape with a list of shapes.
+# class CompoundShape(Shape):
+#     def __init__(self, sub_shapes: List[Tuple[Shape, Vec2, float]]):
+#         """
+#         Initializes a compound shape with a list of shapes.
 
-        Args:
-            sub_shapes: A list of tuples, each containing a shape, its position relative to the compound shape's origin,
-                        and its rotation angle.
-        """
-        # TODO
-        raise NotImplementedError("CompoundShape is not implemented yet.")
+#         Args:
+#             sub_shapes: A list of tuples, each containing a shape, its position relative to the compound shape's origin,
+#                         and its rotation angle.
+#         """
+#         # TODO
+#         raise NotImplementedError("CompoundShape is not implemented yet.")
     
-    def get_type(self) -> str:
-        return "compound"
+#     def get_type(self) -> str:
+#         return "compound"
+    
+#     def get_type_id(self) -> int:
+#         return 3
 
-    def get_aabb(self, position, angle) -> Tuple[Vec2, Vec2]:
-        raise NotImplementedError("CompoundShape is not implemented yet.")
+#     def get_aabb(self, position, angle) -> Tuple[Vec2, Vec2]:
+#         raise NotImplementedError("CompoundShape is not implemented yet.")
 
 
 class Contact:
