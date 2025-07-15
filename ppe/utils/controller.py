@@ -10,7 +10,7 @@ import pygame
 from ppe.engine.common import Body, Vec2, PolygonShape, CircleShape
 from ppe.engine.world import World
 from ppe.engine.debug import AbstractDebugDrawer
-from ppe.view import Camera
+from ppe.utils.view import Camera
 
 
 @dataclass
@@ -156,22 +156,24 @@ class CameraController(AbstractController):
         # --- Keyboard Panning ---
         if self.pan_mode == "keys":
             if self.pan_keys["up"] in input_state.keys_held:
-                self.camera.position.y -= (self.pan_speed * dt / self.camera.zoom)
+                self.camera.position.y -= self.pan_speed * dt / self.camera.zoom
             if self.pan_keys["down"] in input_state.keys_held:
-                self.camera.position.y += (self.pan_speed * dt / self.camera.zoom)
+                self.camera.position.y += self.pan_speed * dt / self.camera.zoom
             if self.pan_keys["left"] in input_state.keys_held:
-                self.camera.position.x -= (self.pan_speed * dt / self.camera.zoom)
+                self.camera.position.x -= self.pan_speed * dt / self.camera.zoom
             if self.pan_keys["right"] in input_state.keys_held:
-                self.camera.position.x += (self.pan_speed * dt / self.camera.zoom)
+                self.camera.position.x += self.pan_speed * dt / self.camera.zoom
 
         # --- Mouse Panning ---
         elif self.pan_mode == "mouse":
-            middle_mouse_held = 2 in input_state.mouse_buttons_held
+            middle_mouse_held = 1 in input_state.mouse_buttons_held
 
             if middle_mouse_held and self._last_mouse_pos:
                 # If currently panning, calculate the delta
-                mouse_delta = input_state.mouse_position - self._last_mouse_pos
-                self.camera.position -= (mouse_delta / self.camera.zoom)
+                mouse_delta_world = self.camera.screen_to_world(
+                    input_state.mouse_position
+                ) - self.camera.screen_to_world(self._last_mouse_pos)
+                self.camera.position -= mouse_delta_world / self.camera.zoom
 
             # Update last mouse position for the next frame
             if middle_mouse_held:
@@ -204,7 +206,7 @@ class BodyDragger(AbstractController):
         mouse_world_pos = self.camera.screen_to_world(input_state.mouse_position)
 
         # Check for a new grab
-        if (1 in input_state.mouse_buttons_pressed) and self.dragged_body is None:
+        if (0 in input_state.mouse_buttons_pressed) and self.dragged_body is None:
             for body in reversed(self.world.bodies):
                 if body.inverse_mass != 0.0 and body.is_point_inside(mouse_world_pos):
                     self.dragged_body = body
@@ -285,7 +287,7 @@ class BodySpawner(AbstractController):
         if button_spawn_objects is None:
             self.button_spawn_objects = {}
         if key_spawn_objects is None:
-            self.key_spawn_objects = {1: self.spawn_box, 2: self.spawn_circle}
+            self.key_spawn_objects = {0: self.spawn_box, 2: self.spawn_circle}
 
     def spawn_circle(self) -> Body:
         """Spawns a circle body at the given position."""
@@ -406,7 +408,7 @@ class BodyMovementController(AbstractController):
     def update(self, input_state: InputState, dt: float) -> None:
         """Updates the controlled body based on held keys."""
         if self.is_body_selectable:
-            if 1 in input_state.mouse_buttons_pressed:
+            if 0 in input_state.mouse_buttons_pressed:
                 self.body = None  # Deselect by default
 
                 # select the new body if there is one under the mouse
@@ -422,7 +424,7 @@ class BodyMovementController(AbstractController):
 
         if self.body is None:
             return
-        
+
         if self.control_mode == "position":
             # Direct position manipulation
             if self.key_bindings["up"] in input_state.keys_held:

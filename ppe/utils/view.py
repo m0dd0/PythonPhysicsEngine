@@ -1,7 +1,7 @@
-import pygame
-import math
 from abc import ABC, abstractmethod
 from typing import List, Optional
+
+import pygame
 
 from ppe.engine.common import Body, PolygonShape, CircleShape, Vec2
 from ppe.engine.debug import AbstractDebugDrawer
@@ -70,26 +70,24 @@ class Camera:
         return self.pixels_per_meter * self.zoom
 
     def world_to_screen(self, world_pos: Vec2) -> Vec2:
-        """Converts world coordinates (meters) to screen (pixel) coordinates."""
-        # 1. Find position relative to camera and scale from meters to pixels
+        """Converts world coordinates (meters, Y-up) to screen (pixel, Y-down) coordinates."""
         scaled_pos = (world_pos - self.position) * self.scale
-
-        # 2. Translate to screen center
+        
         screen_center = Vec2(self.screen_width / 2, self.screen_height / 2)
-        return scaled_pos + screen_center
+
+        # Flip the Y-axis here
+        return Vec2(screen_center.x + scaled_pos.x, screen_center.y - scaled_pos.y)
 
     def screen_to_world(self, screen_pos: Vec2) -> Vec2:
-        """Converts screen coordinates (pixels) to world coordinates (meters)."""
-        # 1. Find position relative to screen center
+        """Converts screen coordinates (pixels, Y-down) to world coordinates (meters, Y-up)."""
         screen_center = Vec2(self.screen_width / 2, self.screen_height / 2)
         relative_pos = screen_pos - screen_center
-
-        # 2. Scale from pixels to meters and undo zoom
-        world_offset = relative_pos / self.scale
-
-        # 3. Add camera's world position
+        
+        # Un-flip the Y-axis here
+        unflipped_pos = Vec2(relative_pos.x, -relative_pos.y)
+        
+        world_offset = unflipped_pos / self.scale
         return self.position + world_offset
-
 
 class AbstractView(ABC):
     """An abstract base class for all View/Renderer implementations."""
@@ -130,12 +128,14 @@ class PygameDebugDrawer(AbstractDebugDrawer):
         marker_size: int = 4,
         line_width: int = 1,
         marker_line_length: int = 20,
+        world_coordinate_frame_size: Optional[float] = 1.0,
     ):
         self.surface = surface
         self.camera = camera
         self.marker_size = marker_size
         self.line_width = line_width
         self.marker_line_length = marker_line_length
+        self.world_coordinate_frame_size = world_coordinate_frame_size
 
         self._commands = []
 
@@ -158,6 +158,20 @@ class PygameDebugDrawer(AbstractDebugDrawer):
 
     def render_all(self):
         """Executes all buffered draw commands for the frame."""
+        if self.world_coordinate_frame_size is not None:
+            self.draw_line(
+                Vec2(0, 0),
+                Vec2(self.world_coordinate_frame_size, 0),
+                color=(255, 0, 0),
+                arrow=True,
+            )
+            self.draw_line(
+                Vec2(0, 0),
+                Vec2(0, self.world_coordinate_frame_size),
+                color=(0, 255, 0),
+                arrow=True,
+            )
+
         for cmd_type, data in self._commands:
             if cmd_type == "line":
                 start, end, color, arrow = data
@@ -166,7 +180,7 @@ class PygameDebugDrawer(AbstractDebugDrawer):
                 pygame.draw.line(
                     self.surface,
                     color,
-                    screen_start,
+                    screen_start.to_int_tuple(),
                     screen_end.to_int_tuple(),
                     width=self.line_width,
                 )

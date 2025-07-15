@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 
+# TODO move to pyproject.toml
 setup(
     name="ppe",
     version="0.0.1",

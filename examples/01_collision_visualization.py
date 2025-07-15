@@ -12,8 +12,8 @@ from ppe.engine.collision_narrow import DispatchNarrowPhase
 from ppe.engine.collision_handlers import SatPolygonHandler
 
 # Import application components
-from ppe.view import PygameView, Camera
-from ppe.controller import BodyMovementController, CameraController, InputState
+from ppe.utils.view import PygameView, Camera
+from ppe.utils.controller import BodyMovementController, CameraController, InputState
 
 # Constants
 SCREEN_WIDTH = 1280
@@ -52,13 +52,13 @@ def main():
 
     # 3. Initialize controllers
     controllers = [
-        CameraController(view.camera),
-        BodyMovementController(
-            is_body_selectable=True,
-            world=world,
-            camera=view.camera,
-            control_mode="position",
-        ),
+        CameraController(view.camera, pan_mode="mouse"),
+        # BodyMovementController(
+        #     is_body_selectable=True,
+        #     world=world,
+        #     camera=view.camera,
+        #     control_mode="position",
+        # ),
     ]
 
     ## Main Loop
