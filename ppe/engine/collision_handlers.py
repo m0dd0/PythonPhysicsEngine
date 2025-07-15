@@ -261,4 +261,5 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
         normal = (body_a.position - closest_point).normalize()
         penetration = circle_shape.radius - dist
 
+        # TODO add collision point
         return Contact(body_a, body_b, normal, penetration)
