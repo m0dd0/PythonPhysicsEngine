@@ -140,3 +140,13 @@ class AABBBroadPhase(AbstractBroadPhase):
         #             potential_pairs.append((body_a, body_b))
 
         return potential_pairs
+    
+class SpatialHashBroadPhase(AbstractBroadPhase):
+    """A broad-phase using spatial hashing for efficient collision detection."""
+
+    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None) -> None:
+        super().__init__(debug_drawer)
+        raise NotImplementedError("SpatialHashBroadPhase is not yet implemented.")
+    
+    def find_potential_pairs(self, bodies: List[Body]) -> List[Tuple[Body, Body]]:
+        raise NotImplementedError("SpatialHashBroadPhase is not yet implemented.")

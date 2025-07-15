@@ -129,18 +129,16 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
                 contacts.append(contact_info)
 
                 if self.debug_drawer:
-                    # Draw the contact normal going out from body_a
-                    self.debug_drawer.draw_line(
-                        body_a.position,
-                        body_a.position + contact_info.normal * contact_info.penetration_depth,
-                        color=(255, 0, 0),  # Red for contact normal
-                        arrow=True,
-                    )
-                    # visualize the penetration depth with the circle radius
-                    self.debug_drawer.draw_circle(
-                        body_a.position,
-                        contact_info.penetration_depth * 10, # scale for visibility
-                        color=(0, 255, 0),
-                    )
+                    # draw the contact points
+                    for point in contact_info.contact_points:
+                        self.debug_drawer.draw_marker(
+                            point, color=(255, 0, 0)
+                        )
+                        self.debug_drawer.draw_marker_line(
+                            point,
+                            contact_info.normal,
+                            color=(255, 0, 0),
+                            arrow=True,
+                        )
 
         return contacts

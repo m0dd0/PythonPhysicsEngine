@@ -138,9 +138,7 @@ class Shape(ABC):
         pass
 
     @abstractmethod
-    def is_point_inside(
-        self, point: Vec2, position: Vec2, angle: float
-    ) -> bool:
+    def is_point_inside(self, point: Vec2, position: Vec2, angle: float) -> bool:
         """
         Checks if a point is inside the shape in world space.
 
@@ -154,12 +152,12 @@ class Shape(ABC):
         """
         pass
 
-    # TODO check if caching of aabb and interatia improves performance and by how much. try lru cache util and custom caching implemenation where we do not need to hash the inputs
-
 
 class CircleShape(Shape):
     def __init__(self, radius: float):
         self.radius = radius
+
+        # TODO check if caching of aabb and interatia improves performance and by how much. try lru cache util and custom caching implemenation where we do not need to hash the inputs
 
     def get_type(self) -> str:
         return "circle"
@@ -173,18 +171,20 @@ class CircleShape(Shape):
             Vec2(position.x - radius, position.y - radius),
             Vec2(position.x + radius, position.y + radius),
         )
-    
+
     def is_point_inside(self, point: Vec2, position: Vec2, angle: float) -> bool:
         """Checks if a point is inside the circle in world space."""
         # No need to consider angle for circles, as they are symmetric
         distance_squared = (point.x - position.x) ** 2 + (point.y - position.y) ** 2
-        return distance_squared <= self.radius ** 2
+        return distance_squared <= self.radius**2
 
 
 class PolygonShape(Shape):
     def __init__(self, vertices: List[Vec2]):
         self.vertices = vertices
         # TODO check that the vertices are in counter-clockwise order and form a convex polygon
+
+        # TODO check if caching of aabb and interatia improves performance and by how much. try lru cache util and custom caching implemenation where we do not need to hash the inputs
 
     def get_type(self) -> str:
         return "polygon"
@@ -206,9 +206,9 @@ class PolygonShape(Shape):
         """Calculates the world-space normals of the polygon."""
         world_space_vertices = self.get_world_space_vertices(position, angle)
         normals = []
-        for i in range(
+        for i in range(  # pylint: disable=consider-using-enumerate
             len(world_space_vertices)
-        ):  # pylint: disable=consider-using-enumerate
+        ):
             v1 = world_space_vertices[i]
             v2 = world_space_vertices[(i + 1) % len(world_space_vertices)]
             edge = v2 - v1
@@ -236,8 +236,9 @@ class PolygonShape(Shape):
         max_y = max(v.y for v in world_space_vertices)
 
         return Vec2(min_x, min_y), Vec2(max_x, max_y)
-    
+
     def is_point_inside(self, point: Vec2, position: Vec2, angle: float) -> bool:
+        # use also initial aabb test
         raise NotImplementedError(
             "Point-in-polygon test is not implemented for PolygonShape."
         )
@@ -303,3 +304,5 @@ class DistanceJoint(Joint):
         self.anchor_a = anchor_a
         self.anchor_b = anchor_b
         self.distance = distance
+
+# TODO more joints

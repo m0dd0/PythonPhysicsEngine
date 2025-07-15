@@ -173,6 +173,7 @@ class SatPolygonHandler(AbstractCollisionHandler):
         assert (
             reference_edge is not None
         ), "Reference edge should be set if we reach here."
+        
 
         # find the incident edge on the other shape
         incident_shape_verts = verts_b
@@ -190,6 +191,8 @@ class SatPolygonHandler(AbstractCollisionHandler):
             incident_shape_verts[(i_incident_normal + 1) % len(incident_shape_verts)],
         )
 
+        # TODO maybe this can be skipped if the incident normal is not nearly parallel to the collision normal
+        
         ### clip the incident edge against the perpendicular planes at the end of the reference edge
         # define the clipping plands: each of the planes is defined by a normal and an offset (how far the plane is moved away from the origin along its normal)
         reference_vertex_1, reference_vertex_2 = reference_edge
@@ -205,6 +208,8 @@ class SatPolygonHandler(AbstractCollisionHandler):
         clipped_points = self._clip_incident_edge(
             clipped_points, clip_plane_2_normal, clip_plane_2_offset
         )
+
+        # TODO check if this realy works
 
         return Contact(body_a, body_b, collision_normal, min_overlap, list(clipped_points))
 
@@ -262,4 +267,5 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
         penetration = circle_shape.radius - dist
 
         # TODO add collision point
+        
         return Contact(body_a, body_b, normal, penetration)

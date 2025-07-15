@@ -76,6 +76,23 @@ class AbstractDebugDrawer(ABC):
         """
         pass
 
+    @abstractmethod
+    def draw_marker_line(
+        self,
+        start: Vec2,
+        direction: Vec2,
+        color: Tuple[int, int, int] = (255, 0, 0),
+        arrow: bool = False
+    ):
+        """
+        Draws a line marker starting from a position in a specified direction. The size is constant and predefined.
+
+        Args:
+            start: The starting position of the line marker in world space.
+            direction: The direction vector of the line marker.
+        """
+        pass
+
 
     def draw_rectangle(
         self,

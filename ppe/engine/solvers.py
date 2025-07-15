@@ -42,6 +42,7 @@ class IterativeImpulseSolver(AbstractSolver):
         self.iterations = iterations
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
+        # TODO implement
         raise NotImplementedError("IterativeImpulseSolver is not implemented yet.")
 
 
@@ -56,4 +57,5 @@ class PositionBasedSolver(AbstractSolver):
         self.iterations = iterations
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
+        # TODO implement
         raise NotImplementedError("PositionBasedSolver is not implemented yet.")

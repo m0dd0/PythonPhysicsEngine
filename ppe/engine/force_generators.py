@@ -54,3 +54,5 @@ class LocalForceField(AbstractForceGenerator):
                 angle=self.shape_angle
             ):
                 body.force_accumulator += self.strength
+
+# TODO add sprong force etc
