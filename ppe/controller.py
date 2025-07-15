@@ -124,11 +124,6 @@ class CameraController(AbstractController):
         self.pan_speed = pan_speed
         self.zoom_speed = zoom_speed
 
-        self.camera = camera
-        self.pan_mode = pan_mode
-        self.pan_speed = pan_speed
-        self.zoom_speed = zoom_speed
-
         if self.pan_mode == "keys":
             if pan_keys is None:
                 # Default to WASD if no custom keys are provided
@@ -161,13 +156,13 @@ class CameraController(AbstractController):
         # --- Keyboard Panning ---
         if self.pan_mode == "keys":
             if self.pan_keys["up"] in input_state.keys_held:
-                self.camera.position.y -= self.pan_speed * dt / self.camera.zoom
+                self.camera.position.y -= (self.pan_speed * dt / self.camera.zoom)
             if self.pan_keys["down"] in input_state.keys_held:
-                self.camera.position.y += self.pan_speed * dt / self.camera.zoom
+                self.camera.position.y += (self.pan_speed * dt / self.camera.zoom)
             if self.pan_keys["left"] in input_state.keys_held:
-                self.camera.position.x -= self.pan_speed * dt / self.camera.zoom
+                self.camera.position.x -= (self.pan_speed * dt / self.camera.zoom)
             if self.pan_keys["right"] in input_state.keys_held:
-                self.camera.position.x += self.pan_speed * dt / self.camera.zoom
+                self.camera.position.x += (self.pan_speed * dt / self.camera.zoom)
 
         # --- Mouse Panning ---
         elif self.pan_mode == "mouse":
@@ -176,7 +171,7 @@ class CameraController(AbstractController):
             if middle_mouse_held and self._last_mouse_pos:
                 # If currently panning, calculate the delta
                 mouse_delta = input_state.mouse_position - self._last_mouse_pos
-                self.camera.position -= mouse_delta / self.camera.zoom
+                self.camera.position -= (mouse_delta / self.camera.zoom)
 
             # Update last mouse position for the next frame
             if middle_mouse_held:

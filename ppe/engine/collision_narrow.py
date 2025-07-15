@@ -55,8 +55,6 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
         Args:
             handlers: A dictionary mapping an integer key to a handler object.
         """
-        super().__init__(debug_drawer)
-
         if handlers is None:
             handlers = {
                 ("circle", "circle"): CircleVsCircleHandler(),
@@ -83,6 +81,9 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
             ): handler
             for key, handler in handlers.items()
         }
+
+        # must be set after the _collision_handlers attribute is initialized
+        super().__init__(debug_drawer)
 
     @property
     def debug_drawer(self) -> Optional[AbstractDebugDrawer]:

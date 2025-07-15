@@ -8,27 +8,87 @@ from ppe.engine.debug import AbstractDebugDrawer
 
 
 class Camera:
-    """Handles view transformations like pan and zoom."""
+    def __init__(
+        self,
+        screen_width: int,  # in pixels
+        screen_height: int,  # in pixels
+        position: Optional[Vec2] = None,
+        zoom: float = 1.0,
+        pixels_per_meter: float = 100.0,
+    ):
+        """
+        Initializes the Camera.
 
-    def __init__(self, screen_width: int, screen_height: int):
-        self.position = Vec2(0, 0)
-        self.zoom = 1.0
+        Args:
+            screen_width: The width of the screen in pixels.
+            screen_height: The height of the screen in pixels.
+            zoom: The initial zoom level. 1.0 is normal zoom.
+            pixels_per_meter: The number of pixels that represent one meter.
+        """
+        # The camera's position is in world coordinates (meters)
+        self.position = Vec2(0.0, 0.0) if position is None else position
+        self.zoom = zoom
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.pixels_per_meter = pixels_per_meter
 
-    def world_to_screen(self, world_pos: Vec2) -> Vec2:
-        """Converts world coordinates to screen (pixel) coordinates."""
-        return (
-            world_pos
-            - self.position * self.zoom
-            + Vec2(self.screen_width / 2, self.screen_height / 2)
+    @classmethod
+    def with_world_width(
+        cls,
+        screen_width: int,
+        screen_height: int,
+        world_width: float,
+        position: Optional[Vec2] = None,
+        zoom: float = 1.0,
+    ) -> "Camera":
+        """
+        A factory to create a Camera by defining the desired visible width
+        in world units (meters).
+
+        Args:
+            screen_width: The width of the screen in pixels.
+            screen_height: The height of the screen in pixels.
+            world_width: The desired width of the view in meters.
+            zoom: The initial zoom level.
+
+        Returns:
+            A new Camera instance configured to the desired view.
+        """
+        # Calculate the required pixels-per-meter to fit the world width
+        pixels_per_meter = screen_width / world_width
+        return cls(
+            screen_width=screen_width,
+            screen_height=screen_height,
+            position=position,
+            zoom=zoom,
+            pixels_per_meter=pixels_per_meter,
         )
 
+    @property
+    def scale(self) -> float:
+        """The combined scale factor of pixels-per-meter and zoom."""
+        return self.pixels_per_meter * self.zoom
+
+    def world_to_screen(self, world_pos: Vec2) -> Vec2:
+        """Converts world coordinates (meters) to screen (pixel) coordinates."""
+        # 1. Find position relative to camera and scale from meters to pixels
+        scaled_pos = (world_pos - self.position) * self.scale
+
+        # 2. Translate to screen center
+        screen_center = Vec2(self.screen_width / 2, self.screen_height / 2)
+        return scaled_pos + screen_center
+
     def screen_to_world(self, screen_pos: Vec2) -> Vec2:
-        """Converts screen coordinates to world coordinates."""
-        return (screen_pos + self.position * self.zoom) - Vec2(
-            self.screen_width / 2, self.screen_height / 2
-        ) / self.zoom
+        """Converts screen coordinates (pixels) to world coordinates (meters)."""
+        # 1. Find position relative to screen center
+        screen_center = Vec2(self.screen_width / 2, self.screen_height / 2)
+        relative_pos = screen_pos - screen_center
+
+        # 2. Scale from pixels to meters and undo zoom
+        world_offset = relative_pos / self.scale
+
+        # 3. Add camera's world position
+        return self.position + world_offset
 
 
 class AbstractView(ABC):

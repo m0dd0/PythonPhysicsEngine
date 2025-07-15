@@ -2,7 +2,11 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from ppe.engine.common import Contact, Joint
-from ppe.engine.integrators import SemiImplicitEulerIntegrator, PositionVerletIntegrator
+from ppe.engine.integrators import (
+    SemiImplicitEulerIntegrator,
+    PositionVerletIntegrator,
+    NoOpIntegrator,
+)
 from ppe.engine.debug import AbstractDebugDrawer
 
 
@@ -21,6 +25,12 @@ class AbstractSolver(ABC):
 
 class NoOpSolver(AbstractSolver):
     """A solver that performs no action, for debugging or simple kinematics."""
+
+    COMPATIBLE_INTEGRATORS = [
+        NoOpIntegrator,
+        SemiImplicitEulerIntegrator,
+        PositionVerletIntegrator,
+    ]
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         """Does nothing."""
