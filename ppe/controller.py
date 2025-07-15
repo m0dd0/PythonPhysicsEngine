@@ -1,0 +1,329 @@
+import math
+from abc import ABC, abstractmethod
+from typing import Optional, Dict, Set, Literal, Union, Callable, List
+from dataclasses import dataclass, field
+import random
+from copy import deepcopy
+
+import pygame
+
+from ppe.engine.common import Body, Vec2, PolygonShape, CircleShape
+from ppe.engine.world import World
+from ppe.engine.debug import AbstractDebugDrawer
+from ppe.view import Camera
+
+
+@dataclass
+class InputState:
+    """A generic container for all user input for a single frame."""
+
+    # Continuous State
+    mouse_position: Vec2
+    mouse_buttons_held: Dict[int, bool] = field(default_factory=dict)
+    keys_held: Set[str] = field(default_factory=set)
+
+    # Single-Frame Events
+    mouse_buttons_pressed: Dict[int, bool] = field(default_factory=dict)
+    mouse_buttons_released: Dict[int, bool] = field(default_factory=dict)
+    keys_pressed: Set[str] = field(default_factory=set)
+    keys_released: Set[str] = field(default_factory=set)
+    mouse_wheel_delta: float = 0.0
+
+    @classmethod
+    def from_pygame(cls) -> "InputState":
+        """
+        A factory method that creates an InputState snapshot from the
+        current Pygame input state.
+        """
+        # 2. Create the instance with continuous state
+        instance = cls(
+            mouse_position=Vec2(*pygame.mouse.get_pos()),
+            mouse_buttons_held={
+                1: pygame.mouse.get_pressed()[0],
+                2: pygame.mouse.get_pressed()[1],
+                3: pygame.mouse.get_pressed()[2],
+            },
+            keys_held={
+                pygame.key.name(k) for k, v in enumerate(pygame.key.get_pressed()) if v
+            },
+        )
+
+        # 3. Process the event queue for single-frame events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:  # pylint: disable=no-member
+                instance.keys_pressed.add("quit")
+            elif event.type == pygame.MOUSEWHEEL:  # pylint: disable=no-member
+                instance.mouse_wheel_delta = event.y
+            elif event.type == pygame.KEYDOWN:  # pylint: disable=no-member
+                instance.keys_pressed.add(pygame.key.name(event.key))
+            elif event.type == pygame.KEYUP:  # pylint: disable=no-member
+                instance.keys_released.add(pygame.key.name(event.key))
+            elif event.type == pygame.MOUSEBUTTONDOWN:  # pylint: disable=no-member
+                instance.mouse_buttons_pressed[event.button] = True
+            elif event.type == pygame.MOUSEBUTTONUP:  # pylint: disable=no-member
+                instance.mouse_buttons_released[event.button] = True
+
+        return instance
+
+
+class AbstractController(ABC):
+    """An abstract base class for all controller strategies."""
+
+    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None):
+        """
+        Initializes the controller with an optional debug drawer.
+
+        Args:
+            debug_drawer: An optional debug drawer for visualizing controller actions.
+        """
+        self.debug_drawer = debug_drawer
+
+    @abstractmethod
+    def update(self, input_state: InputState, dt: float) -> None:
+        """
+        Performs updates based on the current input state for the frame.
+
+        Args:
+            input_state: An object containing the current input state.
+            dt: The time step for the frame.
+        """
+        raise NotImplementedError
+
+
+class CameraController(AbstractController):
+    """Handles camera pan and zoom controls with configurable panning methods."""
+
+    def __init__(
+        self,
+        camera: Camera,
+        pan_mode: Literal["keys", "mouse", None] = "keys",
+        pan_keys: Dict[Literal["up", "down", "left", "right"], int] = None,
+        pan_speed: float = 300.0,
+        zoom_speed: float = 0.1,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
+    ):
+        """
+        Initializes the CameraController.
+
+        Args:
+            camera: The Camera object to control.
+            pan_mode: The method for panning, either "keys" or "mouse".
+            pan_keys: An optional dictionary to customize keyboard panning keys.
+                      Defaults to WASD. Keys are "up", "down", "left", "right".
+            pan_speed: The speed of keyboard panning.
+            zoom_speed: The sensitivity of mouse wheel zooming.
+        """
+        super().__init__(debug_drawer)
+        if pan_mode not in ["keys", "mouse"]:
+            raise ValueError("pan_mode must be either 'keys' or 'mouse'")
+
+        self.camera = camera
+        self.pan_mode = pan_mode
+        self.pan_speed = pan_speed
+        self.zoom_speed = zoom_speed
+
+        self.camera = camera
+        self.pan_mode = pan_mode
+        self.pan_speed = pan_speed
+        self.zoom_speed = zoom_speed
+
+        if self.pan_mode == "keys":
+            if pan_keys is None:
+                # Default to WASD if no custom keys are provided
+                self.pan_keys = {
+                    "up": pygame.K_w,  # pylint:disable=no-member
+                    "down": pygame.K_s,  # pylint:disable=no-member
+                    "left": pygame.K_a,  # pylint:disable=no-member
+                    "right": pygame.K_d,  # pylint:disable=no-member
+                }
+            else:
+                if set(pan_keys.keys()) != {"up", "down", "left", "right"}:
+                    raise ValueError(
+                        "pan_keys must contain 'up', 'down', 'left', and 'right' keys"
+                    )
+                self.pan_keys = pan_keys
+        elif self.pan_mode == "mouse":
+            self._last_mouse_pos: Optional[Vec2] = None
+        elif self.pan_mode is None:
+            pass
+        else:
+            raise ValueError("Invalid pan_mode. Must be 'keys', 'mouse', or None.")
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """Handles all camera controls based on the current input state."""
+        # Zooming (always active)
+        if input_state.mouse_wheel_delta != 0:
+            zoom_change = 1 + input_state.mouse_wheel_delta * self.zoom_speed
+            self.camera.zoom = max(0.1, self.camera.zoom * zoom_change)
+
+        # --- Keyboard Panning ---
+        if self.pan_mode == "keys":
+            if self.pan_keys["up"] in input_state.keys_held:
+                self.camera.position.y -= self.pan_speed * dt / self.camera.zoom
+            if self.pan_keys["down"] in input_state.keys_held:
+                self.camera.position.y += self.pan_speed * dt / self.camera.zoom
+            if self.pan_keys["left"] in input_state.keys_held:
+                self.camera.position.x -= self.pan_speed * dt / self.camera.zoom
+            if self.pan_keys["right"] in input_state.keys_held:
+                self.camera.position.x += self.pan_speed * dt / self.camera.zoom
+
+        # --- Mouse Panning ---
+        elif self.pan_mode == "mouse":
+            middle_mouse_held = input_state.mouse_buttons_held.get(2, False)
+
+            if middle_mouse_held and self._last_mouse_pos:
+                # If currently panning, calculate the delta
+                mouse_delta = input_state.mouse_position - self._last_mouse_pos
+                self.camera.position -= mouse_delta / self.camera.zoom
+
+            # Update last mouse position for the next frame
+            if middle_mouse_held:
+                self._last_mouse_pos = input_state.mouse_position
+            else:
+                self._last_mouse_pos = None
+
+
+class BodyDragger(AbstractController):
+    """Allows clicking and dragging physics bodies with the mouse."""
+
+    def __init__(
+        self,
+        world: World,
+        camera: Camera,
+        stiffness: float = 5000.0,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
+    ):
+        super().__init__(debug_drawer)
+        self.world = world
+        self.camera = camera
+        self.stiffness = stiffness
+        self.dragged_body: Optional[Body] = None
+        self.grab_point_local: Optional[Vec2] = None
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        mouse_world_pos = self.camera.screen_to_world(input_state.mouse_position)
+
+        # Check for a new grab
+        if (
+            input_state.mouse_buttons_pressed.get(1, False)
+            and self.dragged_body is None
+        ):
+            for body in reversed(self.world.bodies):
+                if body.inverse_mass != 0.0 and body.is_point_inside(mouse_world_pos):
+                    self.dragged_body = body
+                    # offset between the mouse position and the body's center/coordinate frame
+                    body_position_offset = mouse_world_pos - body.position
+                    sin_a, cos_a = math.sin(-body.angle), math.cos(-body.angle)
+                    # offset in local coordinates
+                    self.grab_point_local = Vec2(
+                        body_position_offset.x * cos_a - body_position_offset.y * sin_a,
+                        body_position_offset.x * sin_a + body_position_offset.y * cos_a,
+                    )
+                    break
+
+        # Check for release
+        if not input_state.mouse_buttons_released.get(1, False):
+            self.dragged_body = None
+            self.grab_point_local = None
+
+        # Apply drag force if a body is being held
+        if self.dragged_body:
+            # compute the point in world coordinates where the body is grabbed
+            # note that this is not necessarily the same as the current mouse position as the body may have moved since the grab
+            sin_a, cos_a = math.sin(self.dragged_body.angle), math.cos(
+                self.dragged_body.angle
+            )
+            world_offset = Vec2(
+                self.grab_point_local.x * cos_a - self.grab_point_local.y * sin_a,
+                self.grab_point_local.x * sin_a + self.grab_point_local.y * cos_a,
+            )
+            world_grab_point = self.dragged_body.position + world_offset
+
+            # apply a force towards the mouse position
+            force_dir = mouse_world_pos - world_grab_point
+            force = force_dir * self.stiffness
+
+            self.dragged_body.force_accumulator += force
+            torque = world_offset.x * force.y - world_offset.y * force.x
+            self.dragged_body.torque_accumulator += torque
+
+            if self.debug_drawer:
+                # Draw the drag force vector
+                self.debug_drawer.draw_line(
+                    start=world_grab_point,
+                    end=mouse_world_pos,
+                    color=(0, 255, 0),
+                    arrow=True,
+                )
+                # Draw the grab point
+                self.debug_drawer.draw_marker(
+                    position=world_grab_point, color=(0, 255, 0)
+                )
+
+
+class BodySpawner(AbstractController):
+    """Spawns new bodies on key press."""
+
+    def __init__(
+        self,
+        world: World,
+        camera: Camera,
+        button_spawn_objects: Dict[str, Union[List[Body], Callable]] = None,
+        key_spawn_objects: Dict[int, Union[List[Body], Callable]] = None,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
+    ):
+        super().__init__(debug_drawer)
+
+        self.world = world
+        self.camera = camera
+
+        self.default_density = 1  # Default density for spawned bodies
+
+        if button_spawn_objects is None:
+            self.button_spawn_objects = {}
+        if key_spawn_objects is None:
+            self.key_spawn_objects = {1: self.spawn_box, 2: self.spawn_circle}
+
+    def spawn_circle(self) -> Body:
+        """Spawns a circle body at the given position."""
+        circle_shape = CircleShape.create_random_circle()
+        circle_body = Body(
+            shape=circle_shape,
+            position=Vec2(0, 0),  # Placeholder position, will be set by the controller
+            mass= circle_shape.get_area() * self.default_density,
+        )
+        return circle_body
+    
+    def spawn_box(self) -> Body:
+        """Spawns a box body at the given position."""
+        box_shape = PolygonShape.create_random_rectangle()
+        box_body = Body(
+            shape=box_shape,
+            position=Vec2(0, 0),  # Placeholder position, will be set by the controller
+            mass=box_shape.get_area() * self.default_density,
+        )
+        return box_body
+
+    def get_new_body(self, spawn_option: Union[List[Body], Callable]) -> Body:
+        """Returns a new body based on the spawn option."""
+        if not isinstance(spawn_option, list):
+            return spawn_option()
+        else:
+            # Sample a random body from the list and copy it
+            return deepcopy(random.choice(spawn_option))
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """Handles spawning bodies based on input state."""
+        # Check for button presses
+        for button, spawn_option in self.button_spawn_objects.items():
+            if input_state.mouse_buttons_pressed.get(button, False):
+                new_body = self.get_new_body(spawn_option)
+                new_body.position = self.camera.screen_to_world(input_state.mouse_position)
+                self.world.add_body(new_body)
+
+        # Check for key presses
+        for key, spawn_option in self.key_spawn_objects.items():
+            if key in input_state.keys_pressed:
+                new_body = self.get_new_body(spawn_option)
+                new_body.position = self.camera.screen_to_world(input_state.mouse_position)
+                self.world.add_body(new_body)

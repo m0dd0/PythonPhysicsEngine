@@ -53,6 +53,8 @@ class World:
         # Use the property setter to initialize the drawer
         self._debug_drawer = debug_drawer
 
+        # TODO add option to automatically remove bodies once they are outside a certain area
+
     @property
     def debug_drawer(self) -> Optional[AbstractDebugDrawer]:
         """

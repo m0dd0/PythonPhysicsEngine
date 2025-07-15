@@ -1,6 +1,7 @@
 import math
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Union
+import random
 
 
 class Vec2:
@@ -44,6 +45,14 @@ class Vec2:
         if l == 0:
             return Vec2(0, 0)
         return self / l
+    
+    def to_tuple(self) -> Tuple[float, float]:
+        """Returns the vector as a tuple."""
+        return (self.x, self.y)
+    
+    def to_int_tuple(self) -> Tuple[int, int]:
+        """Returns the vector as a tuple of integers."""
+        return (int(self.x), int(self.y))
 
     def __repr__(self) -> str:
         return f"Vec2({self.x:.2f}, {self.y:.2f})"
@@ -103,6 +112,17 @@ class Body:
         """
         return self.shape.get_aabb(self.position, self.angle)
 
+    def is_point_inside(self, point: Vec2) -> bool:
+        """
+        Checks if a point is inside the body in world space.
+
+        Args:
+            point: The point to check.
+
+        Returns:
+            True if the point is inside the body, False otherwise.
+        """
+        return self.shape.is_point_inside(point, self.position, self.angle)
 
 class Shape(ABC):
     """An abstract base class for all collision shapes.
@@ -152,12 +172,38 @@ class Shape(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_area(self) -> float:
+        """
+        Calculates the area of the shape.
+
+        Returns:
+            The area of the shape.
+        """
+        pass
 
 class CircleShape(Shape):
     def __init__(self, radius: float):
         self.radius = radius
 
         # TODO check if caching of aabb and interatia improves performance and by how much. try lru cache util and custom caching implemenation where we do not need to hash the inputs
+
+        # TODO add constructors for random circles
+
+    @classmethod
+    def create_random_circle(cls, min_radius: float = 0.05, max_radius: float = 1.0) -> "CircleShape":
+        """
+        Creates a random circle shape with a radius between min_radius and max_radius.
+
+        Args:
+            min_radius: The minimum radius of the circle.
+            max_radius: The maximum radius of the circle.
+
+        Returns:
+            A CircleShape with a random radius.
+        """
+        radius = random.uniform(min_radius, max_radius)
+        return cls(radius)
 
     def get_type(self) -> str:
         return "circle"
@@ -178,6 +224,9 @@ class CircleShape(Shape):
         distance_squared = (point.x - position.x) ** 2 + (point.y - position.y) ** 2
         return distance_squared <= self.radius**2
 
+    def get_area(self) -> float:
+        """Calculates the area of the circle."""
+        return math.pi * self.radius**2
 
 class PolygonShape(Shape):
     def __init__(self, vertices: List[Vec2]):
@@ -185,6 +234,46 @@ class PolygonShape(Shape):
         # TODO check that the vertices are in counter-clockwise order and form a convex polygon
 
         # TODO check if caching of aabb and interatia improves performance and by how much. try lru cache util and custom caching implemenation where we do not need to hash the inputs
+
+        # TODO adapt the vertices coordinats so that the geometric center is at the origin
+
+        # TODO add different constructors for regular polygons, rectangles, etc.
+
+    @classmethod
+    def create_rectangle(cls, width: float, height: float) -> "PolygonShape":
+        """
+        Creates a rectangle shape with the given width and height.
+
+        Args:
+            width: The width of the rectangle.
+            height: The height of the rectangle.
+
+        Returns:
+            A PolygonShape representing the rectangle.
+        """
+        vertices = [
+            Vec2(-width / 2, -height / 2),
+            Vec2(width / 2, -height / 2),
+            Vec2(width / 2, height / 2),
+            Vec2(-width / 2, height / 2),
+        ]
+        return cls(vertices)
+    
+    @classmethod
+    def create_random_rectangle(cls, min_size: float = 0.05, max_size: float = 1.0) -> "PolygonShape":
+        """
+        Creates a random rectangle shape with width and height between min_size and max_size.
+
+        Args:
+            min_size: The minimum size for width and height.
+            max_size: The maximum size for width and height.
+
+        Returns:
+            A PolygonShape representing the random rectangle.
+        """
+        width = random.uniform(min_size, max_size)
+        height = random.uniform(min_size, max_size)
+        return cls.create_rectangle(width, height)
 
     def get_type(self) -> str:
         return "polygon"
@@ -243,6 +332,10 @@ class PolygonShape(Shape):
             "Point-in-polygon test is not implemented for PolygonShape."
         )
 
+    def get_area(self) -> float:
+        raise NotImplementedError(
+            "Area calculation is not implemented for PolygonShape. Use a specific polygon type."
+        )
 
 # class CompoundShape(Shape):
 #     def __init__(self, sub_shapes: List[Tuple[Shape, Vec2, float]]):

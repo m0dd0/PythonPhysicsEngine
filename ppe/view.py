@@ -1,0 +1,243 @@
+import pygame
+import math
+from abc import ABC, abstractmethod
+from typing import List, Optional
+
+from ppe.engine.common import Body, PolygonShape, CircleShape, Vec2
+from ppe.engine.debug import AbstractDebugDrawer
+
+
+class Camera:
+    """Handles view transformations like pan and zoom."""
+
+    def __init__(self, screen_width: int, screen_height: int):
+        self.position = Vec2(0, 0)
+        self.zoom = 1.0
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+
+    def world_to_screen(self, world_pos: Vec2) -> Vec2:
+        """Converts world coordinates to screen (pixel) coordinates."""
+        return (
+            world_pos
+            - self.position * self.zoom
+            + Vec2(self.screen_width / 2, self.screen_height / 2)
+        )
+
+    def screen_to_world(self, screen_pos: Vec2) -> Vec2:
+        """Converts screen coordinates to world coordinates."""
+        return (screen_pos + self.position * self.zoom) - Vec2(
+            self.screen_width / 2, self.screen_height / 2
+        ) / self.zoom
+
+
+class AbstractView(ABC):
+    """An abstract base class for all View/Renderer implementations."""
+
+    @abstractmethod
+    def render_background(self) -> None:
+        """Clears the screen and draws the background."""
+        pass
+
+    @abstractmethod
+    def render_bodies(self, bodies: List[Body]) -> None:
+        """Renders the primary physics bodies."""
+        pass
+
+    @abstractmethod
+    def render_text(self, text: str, position: tuple) -> None:
+        """Renders UI text to the screen."""
+        pass
+
+    @abstractmethod
+    def create_debug_drawer(self) -> AbstractDebugDrawer:
+        """Creates a debug drawer instance compatible with this view."""
+        pass
+
+    @abstractmethod
+    def update_display(self) -> None:
+        """Updates the screen to show the final rendered frame."""
+        pass
+
+
+class PygameDebugDrawer(AbstractDebugDrawer):
+    """A concrete implementation of the debug drawer for Pygame."""
+
+    def __init__(
+        self,
+        surface: pygame.Surface,
+        camera: Camera,
+        marker_size: int = 4,
+        line_width: int = 1,
+        marker_line_length: int = 20,
+    ):
+        self.surface = surface
+        self.camera = camera
+        self.marker_size = marker_size
+        self.line_width = line_width
+        self.marker_line_length = marker_line_length
+
+        self._commands = []
+
+    def draw_line(self, start: Vec2, end: Vec2, color=(0, 0, 0), arrow=False):
+        self._commands.append(("line", (start, end, color, arrow)))
+
+    def draw_circle(self, center: Vec2, radius: float, color=(0, 0, 0), filled=False):
+        self._commands.append(("circle", (center, radius, color, filled)))
+
+    def draw_polygon(self, vertices: List[Vec2], color=(0, 0, 0), filled=False):
+        self._commands.append(("polygon", (vertices, color, filled)))
+
+    def draw_marker(self, position: Vec2, color=(255, 0, 0)):
+        self._commands.append(("marker", (position, color)))
+
+    def draw_marker_line(
+        self, start: Vec2, direction: Vec2, color=(255, 0, 0), arrow=False
+    ):
+        self._commands.append(("marker_line", (start, direction, color, arrow)))
+
+    def render_all(self):
+        """Executes all buffered draw commands for the frame."""
+        for cmd_type, data in self._commands:
+            if cmd_type == "line":
+                start, end, color, arrow = data
+                screen_start = self.camera.world_to_screen(start)
+                screen_end = self.camera.world_to_screen(end)
+                pygame.draw.line(
+                    self.surface,
+                    color,
+                    screen_start,
+                    screen_end.to_int_tuple(),
+                    width=self.line_width,
+                )
+                if arrow:
+                    direction = (screen_end - screen_start).normalize()
+                    arrow_length_screen = min(
+                        (screen_end - screen_start).length() / 10, 10
+                    )
+                    arrow_width_screen = arrow_length_screen / 2
+                    triangle_points_screem = [
+                        screen_end,
+                        screen_end
+                        - direction * arrow_length_screen
+                        + Vec2(-direction.y, direction.x) * 0.5 * arrow_width_screen,
+                        screen_end
+                        - direction * arrow_length_screen
+                        + Vec2(direction.y, -direction.x) * 0.5 * arrow_width_screen,
+                    ]
+                    pygame.draw.polygon(
+                        self.surface,
+                        color,
+                        [p.to_int_tuple() for p in triangle_points_screem],
+                        width=0,  # filled triangle
+                    )
+
+            elif cmd_type == "circle":
+                center, radius, color, filled = data
+                screen_center = self.camera.world_to_screen(center)
+                screen_radius = int(radius * self.camera.zoom)
+                if screen_radius > 0:
+                    pygame.draw.circle(
+                        self.surface,
+                        color,
+                        screen_center.to_int_tuple(),
+                        screen_radius,
+                        width=0 if filled else self.line_width,
+                    )
+
+            elif cmd_type == "polygon":
+                verts, color, filled = data
+                screen_verts = [
+                    self.camera.world_to_screen(v).to_int_tuple() for v in verts
+                ]
+                pygame.draw.polygon(
+                    self.surface,
+                    color,
+                    screen_verts,
+                    width=0 if filled else self.line_width,
+                )
+
+            elif cmd_type == "marker":
+                pos, color = data
+                screen_pos = self.camera.world_to_screen(pos)
+                pygame.draw.circle(
+                    self.surface,
+                    color,
+                    screen_pos.to_int_tuple(),
+                    self.marker_size,
+                    width=0,
+                )
+
+            elif cmd_type == "marker_line":
+                start, direction, color, arrow = data
+                screen_start = self.camera.world_to_screen(start)
+                screen_stop = screen_start + direction * self.marker_line_length
+
+                pygame.draw.line(
+                    self.surface,
+                    color,
+                    screen_start.to_int_tuple(),
+                    screen_stop.to_int_tuple(),
+                    width=self.line_width,
+                )
+
+        self._commands.clear()
+
+
+class PygameView(AbstractView):
+    """The View, responsible for all rendering using Pygame."""
+
+    def __init__(
+        self,
+        camera: Camera,
+        background_color=(240, 240, 240),
+        default_body_color=(50, 50, 200),
+    ):
+        self.camera = camera
+        self.screen = pygame.display.set_mode(
+            (camera.screen_width, camera.screen_height)
+        )
+        pygame.display.set_caption("Modular Physics Engine")
+        self.font = pygame.font.SysFont("Arial", 18)
+
+        self._debug_drawer = PygameDebugDrawer(self.screen, self.camera)
+        self.background_color = background_color
+        self.default_body_color = default_body_color
+
+    def render_background(self) -> None:
+        self.screen.fill(self.background_color)
+
+    def render_bodies(self, bodies: List[Body]) -> None:
+        for body in bodies:
+            color = body.user_data.get("color", self.default_body_color)
+            if isinstance(body.shape, PolygonShape):
+                screen_verts = [
+                    self.camera.world_to_screen(v)
+                    for v in body.shape.get_world_space_vertices(
+                        body.position, body.angle
+                    )
+                ]
+                pygame.draw.polygon(
+                    self.screen,
+                    color,
+                    [v.to_int_tuple() for v in screen_verts],
+                    width=0,
+                )
+
+            elif isinstance(body.shape, CircleShape):
+                screen_pos = self.camera.world_to_screen(body.position)
+                screen_radius = int(body.shape.radius * self.camera.zoom)
+                if screen_radius > 0:
+                    pygame.draw.circle(
+                        self.screen, color, screen_pos.to_int_tuple(), screen_radius
+                    )
+
+    def render_text(self, text: str, position: tuple) -> None:
+        text_surface = self.font.render(text, True, (0, 0, 0))
+        self.screen.blit(text_surface, position)
+
+    def create_debug_drawer(self) -> AbstractDebugDrawer:
+        return self._debug_drawer
+
+    def update_display(self) -> None:
+        pygame.display.flip()
