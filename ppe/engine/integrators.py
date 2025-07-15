@@ -28,6 +28,17 @@ class AbstractIntegrator(ABC):
             dt: The time step for the frame.
         """
         raise NotImplementedError
+    
+class NoOpIntegrator(AbstractIntegrator):
+    """An integrator that performs no action, for debugging or simple kinematics."""
+
+    def integrate_velocities(self, bodies: List[Body], dt: float) -> None:
+        """Does nothing."""
+        pass
+
+    def integrate_positions(self, bodies: List[Body], dt: float) -> None:
+        """Does nothing."""
+        pass
 
 
 class SemiImplicitEulerIntegrator(AbstractIntegrator):
