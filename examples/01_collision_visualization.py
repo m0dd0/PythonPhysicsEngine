@@ -1,6 +1,3 @@
-import math
-from typing import List
-
 import pygame
 
 from ppe.engine.common import Body, PolygonShape, Vec2
@@ -9,11 +6,10 @@ from ppe.engine.solvers import NoOpSolver
 from ppe.engine.integrators import NoOpIntegrator
 from ppe.engine.collision_broad import AABBBroadPhase
 from ppe.engine.collision_narrow import DispatchNarrowPhase
-from ppe.engine.collision_handlers import SatPolygonHandler
 
-# Import application components
+# application components
 from ppe.utils.view import PygameView, Camera
-from ppe.utils.controller import BodyMovementController, CameraController, InputState
+from ppe.utils.controller import CameraController, InputState
 
 # Constants
 SCREEN_WIDTH = 1280
@@ -29,7 +25,6 @@ def main():
         camera=Camera.with_world_width(
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
-            zoom=1.0,
             world_width=SCREEN_WIDTH_WORLD,
         )
     )
