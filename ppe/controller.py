@@ -19,12 +19,12 @@ class InputState:
 
     # Continuous State
     mouse_position: Vec2
-    mouse_buttons_held: Dict[int, bool] = field(default_factory=dict)
+    mouse_buttons_held: Set[int] = field(default_factory=set)
     keys_held: Set[str] = field(default_factory=set)
 
     # Single-Frame Events
-    mouse_buttons_pressed: Dict[int, bool] = field(default_factory=dict)
-    mouse_buttons_released: Dict[int, bool] = field(default_factory=dict)
+    mouse_buttons_pressed: Set[int] = field(default_factory=set)
+    mouse_buttons_released: Set[int] = field(default_factory=set)
     keys_pressed: Set[str] = field(default_factory=set)
     keys_released: Set[str] = field(default_factory=set)
     mouse_wheel_delta: float = 0.0
@@ -39,12 +39,14 @@ class InputState:
         instance = cls(
             mouse_position=Vec2(*pygame.mouse.get_pos()),
             mouse_buttons_held={
-                1: pygame.mouse.get_pressed()[0],
-                2: pygame.mouse.get_pressed()[1],
-                3: pygame.mouse.get_pressed()[2],
+                button
+                for button, pressed in enumerate(pygame.mouse.get_pressed())
+                if pressed
             },
             keys_held={
-                pygame.key.name(k) for k, v in enumerate(pygame.key.get_pressed()) if v
+                pygame.key.name(k)
+                for k, pressed in enumerate(pygame.key.get_pressed())
+                if pressed
             },
         )
 
@@ -59,9 +61,9 @@ class InputState:
             elif event.type == pygame.KEYUP:  # pylint: disable=no-member
                 instance.keys_released.add(pygame.key.name(event.key))
             elif event.type == pygame.MOUSEBUTTONDOWN:  # pylint: disable=no-member
-                instance.mouse_buttons_pressed[event.button] = True
+                instance.mouse_buttons_pressed.add(event.button)
             elif event.type == pygame.MOUSEBUTTONUP:  # pylint: disable=no-member
-                instance.mouse_buttons_released[event.button] = True
+                instance.mouse_buttons_released.add(event.button)
 
         return instance
 
@@ -169,7 +171,7 @@ class CameraController(AbstractController):
 
         # --- Mouse Panning ---
         elif self.pan_mode == "mouse":
-            middle_mouse_held = input_state.mouse_buttons_held.get(2, False)
+            middle_mouse_held = 2 in input_state.mouse_buttons_held
 
             if middle_mouse_held and self._last_mouse_pos:
                 # If currently panning, calculate the delta
@@ -190,6 +192,7 @@ class BodyDragger(AbstractController):
         self,
         world: World,
         camera: Camera,
+        drag_mode: Literal["position", "force"] = "force",
         stiffness: float = 5000.0,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
@@ -197,6 +200,8 @@ class BodyDragger(AbstractController):
         self.world = world
         self.camera = camera
         self.stiffness = stiffness
+        self.drag_mode = drag_mode
+
         self.dragged_body: Optional[Body] = None
         self.grab_point_local: Optional[Vec2] = None
 
@@ -204,10 +209,7 @@ class BodyDragger(AbstractController):
         mouse_world_pos = self.camera.screen_to_world(input_state.mouse_position)
 
         # Check for a new grab
-        if (
-            input_state.mouse_buttons_pressed.get(1, False)
-            and self.dragged_body is None
-        ):
+        if (1 in input_state.mouse_buttons_pressed) and self.dragged_body is None:
             for body in reversed(self.world.bodies):
                 if body.inverse_mass != 0.0 and body.is_point_inside(mouse_world_pos):
                     self.dragged_body = body
@@ -222,7 +224,7 @@ class BodyDragger(AbstractController):
                     break
 
         # Check for release
-        if not input_state.mouse_buttons_released.get(1, False):
+        if not 1 in input_state.mouse_buttons_released:
             self.dragged_body = None
             self.grab_point_local = None
 
@@ -237,28 +239,34 @@ class BodyDragger(AbstractController):
                 self.grab_point_local.x * cos_a - self.grab_point_local.y * sin_a,
                 self.grab_point_local.x * sin_a + self.grab_point_local.y * cos_a,
             )
-            world_grab_point = self.dragged_body.position + world_offset
 
-            # apply a force towards the mouse position
-            force_dir = mouse_world_pos - world_grab_point
-            force = force_dir * self.stiffness
+            if self.drag_mode == "position":
+                # Kinematic: Set the body's position directly
+                self.dragged_body.position = mouse_world_pos - world_offset
 
-            self.dragged_body.force_accumulator += force
-            torque = world_offset.x * force.y - world_offset.y * force.x
-            self.dragged_body.torque_accumulator += torque
+            elif self.drag_mode == "force":
+                # Dynamic: Apply a spring-like force
+                world_grab_point = self.dragged_body.position + world_offset
+                force_dir = mouse_world_pos - world_grab_point
+                force = force_dir * self.stiffness
 
-            if self.debug_drawer:
-                # Draw the drag force vector
-                self.debug_drawer.draw_line(
-                    start=world_grab_point,
-                    end=mouse_world_pos,
-                    color=(0, 255, 0),
-                    arrow=True,
-                )
-                # Draw the grab point
-                self.debug_drawer.draw_marker(
-                    position=world_grab_point, color=(0, 255, 0)
-                )
+                # Apply force and torque
+                self.dragged_body.force_accumulator += force
+                torque = world_offset.x * force.y - world_offset.y * force.x
+                self.dragged_body.torque_accumulator += torque
+
+                if self.debug_drawer:
+                    # Draw the drag force vector
+                    self.debug_drawer.draw_line(
+                        start=world_grab_point,
+                        end=mouse_world_pos,
+                        color=(0, 255, 0),
+                        arrow=True,
+                    )
+                    # Draw the grab point
+                    self.debug_drawer.draw_marker(
+                        position=world_grab_point, color=(0, 255, 0)
+                    )
 
 
 class BodySpawner(AbstractController):
@@ -290,10 +298,10 @@ class BodySpawner(AbstractController):
         circle_body = Body(
             shape=circle_shape,
             position=Vec2(0, 0),  # Placeholder position, will be set by the controller
-            mass= circle_shape.get_area() * self.default_density,
+            mass=circle_shape.get_area() * self.default_density,
         )
         return circle_body
-    
+
     def spawn_box(self) -> Body:
         """Spawns a box body at the given position."""
         box_shape = PolygonShape.create_random_rectangle()
@@ -316,14 +324,146 @@ class BodySpawner(AbstractController):
         """Handles spawning bodies based on input state."""
         # Check for button presses
         for button, spawn_option in self.button_spawn_objects.items():
-            if input_state.mouse_buttons_pressed.get(button, False):
+            if button in input_state.mouse_buttons_pressed:
                 new_body = self.get_new_body(spawn_option)
-                new_body.position = self.camera.screen_to_world(input_state.mouse_position)
+                new_body.position = self.camera.screen_to_world(
+                    input_state.mouse_position
+                )
                 self.world.add_body(new_body)
 
         # Check for key presses
         for key, spawn_option in self.key_spawn_objects.items():
             if key in input_state.keys_pressed:
                 new_body = self.get_new_body(spawn_option)
-                new_body.position = self.camera.screen_to_world(input_state.mouse_position)
+                new_body.position = self.camera.screen_to_world(
+                    input_state.mouse_position
+                )
                 self.world.add_body(new_body)
+
+
+class BodyMovementController(AbstractController):
+    """
+    A reusable controller for moving and rotating a specific body with
+    configurable keys and control modes.
+    """
+
+    def __init__(
+        self,
+        is_body_selectable: bool = True,
+        body: Optional[Body] = None,
+        world: Optional[World] = None,
+        camera: Optional[Camera] = None,
+        control_mode: Literal["position", "dynamic"] = "position",
+        move_speed: float = 150.0,
+        rotation_speed: float = math.pi,
+        key_bindings: Dict[
+            Literal["up", "down", "left", "right", "rotate_cw", "rotate_ccw"], str
+        ] = None,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
+    ):
+        """
+        Initializes the controller.
+
+        Args:
+            body: The specific Body instance to control.
+            control_mode: "position" to control position directly, or
+                          "dynamic" to control velocity.
+            move_speed: The speed of linear movement.
+            rotation_speed: The speed of angular rotation in radians per second.
+            key_bindings: Optional dictionary to override default keys.
+                          Keys are "up", "down", "left", "right",
+                          "rotate_cw", "rotate_ccw".
+        """
+        super().__init__(debug_drawer)
+
+        if control_mode not in ["position", "dynamic"]:
+            raise ValueError("control_mode must be 'position' or 'dynamic'")
+        if not is_body_selectable and body is None:
+            raise ValueError(
+                "If is_body_selectable is False, a body must be provided to control."
+            )
+        if is_body_selectable and (world is None or camera is None):
+            raise ValueError(
+                "If is_body_selectable is True, both world and camera must be provided."
+            )
+
+        self.is_body_selectable = is_body_selectable
+        self.camera = camera
+        self.world = world
+        self.body = body
+        self.control_mode = control_mode
+        self.move_speed = move_speed
+        self.rotation_speed = rotation_speed
+
+        # Set default key bindings if none are provided
+        if key_bindings is None:
+            self.key_bindings = {
+                "up": "w",
+                "down": "s",
+                "left": "a",
+                "right": "d",
+                "rotate_ccw": "q",
+                "rotate_cw": "e",
+            }
+        else:
+            self.key_bindings = key_bindings
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """Updates the controlled body based on held keys."""
+        if self.is_body_selectable:
+            if 1 in input_state.mouse_buttons_pressed:
+                self.body = None  # Deselect by default
+
+                # select the new body if there is one under the mouse
+                mouse_world_pos = self.camera.screen_to_world(
+                    input_state.mouse_position
+                )
+                for body in reversed(self.world.bodies):
+                    if body.inverse_mass != 0.0 and body.is_point_inside(
+                        mouse_world_pos, body.position, body.angle
+                    ):
+                        self.body = body
+                        break
+
+        if self.body is None:
+            return
+        
+        if self.control_mode == "position":
+            # Direct position manipulation
+            if self.key_bindings["up"] in input_state.keys_held:
+                self.body.position.y -= self.move_speed * dt
+            if self.key_bindings["down"] in input_state.keys_held:
+                self.body.position.y += self.move_speed * dt
+            if self.key_bindings["left"] in input_state.keys_held:
+                self.body.position.x -= self.move_speed * dt
+            if self.key_bindings["right"] in input_state.keys_held:
+                self.body.position.x += self.move_speed * dt
+
+            # Direct angle manipulation
+            if self.key_bindings["rotate_ccw"] in input_state.keys_held:
+                self.body.angle -= self.rotation_speed * dt
+            if self.key_bindings["rotate_cw"] in input_state.keys_held:
+                self.body.angle += self.rotation_speed * dt
+
+        elif self.control_mode == "dynamic":
+            # Dynamic control by setting velocity
+            linear_velocity = Vec2(0, 0)
+            if self.key_bindings["up"] in input_state.keys_held:
+                linear_velocity.y -= self.move_speed
+            if self.key_bindings["down"] in input_state.keys_held:
+                linear_velocity.y += self.move_speed
+            if self.key_bindings["left"] in input_state.keys_held:
+                linear_velocity.x -= self.move_speed
+            if self.key_bindings["right"] in input_state.keys_held:
+                linear_velocity.x += self.move_speed
+
+            self.body.velocity = linear_velocity
+
+            # Dynamic control by setting angular velocity
+            angular_velocity = 0.0
+            if self.key_bindings["rotate_ccw"] in input_state.keys_held:
+                angular_velocity -= self.rotation_speed
+            if self.key_bindings["rotate_cw"] in input_state.keys_held:
+                angular_velocity += self.rotation_speed
+
+            self.body.angular_velocity = angular_velocity
