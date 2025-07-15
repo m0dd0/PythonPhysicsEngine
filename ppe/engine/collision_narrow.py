@@ -84,6 +84,19 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
             for key, handler in handlers.items()
         }
 
+    @property
+    def debug_drawer(self) -> Optional[AbstractDebugDrawer]:
+        """Returns the debug drawer for visualizing collisions."""
+        return self._debug_drawer
+    
+    @debug_drawer.setter
+    def debug_drawer(self, drawer: Optional[AbstractDebugDrawer]):
+        """Sets the debug drawer for visualizing collisions."""
+        self._debug_drawer = drawer
+
+        for handler in self._collision_handlers.values():
+            handler.debug_drawer = drawer
+
     def _dispatch_collision(self, body_a: Body, body_b: Body) -> Optional[Contact]:
         """Finds and calls the correct handler for a pair of bodies."""
         id_a = SHAPE_TYPE_TO_ID[body_a.shape.get_type()]
@@ -129,5 +142,5 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
                         contact_info.penetration_depth * 10, # scale for visibility
                         color=(0, 255, 0),
                     )
-                    
+
         return contacts

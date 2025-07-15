@@ -30,6 +30,14 @@ class Vec2:
 
     def length(self) -> float:
         return math.sqrt(self.length_squared())
+    
+    def left_normal(self) -> "Vec2":
+        """Returns the left normal of the vector."""
+        return Vec2(-self.y, self.x).normalize()
+    
+    def right_normal(self) -> "Vec2":
+        """Returns the right normal of the vector."""
+        return Vec2(self.y, -self.x).normalize()
 
     def normalize(self) -> "Vec2":
         l = self.length()
@@ -48,7 +56,7 @@ class Body:
         self,
         shape: "Shape",
         position: Vec2,
-        mass: Union[float,None],
+        mass: Union[float, None],
         restitution: float = 0.2,
         user_data: dict = None,
     ):
@@ -148,10 +156,11 @@ class CircleShape(Shape):
 class PolygonShape(Shape):
     def __init__(self, vertices: List[Vec2]):
         self.vertices = vertices
+        # TODO check that the vertices are in counter-clockwise order and form a convex polygon
 
     def get_type(self) -> str:
         return "polygon"
-    
+
     def get_world_space_vertices(self, position: Vec2, angle: float) -> List[Vec2]:
         """Calculates the world-space vertices of the polygon."""
         # TODO check if caching rotated vertices improves performance
@@ -164,6 +173,18 @@ class PolygonShape(Shape):
             )
             for v in self.vertices
         ]
+    
+    def get_normals(self, position: Vec2, angle: float) -> List[Vec2]:
+        """Calculates the world-space normals of the polygon."""
+        world_space_vertices = self.get_world_space_vertices(position, angle)
+        normals = []
+        for i in range(len(world_space_vertices)): # pylint: disable=consider-using-enumerate
+            v1 = world_space_vertices[i]
+            v2 = world_space_vertices[(i + 1) % len(world_space_vertices)]
+            edge = v2 - v1
+            normals.append(edge.right_normal()) # right normal is the outward normal for convex, counter-clockwise polygons
+        return normals
+
 
     def calculate_inertia(self, mass: float) -> float:
         min_x = min(v.x for v in self.vertices)
@@ -177,7 +198,7 @@ class PolygonShape(Shape):
     def get_aabb(self, position: Vec2, angle: float) -> Tuple[Vec2, Vec2]:
         """Calculates the AABB of the polygon shape in world space."""
         world_space_vertices = self.get_world_space_vertices(position, angle)
-        
+
         min_x = min(v.x for v in world_space_vertices)
         max_x = max(v.x for v in world_space_vertices)
         min_y = min(v.y for v in world_space_vertices)
@@ -197,10 +218,10 @@ class PolygonShape(Shape):
 #         """
 #         # TODO
 #         raise NotImplementedError("CompoundShape is not implemented yet.")
-    
+
 #     def get_type(self) -> str:
 #         return "compound"
-    
+
 #     def get_type_id(self) -> int:
 #         return 3
 
@@ -212,12 +233,18 @@ class Contact:
     """Holds information about a collision between two bodies."""
 
     def __init__(
-        self, body_a: Body, body_b: Body, normal: Vec2, penetration_depth: float
+        self,
+        body_a: Body,
+        body_b: Body,
+        normal: Vec2,
+        penetration_depth: float,
+        contact_points: List[Vec2],
     ):
         self.body_a = body_a
         self.body_b = body_b
         self.normal = normal
         self.penetration_depth = penetration_depth
+        self.contact_points = contact_points
 
 
 class Joint(ABC):
