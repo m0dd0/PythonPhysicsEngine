@@ -89,7 +89,7 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
     def debug_drawer(self) -> Optional[AbstractDebugDrawer]:
         """Returns the debug drawer for visualizing collisions."""
         return self._debug_drawer
-    
+
     @debug_drawer.setter
     def debug_drawer(self, drawer: Optional[AbstractDebugDrawer]):
         """Sets the debug drawer for visualizing collisions."""
@@ -129,17 +129,14 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
             if contact_info:
                 contacts.append(contact_info)
 
-                if self.debug_drawer:
-                    # draw the contact points
-                    for point in contact_info.contact_points:
-                        self.debug_drawer.draw_marker(
-                            point, color=(255, 0, 0)
-                        )
-                        self.debug_drawer.draw_marker_line(
-                            point,
-                            contact_info.normal,
-                            color=(255, 0, 0),
-                            arrow=True,
-                        )
+                # draw the contact points
+                for point in contact_info.contact_points:
+                    self.debug_drawer.add_marker(point, color=(255, 0, 0))
+                    self.debug_drawer.add_marker_line(
+                        point,
+                        contact_info.normal,
+                        color=(255, 0, 0),
+                        arrow=True,
+                    )
 
         return contacts

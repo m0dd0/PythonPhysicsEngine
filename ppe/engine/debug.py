@@ -7,8 +7,11 @@ from ppe.engine.common import Vec2
 class AbstractDebugDrawer(ABC):
     """An abstract base class for all debug drawer strategies."""
 
-    @abstractmethod
-    def draw_line(
+    def __init__(self):
+        """Initialize the debug drawer with enabled state."""
+        self.enabled = True
+
+    def add_line(
         self,
         start: Vec2,
         end: Vec2,
@@ -16,17 +19,19 @@ class AbstractDebugDrawer(ABC):
         arrow: bool = False,
     ) -> None:
         """
-        Draws a line from start to end with the specified color.
+        Adds a line from start to end with the specified color to the render queue.
 
         Args:
             start: The starting point of the line in world space.
             end: The ending point of the line in world space.
             color: The color of the line.
+            arrow: Whether to draw an arrow at the end.
         """
-        pass
+        if not self.enabled:
+            return
+        self._add_line_impl(start, end, color, arrow)
 
-    @abstractmethod
-    def draw_circle(
+    def add_circle(
         self,
         center: Vec2,
         radius: float,
@@ -34,67 +39,137 @@ class AbstractDebugDrawer(ABC):
         filled: bool = False,
     ) -> None:
         """
-        Draws a circle with the specified center, radius, and color.
+        Adds a circle with the specified center, radius, and color to the render queue.
 
         Args:
             center: The center of the circle in world space.
             radius: The radius of the circle.
             color: The color of the circle.
+            filled: Whether to fill the circle.
         """
-        pass
+        if not self.enabled:
+            return
+        self._add_circle_impl(center, radius, color, filled)
 
-    @abstractmethod
-    def draw_polygon(
+    def add_polygon(
         self,
         vertices: list[Vec2],
         color: Tuple[int, int, int] = (0, 0, 0),
         filled: bool = False,
     ) -> None:
         """
-        Draws a polygon defined by its vertices with the specified color.
+        Adds a polygon defined by its vertices with the specified color to the render queue.
 
         Args:
             vertices: A list of Vec2 points defining the polygon's vertices in world space.
             color: The color of the polygon.
+            filled: Whether to fill the polygon.
         """
-        pass
+        if not self.enabled:
+            return
+        self._add_polygon_impl(vertices, color, filled)
 
-    @abstractmethod
-    def draw_marker(
+    def add_marker(
         self,
         position: Vec2,
         color: Tuple[int, int, int] = (255, 0, 0),
     ) -> None:
         """
-        Draws a marker at the specified position with the given color.
+        Adds a marker at the specified position with the given color to the render queue.
         Note that the size is constant and predefined and not related to the scale of the simulation.
 
         Args:
             position: The position of the marker in world space.
-            size: The size of the marker.
             color: The color of the marker.
         """
-        pass
+        if not self.enabled:
+            return
+        self._add_marker_impl(position, color)
 
-    @abstractmethod
-    def draw_marker_line(
+    def add_marker_line(
         self,
         start: Vec2,
         direction: Vec2,
         color: Tuple[int, int, int] = (255, 0, 0),
-        arrow: bool = False
+        arrow: bool = False,
     ):
         """
-        Draws a line marker starting from a position in a specified direction. The size is constant and predefined.
+        Adds a line marker starting from a position in a specified direction to the render queue.
+        The size is constant and predefined.
 
         Args:
             start: The starting position of the line marker in world space.
             direction: The direction vector of the line marker.
+            color: The color of the line marker.
+            arrow: Whether to draw an arrow at the end.
         """
+        if not self.enabled:
+            return
+        self._add_marker_line_impl(start, direction, color, arrow)
+
+    def render_all(self) -> None:
+        """
+        Renders all debug graphics. Only renders if enabled.
+        """
+        if not self.enabled:
+            return
+        self._render_all_impl()
+
+    # Abstract implementation methods that subclasses must implement
+    @abstractmethod
+    def _add_line_impl(
+        self,
+        start: Vec2,
+        end: Vec2,
+        color: Tuple[int, int, int],
+        arrow: bool,
+    ) -> None:
+        """Implementation-specific line drawing."""
         pass
 
+    @abstractmethod
+    def _add_circle_impl(
+        self,
+        center: Vec2,
+        radius: float,
+        color: Tuple[int, int, int],
+        filled: bool,
+    ) -> None:
+        """Implementation-specific circle drawing."""
+        pass
 
-    def draw_rectangle(
+    @abstractmethod
+    def _add_polygon_impl(
+        self,
+        vertices: list[Vec2],
+        color: Tuple[int, int, int],
+        filled: bool,
+    ) -> None:
+        """Implementation-specific polygon drawing."""
+        pass
+
+    @abstractmethod
+    def _add_marker_impl(
+        self,
+        position: Vec2,
+        color: Tuple[int, int, int],
+    ) -> None:
+        """Implementation-specific marker drawing."""
+        pass
+
+    @abstractmethod
+    def _add_marker_line_impl(
+        self, start: Vec2, direction: Vec2, color: Tuple[int, int, int], arrow: bool
+    ) -> None:
+        """Implementation-specific marker line drawing."""
+        pass
+
+    @abstractmethod
+    def _render_all_impl(self) -> None:
+        """Implementation-specific rendering of all graphics."""
+        pass
+
+    def add_rectangle(
         self,
         position: Vec2,
         width: float,
@@ -103,17 +178,18 @@ class AbstractDebugDrawer(ABC):
         filled: bool = False,
     ) -> None:
         """
-        Draws a rectangle with the specified position, width, height, and color.
+        Adds a rectangle with the specified position, width, height, and color to the render queue.
 
         Args:
             position: The center of the rectangle in world space.
             width: The width of the rectangle.
             height: The height of the rectangle.
-            angle: The rotation angle of the rectangle in radians.
             color: The color of the rectangle.
             filled: Whether to fill the rectangle or just draw its outline.
         """
-        self.draw_polygon(
+        if not self.enabled:
+            return
+        self._add_polygon_impl(
             [
                 Vec2(position.x - width / 2, position.y - height / 2),
                 Vec2(position.x + width / 2, position.y - height / 2),

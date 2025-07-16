@@ -252,18 +252,17 @@ class BodyDragger(AbstractController):
                 torque = world_offset.x * force.y - world_offset.y * force.x
                 self.dragged_body.torque_accumulator += torque
 
-                if self.debug_drawer:
-                    # Draw the drag force vector
-                    self.debug_drawer.draw_line(
-                        start=world_grab_point,
-                        end=mouse_world_pos,
-                        color=(0, 255, 0),
-                        arrow=True,
-                    )
-                    # Draw the grab point
-                    self.debug_drawer.draw_marker(
-                        position=world_grab_point, color=(0, 255, 0)
-                    )
+                # Draw debug visualization
+                self.debug_drawer.add_line(
+                    start=world_grab_point,
+                    end=mouse_world_pos,
+                    color=(0, 255, 0),
+                    arrow=True,
+                )
+                # Draw the grab point
+                self.debug_drawer.add_marker(
+                    position=world_grab_point, color=(0, 255, 0)
+                )
 
 
 class BodySpawner(AbstractController):
@@ -464,3 +463,68 @@ class BodyMovementController(AbstractController):
                 angular_velocity += self.rotation_speed
 
             self.body.angular_velocity = angular_velocity
+
+
+class ApplicationController(AbstractController):
+    """Handles application-level controls like quitting."""
+
+    def __init__(
+        self,
+        quit_keys: Set[str] = None,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
+    ):
+        """
+        Initializes the ApplicationController.
+
+        Args:
+            quit_keys: Set of keys that will trigger application quit.
+                      Defaults to {"quit", "escape"}.
+        """
+        super().__init__(debug_drawer)
+
+        self.quit_keys = {"quit", "escape"} if quit_keys is None else quit_keys
+
+        self.should_quit = False
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """Checks for quit conditions."""
+        for key in self.quit_keys:
+            if key in input_state.keys_pressed:
+                self.should_quit = True
+                break
+
+
+class DebugController(AbstractController):
+    """Handles debug mode toggling and debug-related functionality."""
+
+    def __init__(
+        self,
+        world: World,
+        debug_drawer: AbstractDebugDrawer,
+        toggle_key: str = "d",
+        initial_debug_mode: bool = True,
+    ):
+        """
+        Initializes the DebugController.
+
+        Args:
+            world: The World instance to control debug drawing for.
+            debug_drawer: The debug drawer to use for rendering debug information.
+            toggle_key: The key to toggle debug mode. Defaults to "d".
+            initial_debug_mode: Whether debug mode starts enabled.
+        """
+        super().__init__(debug_drawer)
+
+        self.world = world
+        self.toggle_key = toggle_key
+        self.debug_mode = initial_debug_mode
+
+        # Set the world's debug drawer and configure its initial state
+        self.world.debug_drawer = self.debug_drawer
+        self.debug_drawer.enabled = self.debug_mode
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """Handles debug mode toggling."""
+        if self.toggle_key in input_state.keys_pressed:
+            self.debug_mode = not self.debug_mode
+            self.debug_drawer.enabled = self.debug_mode

@@ -88,13 +88,12 @@ class AABBBroadPhase(AbstractBroadPhase):
         # although we plan to use caching in the future, this is a good first step this is saver for now
         body_aabbs = [body.get_aabb() for body in bodies]
 
-        if self.debug_drawer:
-            # draw the AABBs for debugging purposes
-            for body, (min_a, max_a) in zip(bodies, body_aabbs):
-                self.debug_drawer.draw_polygon(
-                    [min_a, Vec2(max_a.x, min_a.y), max_a, Vec2(min_a.x, max_a.y)],
-                    color=(0, 0, 255),
-                )
+        # draw the AABBs for debugging purposes
+        for body, (min_a, max_a) in zip(bodies, body_aabbs):
+            self.debug_drawer.add_polygon(
+                [min_a, Vec2(max_a.x, min_a.y), max_a, Vec2(min_a.x, max_a.y)],
+                color=(0, 0, 255),
+            )
 
         potential_pairs = []
         for i, (body_a, (min_a, max_a)) in enumerate(zip(bodies, body_aabbs)):
@@ -106,26 +105,25 @@ class AABBBroadPhase(AbstractBroadPhase):
                 if self._aabbs_overlap(min_a, max_a, min_b, max_b):
                     potential_pairs.append((body_a, body_b))
 
-                    if self.debug_drawer:
-                        # draw the overlapping AABBs for debugging purposes
-                        self.debug_drawer.draw_polygon(
-                            [
-                                min_a,
-                                Vec2(max_a.x, min_a.y),
-                                max_a,
-                                Vec2(min_a.x, max_a.y),
-                            ],
-                            color=(255, 0, 0),
-                        )
-                        self.debug_drawer.draw_polygon(
-                            [
-                                min_b,
-                                Vec2(max_b.x, min_b.y),
-                                max_b,
-                                Vec2(min_b.x, max_b.y),
-                            ],
-                            color=(255, 0, 0),
-                        )
+                    # draw the overlapping AABBs for debugging purposes
+                    self.debug_drawer.add_polygon(
+                        [
+                            min_a,
+                            Vec2(max_a.x, min_a.y),
+                            max_a,
+                            Vec2(min_a.x, max_a.y),
+                        ],
+                        color=(255, 0, 0),
+                    )
+                    self.debug_drawer.add_polygon(
+                        [
+                            min_b,
+                            Vec2(max_b.x, min_b.y),
+                            max_b,
+                            Vec2(min_b.x, max_b.y),
+                        ],
+                        color=(255, 0, 0),
+                    )
 
         # version without slicing might be a tiny bit faster:
         # for i in range(len(bodies)):
@@ -140,13 +138,14 @@ class AABBBroadPhase(AbstractBroadPhase):
         #             potential_pairs.append((body_a, body_b))
 
         return potential_pairs
-    
+
+
 class SpatialHashBroadPhase(AbstractBroadPhase):
     """A broad-phase using spatial hashing for efficient collision detection."""
 
     def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None) -> None:
         super().__init__(debug_drawer)
         raise NotImplementedError("SpatialHashBroadPhase is not yet implemented.")
-    
+
     def find_potential_pairs(self, bodies: List[Body]) -> List[Tuple[Body, Body]]:
         raise NotImplementedError("SpatialHashBroadPhase is not yet implemented.")

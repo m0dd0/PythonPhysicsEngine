@@ -72,7 +72,7 @@ class Camera:
     def world_to_screen(self, world_pos: Vec2) -> Vec2:
         """Converts world coordinates (meters, Y-up) to screen (pixel, Y-down) coordinates."""
         scaled_pos = (world_pos - self.position) * self.scale
-        
+
         screen_center = Vec2(self.screen_width / 2, self.screen_height / 2)
 
         # Flip the Y-axis here
@@ -82,12 +82,13 @@ class Camera:
         """Converts screen coordinates (pixels, Y-down) to world coordinates (meters, Y-up)."""
         screen_center = Vec2(self.screen_width / 2, self.screen_height / 2)
         relative_pos = screen_pos - screen_center
-        
+
         # Un-flip the Y-axis here
         unflipped_pos = Vec2(relative_pos.x, -relative_pos.y)
-        
+
         world_offset = unflipped_pos / self.scale
         return self.position + world_offset
+
 
 class AbstractView(ABC):
     """An abstract base class for all View/Renderer implementations."""
@@ -117,6 +118,40 @@ class AbstractView(ABC):
         """Updates the screen to show the final rendered frame."""
         pass
 
+    def render_all(self, world, info_data: dict = None) -> None:
+        """
+        Renders the complete frame: background, bodies, debug, and info.
+        Default implementation calls individual render methods.
+
+        Args:
+            world: The world containing bodies and debug drawer
+            info_data: Optional dictionary of info text to display
+        """
+        self.render_background()
+        self.render_bodies(world.bodies)
+
+        world.debug_drawer.render_all()
+
+        if info_data:
+            self.render_info(info_data)
+
+    def render_info(self, info_dict: dict) -> None:
+        """
+        Renders informational text in a consistent format.
+        Default implementation calls render_text for each item.
+
+        Args:
+            info_dict: Dictionary of label: value pairs to display
+        """
+        # Default implementation - subclasses should override with their specific layout
+        y_offset = 0
+        start_pos = (10, 10)
+        line_height = 20
+        for label, value in info_dict.items():
+            text = f"{label}: {value}"
+            self.render_text(text, (start_pos[0], start_pos[1] + y_offset))
+            y_offset += line_height
+
 
 class PygameDebugDrawer(AbstractDebugDrawer):
     """A concrete implementation of the debug drawer for Pygame."""
@@ -130,6 +165,7 @@ class PygameDebugDrawer(AbstractDebugDrawer):
         marker_line_length: int = 20,
         world_coordinate_frame_size: Optional[float] = 1.0,
     ):
+        super().__init__()  # Initialize the enabled flag
         self.surface = surface
         self.camera = camera
         self.marker_size = marker_size
@@ -139,33 +175,35 @@ class PygameDebugDrawer(AbstractDebugDrawer):
 
         self._commands = []
 
-    def draw_line(self, start: Vec2, end: Vec2, color=(0, 0, 0), arrow=False):
+    def _add_line_impl(self, start: Vec2, end: Vec2, color=(0, 0, 0), arrow=False):
         self._commands.append(("line", (start, end, color, arrow)))
 
-    def draw_circle(self, center: Vec2, radius: float, color=(0, 0, 0), filled=False):
+    def _add_circle_impl(
+        self, center: Vec2, radius: float, color=(0, 0, 0), filled=False
+    ):
         self._commands.append(("circle", (center, radius, color, filled)))
 
-    def draw_polygon(self, vertices: List[Vec2], color=(0, 0, 0), filled=False):
+    def _add_polygon_impl(self, vertices: List[Vec2], color=(0, 0, 0), filled=False):
         self._commands.append(("polygon", (vertices, color, filled)))
 
-    def draw_marker(self, position: Vec2, color=(255, 0, 0)):
+    def _add_marker_impl(self, position: Vec2, color=(255, 0, 0)):
         self._commands.append(("marker", (position, color)))
 
-    def draw_marker_line(
+    def _add_marker_line_impl(
         self, start: Vec2, direction: Vec2, color=(255, 0, 0), arrow=False
     ):
         self._commands.append(("marker_line", (start, direction, color, arrow)))
 
-    def render_all(self):
+    def _render_all_impl(self):
         """Executes all buffered draw commands for the frame."""
         if self.world_coordinate_frame_size is not None:
-            self.draw_line(
+            self._add_line_impl(
                 Vec2(0, 0),
                 Vec2(self.world_coordinate_frame_size, 0),
                 color=(255, 0, 0),
                 arrow=True,
             )
-            self.draw_line(
+            self._add_line_impl(
                 Vec2(0, 0),
                 Vec2(0, self.world_coordinate_frame_size),
                 color=(0, 255, 0),
@@ -266,6 +304,8 @@ class PygameView(AbstractView):
         camera: Camera,
         background_color=(240, 240, 240),
         default_body_color=(50, 50, 200),
+        info_start_pos=(10, 10),
+        info_line_height=20,
     ):
         self.camera = camera
         self.screen = pygame.display.set_mode(
@@ -277,6 +317,8 @@ class PygameView(AbstractView):
         self._debug_drawer = PygameDebugDrawer(self.screen, self.camera)
         self.background_color = background_color
         self.default_body_color = default_body_color
+        self.info_start_pos = info_start_pos
+        self.info_line_height = info_line_height
 
     def render_background(self) -> None:
         self.screen.fill(self.background_color)
@@ -312,6 +354,37 @@ class PygameView(AbstractView):
 
     def create_debug_drawer(self) -> AbstractDebugDrawer:
         return self._debug_drawer
+
+    def render_all(self, world, info_data: dict = None) -> None:
+        """
+        Renders the complete frame: background, bodies, debug, and info.
+
+        Args:
+            world: The world containing bodies and debug drawer
+            info_data: Optional dictionary of info text to display
+        """
+        self.render_background()
+        self.render_bodies(world.bodies)
+
+        world.debug_drawer.render_all()
+
+        if info_data:
+            self.render_info(info_data)
+
+    def render_info(self, info_dict: dict) -> None:
+        """
+        Renders informational text in a consistent format using instance attributes.
+
+        Args:
+            info_dict: Dictionary of label: value pairs to display
+        """
+        y_offset = 0
+        for label, value in info_dict.items():
+            text = f"{label}: {value}"
+            self.render_text(
+                text, (self.info_start_pos[0], self.info_start_pos[1] + y_offset)
+            )
+            y_offset += self.info_line_height
 
     def update_display(self) -> None:
         pygame.display.flip()

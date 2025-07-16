@@ -1,3 +1,5 @@
+from typing import List
+
 import pygame
 
 from ppe.engine.common import Body, PolygonShape, Vec2
@@ -9,7 +11,13 @@ from ppe.engine.collision_narrow import DispatchNarrowPhase
 
 # application components
 from ppe.utils.view import PygameView, Camera
-from ppe.utils.controller import CameraController, InputState
+from ppe.utils.controller import (
+    CameraController,
+    InputState,
+    ApplicationController,
+    DebugController,
+    AbstractController,
+)
 
 # Constants
 SCREEN_WIDTH = 1280
@@ -46,8 +54,14 @@ def main():
     )
 
     # 3. Initialize controllers
-    controllers = [
+    app_controller = ApplicationController()
+    debug_controller = DebugController(
+        world=world, debug_drawer=view.create_debug_drawer()
+    )
+    controllers: List[AbstractController] = [
         CameraController(view.camera, pan_mode="mouse"),
+        app_controller,
+        debug_controller,
         # BodyMovementController(
         #     is_body_selectable=True,
         #     world=world,
@@ -59,8 +73,6 @@ def main():
     ## Main Loop
     running = True
     clock = pygame.time.Clock()
-    debug_mode = True
-    world.debug_drawer = view.create_debug_drawer()
 
     while running:
         dt = clock.tick(60) / 1000.0
@@ -68,39 +80,29 @@ def main():
         ## Input
         input_state = InputState.from_pygame()
 
-        if "quit" in input_state.keys_pressed:
-            running = False
-
-        if "d" in input_state.keys_pressed:
-            debug_mode = not debug_mode
-            world.debug_drawer = view.create_debug_drawer() if debug_mode else None
-
         ## Controller Updates
         for controller in controllers:
             controller.update(input_state, dt)
 
+        # Check if application should quit
+        if app_controller.should_quit:
+            running = False
+
         ## Physics Update
         world.step(dt)
 
-        ## Rendering
-        view.render_background()
-        view.render_bodies(world.bodies)
-
-        if world.debug_drawer:
-            world.debug_drawer.render_all()
-
-        ## Draw UI Text
-        view.render_text(f"Debug Mode (D): {'ON' if debug_mode else 'OFF'}", (10, 10))
-        view.render_text(
-            "Click to select a box, then use WASD/QE to move/rotate.", (10, 30)
+        # Render the world
+        view.render_all(
+            world,
+            info_data={
+                "Debug Mode (D)": "ON" if debug_controller.debug_mode else "OFF",
+                "Instructions": "Click to select a box, then use WASD/QE to move/rotate",
+                "Current FPS": int(clock.get_fps()),
+            },
         )
-        view.render_text(
-            f"Current FPS: {int(clock.get_fps())}", (10, 50)
-        )
+        view.update_display()
 
-        pygame.display.flip()
-
-    pygame.quit() # pylint: disable=no-member
+    pygame.quit()  # pylint: disable=no-member
 
 
 if __name__ == "__main__":
