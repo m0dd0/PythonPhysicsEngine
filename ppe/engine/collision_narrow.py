@@ -117,13 +117,14 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
                 contacts.append(contact_info)
 
                 # draw the contact points
-                for point in contact_info.contact_points:
-                    self.debug_drawer.add_marker(point, color=(255, 0, 0))
-                    self.debug_drawer.add_marker_line(
-                        point,
-                        contact_info.normal,
-                        color=(255, 0, 0),
-                        arrow=True,
-                    )
+                if self.debug_drawer is not None:
+                    for point in contact_info.contact_points:
+                        self.debug_drawer.add_marker(point, color=(255, 0, 0))
+                        self.debug_drawer.add_marker_line(
+                            point,
+                            contact_info.normal,
+                            color=(255, 0, 0),
+                            arrow=True,
+                        )
 
         return contacts

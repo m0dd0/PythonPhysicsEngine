@@ -255,17 +255,18 @@ class BodyDragger(AbstractController):
                 torque = world_offset.x * force.y - world_offset.y * force.x
                 self.dragged_body.torque_accumulator += torque
 
-                # Draw debug visualization
-                self.debug_drawer.add_line(
-                    start=world_grab_point,
-                    end=mouse_world_pos,
-                    color=(0, 255, 0),
-                    arrow=True,
-                )
-                # Draw the grab point
-                self.debug_drawer.add_marker(
-                    position=world_grab_point, color=(0, 255, 0)
-                )
+                if self.debug_drawer is not None:
+                    # Draw debug visualization
+                    self.debug_drawer.add_line(
+                        start=world_grab_point,
+                        end=mouse_world_pos,
+                        color=(0, 255, 0),
+                        arrow=True,
+                    )
+                    # Draw the grab point
+                    self.debug_drawer.add_marker(
+                        position=world_grab_point, color=(0, 255, 0)
+                    )
 
 
 class BodySpawner(AbstractController):
