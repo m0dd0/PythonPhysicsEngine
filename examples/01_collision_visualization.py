@@ -23,6 +23,7 @@ from ppe.utils.controller import (
     ApplicationController,
     DebugController,
     AbstractController,
+    BodyDragController,
 )
 
 # Constants
@@ -63,7 +64,7 @@ def main():
             Body(
                 shape=PolygonShape.create_rectangle(width=2, height=1),
                 position=Vec2(0, 0),
-                mass=None,  # Static body
+                mass=10,  # Static body
                 user_data={"color": (50, 50, 50)},
             ),
         ],
@@ -76,10 +77,15 @@ def main():
         controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
     )
     controllers: List[AbstractController] = [
-        CameraPanController(view.camera, mode="trackpad"),
-        # CameraZoomController(view.camera, mode="mousewheel"),
+        CameraPanController(view.camera, mode="mouse", mouse_button=2),
+        CameraZoomController(view.camera, mode="mousewheel"),
         app_controller,
         debug_controller,
+        BodyDragController(
+            world=world,
+            camera=view.camera,
+            mode="position",
+        )
         # BodyMovementController(
         #     is_body_selectable=True,
         #     world=world,

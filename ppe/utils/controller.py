@@ -66,7 +66,7 @@ class InputState:
             elif event.type == pygame.MOUSEWHEEL:  # pylint: disable=no-member
                 mouse_wheel_delta += event.y
                 # Capture horizontal scroll if available (for trackpad panning)
-                if hasattr(event, 'x'):
+                if hasattr(event, "x"):
                     mouse_wheel_delta_x += event.x
             elif event.type == pygame.KEYDOWN:  # pylint: disable=no-member
                 keys_pressed.add(pygame.key.name(event.key))
@@ -218,12 +218,20 @@ class CameraPanController(AbstractController):
             # Trackpad panning using horizontal/vertical scroll gestures
             if input_state.mouse_wheel_delta_x != 0:
                 # Horizontal scroll for left/right panning
-                pan_x = input_state.mouse_wheel_delta_x * self.trackpad_sensitivity / self.camera.zoom
+                pan_x = (
+                    input_state.mouse_wheel_delta_x
+                    * self.trackpad_sensitivity
+                    / self.camera.zoom
+                )
                 self.camera.position.x -= pan_x
-            
+
             if input_state.mouse_wheel_delta != 0:
                 # Vertical scroll for up/down panning (when not used for zooming)
-                pan_y = input_state.mouse_wheel_delta * self.trackpad_sensitivity / self.camera.zoom
+                pan_y = (
+                    input_state.mouse_wheel_delta
+                    * self.trackpad_sensitivity
+                    / self.camera.zoom
+                )
                 self.camera.position.y -= pan_y
 
 
@@ -279,23 +287,43 @@ class CameraZoomController(AbstractController):
                 self.camera.zoom = max(0.1, self.camera.zoom * zoom_change)
 
 
-class BodyDragger(AbstractController):
+class BodyDragController(AbstractController):
     """Allows clicking and dragging physics bodies with the mouse."""
 
     def __init__(
         self,
         world: World,
         camera: Camera,
-        drag_mode: Literal["position", "force"] = "force",
+        mode: Literal["position", "force"] = "force",
+        mouse_button: int = 1,
         stiffness: float = 5000.0,
+        dragable_bodies: Optional[List[Body]] = None,
+        allow_static_bodies: bool = True,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
-        # TODO allow to select the mouse buttton to use
+        """
+        Initializes the BodyDragger.
+
+        Args:
+            world: The World containing the bodies to drag.
+            camera: The Camera for screen-to-world coordinate conversion.
+            mode: The dragging mode, either "position" or "force".
+            mouse_button: The mouse button to use for dragging (1=left, 2=middle, 3=right).
+            stiffness: The spring stiffness for force-based dragging.
+            dragable_bodies: Optional list of specific bodies that can be dragged.
+                           If None, all bodies in the world are draggable.
+            allow_static_bodies: Whether static bodies can be dragged. Static bodies
+                               are always moved kinematically regardless of mode.
+            debug_drawer: Optional debug drawer for visualizing drag forces.
+        """
         super().__init__(debug_drawer)
         self.world = world
         self.camera = camera
         self.stiffness = stiffness
-        self.drag_mode = drag_mode
+        self.mode = mode
+        self.mouse_button = mouse_button
+        self.dragable_bodies = dragable_bodies
+        self.allow_static_bodies = allow_static_bodies
 
         self.dragged_body: Optional[Body] = None
         self.grab_point_local: Optional[Vec2] = None
@@ -304,22 +332,33 @@ class BodyDragger(AbstractController):
         mouse_world_pos = self.camera.screen_to_world(input_state.mouse_position)
 
         # Check for a new grab
-        if (0 in input_state.mouse_buttons_pressed) and self.dragged_body is None:
-            for body in reversed(self.world.bodies):
-                if body.inverse_mass != 0.0 and body.is_point_inside(mouse_world_pos):
-                    self.dragged_body = body
-                    # offset between the mouse position and the body's center/coordinate frame
-                    body_position_offset = mouse_world_pos - body.position
-                    sin_a, cos_a = math.sin(-body.angle), math.cos(-body.angle)
-                    # offset in local coordinates
-                    self.grab_point_local = Vec2(
-                        body_position_offset.x * cos_a - body_position_offset.y * sin_a,
-                        body_position_offset.x * sin_a + body_position_offset.y * cos_a,
-                    )
-                    break
+        if (
+            self.mouse_button in input_state.mouse_buttons_pressed
+        ) and self.dragged_body is None:
+            # Determine which bodies to check for dragging
+            bodies_to_check = (
+                self.dragable_bodies
+                if self.dragable_bodies is not None
+                else self.world.bodies
+            )
+
+            for body in reversed(bodies_to_check):
+                # Check if body can be dragged based on mass and settings
+                if self.allow_static_bodies or body.inverse_mass != 0.0:
+                    if body.is_point_inside(mouse_world_pos):
+                        self.dragged_body = body
+                        # offset between the mouse position and the body's center/coordinate frame
+                        body_position_offset = mouse_world_pos - body.position
+                        sin_a, cos_a = math.sin(-body.angle), math.cos(-body.angle)
+                        # offset in local coordinates
+                        self.grab_point_local = Vec2(
+                            body_position_offset.x * cos_a - body_position_offset.y * sin_a,
+                            body_position_offset.x * sin_a + body_position_offset.y * cos_a,
+                        )
+                        break
 
         # Check for release
-        if 1 in input_state.mouse_buttons_released:
+        if self.mouse_button in input_state.mouse_buttons_released:
             self.dragged_body = None
             self.grab_point_local = None
 
@@ -335,12 +374,13 @@ class BodyDragger(AbstractController):
                 self.grab_point_local.x * sin_a + self.grab_point_local.y * cos_a,
             )
 
-            if self.drag_mode == "position":
+            if self.mode == "position" or self.dragged_body.inverse_mass == 0.0:
                 # Kinematic: Set the body's position directly
+                # Static bodies are always moved kinematically regardless of mode
                 self.dragged_body.position = mouse_world_pos - world_offset
 
-            elif self.drag_mode == "force":
-                # Dynamic: Apply a spring-like force
+            elif self.mode == "force":
+                # Dynamic: Apply a spring-like force (only for non-static bodies)
                 world_grab_point = self.dragged_body.position + world_offset
                 force_dir = mouse_world_pos - world_grab_point
                 force = force_dir * self.stiffness
