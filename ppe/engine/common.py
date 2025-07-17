@@ -327,10 +327,47 @@ class PolygonShape(Shape):
         return Vec2(min_x, min_y), Vec2(max_x, max_y)
 
     def is_point_inside(self, point: Vec2, position: Vec2, angle: float) -> bool:
-        # use also initial aabb test
-        raise NotImplementedError(
-            "Point-in-polygon test is not implemented for PolygonShape."
-        )
+        """
+        Checks if a point is inside the polygon using the separating axis theorem.
+        
+        For a convex polygon, a point is inside if it's on the correct side of all edges.
+        We use the dot product with edge normals to determine which side of each edge the point is on.
+        
+        Args:
+            point: The point to check in world space.
+            position: The world-space position of the polygon's body.
+            angle: The world-space angle of the polygon's body.
+            
+        Returns:
+            True if the point is inside the polygon, False otherwise.
+        """
+        # First, do a quick AABB test for early rejection
+        aabb_min, aabb_max = self.get_aabb(position, angle)
+        if (point.x < aabb_min.x or point.x > aabb_max.x or 
+            point.y < aabb_min.y or point.y > aabb_max.y):
+            return False
+        
+        # Get world-space vertices and normals
+        world_vertices = self.get_world_space_vertices(position, angle)
+        
+        # For each edge of the polygon, check if the point is on the inside
+        for i in range(len(world_vertices)): # pylint: disable=consider-using-enumerate
+            v1 = world_vertices[i]
+            v2 = world_vertices[(i + 1) % len(world_vertices)]
+            
+            # Calculate edge vector and outward normal
+            edge = v2 - v1
+            outward_normal = edge.right_normal()  # right normal is outward for CCW vertices
+            
+            # Vector from edge start to the test point
+            to_point = point - v1
+            
+            # If the dot product is positive, the point is outside this edge
+            if to_point.dot(outward_normal) > 0:
+                return False
+        
+        # Point is inside all edges, so it's inside the polygon
+        return True
 
     def get_area(self) -> float:
         raise NotImplementedError(
