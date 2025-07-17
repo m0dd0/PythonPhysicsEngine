@@ -50,29 +50,9 @@ class World:
         self.broad_phase = broad_phase
         self.narrow_phase = narrow_phase
 
-        # Use the property setter to initialize the drawer
-        self._debug_drawer = debug_drawer
+        self.debug_drawer = debug_drawer
 
         # TODO add option to automatically remove bodies once they are outside a certain area
-
-    @property
-    def debug_drawer(self) -> Optional[AbstractDebugDrawer]:
-        """
-        Returns the debug drawer for visualizing the world.
-        """
-        return self._debug_drawer
-    
-    @debug_drawer.setter
-    def debug_drawer(self, drawer: Optional[AbstractDebugDrawer]):
-        """
-        Sets the debug drawer and propagates it to all relevant subsystems.
-        """
-        self._debug_drawer = drawer
-        
-        # Pass the drawer down to the subsystems that use it
-        self.broad_phase.debug_drawer = drawer
-        self.narrow_phase.debug_drawer = drawer
-        self.solver.debug_drawer = drawer
 
     def step(self, dt: float) -> None:
         """

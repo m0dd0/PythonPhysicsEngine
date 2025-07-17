@@ -74,7 +74,7 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
             )
 
         # convert the keys to ordered pairs of shape type IDs
-        self._collision_handlers = {
+        self.collision_handlers = {
             (
                 min(SHAPE_TYPE_TO_ID[key[0]], SHAPE_TYPE_TO_ID[key[1]]),
                 max(SHAPE_TYPE_TO_ID[key[0]], SHAPE_TYPE_TO_ID[key[1]]),
@@ -85,25 +85,12 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
         # must be set after the _collision_handlers attribute is initialized
         super().__init__(debug_drawer)
 
-    @property
-    def debug_drawer(self) -> Optional[AbstractDebugDrawer]:
-        """Returns the debug drawer for visualizing collisions."""
-        return self._debug_drawer
-
-    @debug_drawer.setter
-    def debug_drawer(self, drawer: Optional[AbstractDebugDrawer]):
-        """Sets the debug drawer for visualizing collisions."""
-        self._debug_drawer = drawer
-
-        for handler in self._collision_handlers.values():
-            handler.debug_drawer = drawer
-
     def _dispatch_collision(self, body_a: Body, body_b: Body) -> Optional[Contact]:
         """Finds and calls the correct handler for a pair of bodies."""
         id_a = SHAPE_TYPE_TO_ID[body_a.shape.get_type()]
         id_b = SHAPE_TYPE_TO_ID[body_b.shape.get_type()]
 
-        handler = self._collision_handlers.get((min(id_a, id_b), max(id_a, id_b)))
+        handler = self.collision_handlers.get((min(id_a, id_b), max(id_a, id_b)))
 
         if handler is None:
             # Fail loudly if no handler is registered for this pair.

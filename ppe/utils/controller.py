@@ -115,6 +115,8 @@ class CameraController(AbstractController):
             pan_speed: The speed of keyboard panning.
             zoom_speed: The sensitivity of mouse wheel zooming.
         """
+        # TODO allow track pad zooming
+        # TODO allow to specify mouse button for panning in keys mode
         super().__init__(debug_drawer)
         if pan_mode not in ["keys", "mouse"]:
             raise ValueError("pan_mode must be either 'keys' or 'mouse'")
@@ -193,6 +195,7 @@ class BodyDragger(AbstractController):
         stiffness: float = 5000.0,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
+        # TODO allow to select the mouse buttton to use
         super().__init__(debug_drawer)
         self.world = world
         self.camera = camera
@@ -221,7 +224,7 @@ class BodyDragger(AbstractController):
                     break
 
         # Check for release
-        if not 1 in input_state.mouse_buttons_released:
+        if 1 in input_state.mouse_buttons_released:
             self.dragged_body = None
             self.grab_point_local = None
 
@@ -272,8 +275,8 @@ class BodySpawner(AbstractController):
         self,
         world: World,
         camera: Camera,
-        button_spawn_objects: Dict[str, Union[List[Body], Callable]] = None,
-        key_spawn_objects: Dict[int, Union[List[Body], Callable]] = None,
+        mouse_spawn_objects: Dict[int, Union[List[Body], Callable]] = None,
+        keyboard_spawn_objects: Dict[str, Union[List[Body], Callable]] = None,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
         super().__init__(debug_drawer)
@@ -283,10 +286,10 @@ class BodySpawner(AbstractController):
 
         self.default_density = 1  # Default density for spawned bodies
 
-        if button_spawn_objects is None:
-            self.button_spawn_objects = {}
-        if key_spawn_objects is None:
-            self.key_spawn_objects = {0: self.spawn_box, 2: self.spawn_circle}
+        if mouse_spawn_objects is None:
+            self.mouse_spawn_objects = {}
+        if keyboard_spawn_objects is None:
+            self.keyboard_spawn_objects = {0: self.spawn_box, 2: self.spawn_circle}
 
     def spawn_circle(self) -> Body:
         """Spawns a circle body at the given position."""
@@ -319,7 +322,7 @@ class BodySpawner(AbstractController):
     def update(self, input_state: InputState, dt: float) -> None:
         """Handles spawning bodies based on input state."""
         # Check for button presses
-        for button, spawn_option in self.button_spawn_objects.items():
+        for button, spawn_option in self.mouse_spawn_objects.items():
             if button in input_state.mouse_buttons_pressed:
                 new_body = self.get_new_body(spawn_option)
                 new_body.position = self.camera.screen_to_world(
@@ -328,7 +331,7 @@ class BodySpawner(AbstractController):
                 self.world.add_body(new_body)
 
         # Check for key presses
-        for key, spawn_option in self.key_spawn_objects.items():
+        for key, spawn_option in self.keyboard_spawn_objects.items():
             if key in input_state.keys_pressed:
                 new_body = self.get_new_body(spawn_option)
                 new_body.position = self.camera.screen_to_world(
@@ -499,7 +502,6 @@ class DebugController(AbstractController):
 
     def __init__(
         self,
-        world: World,
         debug_drawer: AbstractDebugDrawer,
         toggle_key: str = "d",
         initial_debug_mode: bool = True,
@@ -508,19 +510,15 @@ class DebugController(AbstractController):
         Initializes the DebugController.
 
         Args:
-            world: The World instance to control debug drawing for.
             debug_drawer: The debug drawer to use for rendering debug information.
             toggle_key: The key to toggle debug mode. Defaults to "d".
             initial_debug_mode: Whether debug mode starts enabled.
         """
         super().__init__(debug_drawer)
 
-        self.world = world
         self.toggle_key = toggle_key
         self.debug_mode = initial_debug_mode
 
-        # Set the world's debug drawer and configure its initial state
-        self.world.debug_drawer = self.debug_drawer
         self.debug_drawer.enabled = self.debug_mode
 
     def update(self, input_state: InputState, dt: float) -> None:

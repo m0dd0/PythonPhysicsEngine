@@ -8,6 +8,11 @@ from ppe.engine.solvers import NoOpSolver
 from ppe.engine.integrators import NoOpIntegrator
 from ppe.engine.collision_broad import AABBBroadPhase
 from ppe.engine.collision_narrow import DispatchNarrowPhase
+from ppe.engine.collision_handlers import (
+    CircleVsCircleHandler,
+    SatPolygonHandler,
+    CircleVsPolygonHandler,
+)
 
 # application components
 from ppe.utils.view import PygameView, Camera
@@ -36,13 +41,23 @@ def main():
             world_width=SCREEN_WIDTH_WORLD,
         )
     )
+    debug_drawer = view.create_debug_drawer()
 
     # 2. Setup the world simulation
     world = World(
         integrator=NoOpIntegrator(),
         solver=NoOpSolver(),
-        broad_phase=AABBBroadPhase(),
-        narrow_phase=DispatchNarrowPhase(),
+        broad_phase=AABBBroadPhase(debug_drawer=debug_drawer),
+        narrow_phase=DispatchNarrowPhase(
+            debug_drawer=debug_drawer,
+            handlers={
+                ("circle", "circle"): CircleVsCircleHandler(debug_drawer=debug_drawer),
+                ("circle", "polygon"): CircleVsPolygonHandler(
+                    debug_drawer=debug_drawer
+                ),
+                ("polygon", "polygon"): SatPolygonHandler(debug_drawer=debug_drawer),
+            },
+        ),
         bodies=[
             Body(
                 shape=PolygonShape.create_rectangle(width=2, height=1),
@@ -51,13 +66,12 @@ def main():
                 user_data={"color": (50, 50, 50)},
             ),
         ],
+        debug_drawer=debug_drawer,
     )
 
     # 3. Initialize controllers
     app_controller = ApplicationController()
-    debug_controller = DebugController(
-        world=world, debug_drawer=view.create_debug_drawer()
-    )
+    debug_controller = DebugController(debug_drawer=debug_drawer)
     controllers: List[AbstractController] = [
         CameraController(view.camera, pan_mode="mouse"),
         app_controller,
