@@ -342,11 +342,18 @@ class PygameView(AbstractView):
 
             elif isinstance(body.shape, CircleShape):
                 screen_pos = self.camera.world_to_screen(body.position)
-                screen_radius = int(body.shape.radius * self.camera.zoom)
+                screen_radius = self.camera.world_to_screen(
+                    body.position + Vec2(body.shape.radius, 0)
+                ).x - screen_pos.x
                 if screen_radius > 0:
                     pygame.draw.circle(
                         self.screen, color, screen_pos.to_int_tuple(), screen_radius
                     )
+
+            else:
+                raise ValueError(
+                    f"Unsupported shape type: {type(body.shape).__name__}"
+                )
 
     def render_text(self, text: str, position: tuple) -> None:
         text_surface = self.font.render(text, True, (0, 0, 0))
