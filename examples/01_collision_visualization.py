@@ -17,7 +17,8 @@ from ppe.engine.collision_handlers import (
 # application components
 from ppe.utils.view import PygameView, Camera
 from ppe.utils.controller import (
-    CameraController,
+    CameraPanController,
+    CameraZoomController,
     InputState,
     ApplicationController,
     DebugController,
@@ -75,7 +76,8 @@ def main():
         controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
     )
     controllers: List[AbstractController] = [
-        CameraController(view.camera, pan_mode="keys"),
+        CameraPanController(view.camera, mode="mouse"),
+        CameraZoomController(view.camera, mode="mousewheel"),
         app_controller,
         debug_controller,
         # BodyMovementController(

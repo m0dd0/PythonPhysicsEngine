@@ -1,6 +1,6 @@
 import math
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Set, Literal, Union, Callable, List
+from typing import Optional, Dict, Set, Literal, Union, Callable, List, Tuple
 from dataclasses import dataclass, field
 import random
 from copy import deepcopy
@@ -13,12 +13,18 @@ from ppe.engine.debug import AbstractDebugDrawer
 from ppe.utils.view import Camera
 
 
+PYGAME_KEY_CONSTANTS = [
+    getattr(pygame, key_name) for key_name in dir(pygame) if key_name.startswith("K_")
+]
+
+
 @dataclass
 class InputState:
     """A generic container for all user input for a single frame."""
 
     # Continuous State
     mouse_position: Vec2
+    # mouse buttons are 1 (left), 2 (middle), 3 (right)
     mouse_buttons_held: Set[int] = field(default_factory=set)
     keys_held: Set[str] = field(default_factory=set)
 
@@ -35,37 +41,48 @@ class InputState:
         A factory method that creates an InputState snapshot from the
         current Pygame input state.
         """
-        # 2. Create the instance with continuous state
-        instance = cls(
-            mouse_position=Vec2(*pygame.mouse.get_pos()),
-            mouse_buttons_held={
-                button
-                for button, pressed in enumerate(pygame.mouse.get_pressed())
-                if pressed
-            },
-            keys_held={  # TODO fix
-                pygame.key.name(k)
-                for k, pressed in enumerate(pygame.key.get_pressed())
-                if pressed
-            },
-        )
-        # print(instance.keys_held)
-        print(pygame.key.get_pressed())
+        # get the held keys. note the caveats documented at https://www.pygame.org/docs/ref/key.html
+        key_states = pygame.key.get_pressed()
+        held_keys = {pygame.key.name(k) for k in PYGAME_KEY_CONSTANTS if key_states[k]}
 
-        # 3. Process the event queue for single-frame events
+        # get the held mouse buttons. we add 1 to the button index to match Pygame's button numbering in the event system
+        # 1 is left, 2 is middle, 3 is right
+        mouse_button_states = pygame.mouse.get_pressed()
+        held_mouse_buttons = {
+            button + 1 for button, pressed in enumerate(mouse_button_states) if pressed
+        }
+
+        # Process the event queue for single-frame events
+        keys_pressed = set()
+        keys_released = set()
+        mouse_buttons_pressed = set()
+        mouse_buttons_released = set()
+        mouse_wheel_delta = 0.0
         for event in pygame.event.get():
             if event.type == pygame.QUIT:  # pylint: disable=no-member
-                instance.keys_pressed.add("quit")
+                keys_pressed.add("quit")
             elif event.type == pygame.MOUSEWHEEL:  # pylint: disable=no-member
-                instance.mouse_wheel_delta = event.y
+                mouse_wheel_delta = event.y
             elif event.type == pygame.KEYDOWN:  # pylint: disable=no-member
-                instance.keys_pressed.add(pygame.key.name(event.key))
+                keys_pressed.add(pygame.key.name(event.key))
             elif event.type == pygame.KEYUP:  # pylint: disable=no-member
-                instance.keys_released.add(pygame.key.name(event.key))
+                keys_released.add(pygame.key.name(event.key))
             elif event.type == pygame.MOUSEBUTTONDOWN:  # pylint: disable=no-member
-                instance.mouse_buttons_pressed.add(event.button)
+                mouse_buttons_pressed.add(event.button)
             elif event.type == pygame.MOUSEBUTTONUP:  # pylint: disable=no-member
-                instance.mouse_buttons_released.add(event.button)
+                mouse_buttons_released.add(event.button)
+
+        # Create the InputState instance
+        instance = cls(
+            mouse_position=Vec2(*pygame.mouse.get_pos()),
+            mouse_buttons_held=held_mouse_buttons,
+            mouse_buttons_pressed=mouse_buttons_pressed,
+            mouse_buttons_released=mouse_buttons_released,
+            keys_held=held_keys,
+            keys_pressed=keys_pressed,
+            keys_released=keys_released,
+            mouse_wheel_delta=mouse_wheel_delta,
+        )
 
         return instance
 
@@ -94,85 +111,88 @@ class AbstractController(ABC):
         raise NotImplementedError
 
 
-class CameraController(AbstractController):
-    """Handles camera pan and zoom controls with configurable panning methods."""
+class ApplicationController(AbstractController):
+    """Handles application-level controls like quitting."""
+
+    def __init__(
+        self,
+        quit_keys: Set[str] = None,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
+    ):
+        """
+        Initializes the ApplicationController.
+
+        Args:
+            quit_keys: Set of keys that will trigger application quit.
+                      Defaults to {"quit", "escape"}.
+        """
+        super().__init__(debug_drawer)
+
+        self.quit_keys = {"quit", "escape"} if quit_keys is None else quit_keys
+
+        self.should_quit = False
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """Checks for quit conditions."""
+        for key in self.quit_keys:
+            if key in input_state.keys_pressed:
+                self.should_quit = True
+                break
+
+
+class CameraPanController(AbstractController):
+    """Handles camera panning with configurable input methods."""
 
     def __init__(
         self,
         camera: Camera,
-        pan_mode: Literal["keys", "mouse", None] = "keys",
-        pan_keys: Dict[Literal["up", "down", "left", "right"], int] = None,
-        pan_speed: float = 300.0,
-        zoom_speed: float = 0.1,
+        mode: Literal["keyboard", "mouse"] = "keyboard",
+        keys: Tuple[str, str, str, str] = ("up", "down", "left", "right"),
+        mouse_button: int = 2,
+        speed: float = 5.0,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
         """
-        Initializes the CameraController.
+        Initializes the PanController.
 
         Args:
             camera: The Camera object to control.
-            pan_mode: The method for panning, either "keys" or "mouse".
-            pan_keys: An optional dictionary to customize keyboard panning keys.
-                      Defaults to WASD. Keys are "up", "down", "left", "right".
-            pan_speed: The speed of keyboard panning.
-            zoom_speed: The sensitivity of mouse wheel zooming.
+            mode: The input method for panning, either "keyboard" or "mouse".
+            keys: A tuple of keys for panning in the order (up, down, left, right).
+            mouse_button: The mouse button to use for panning (1=left, 2=middle, 3=right).
+            speed: The speed of panning.
         """
-        # TODO allow track pad zooming
-        # TODO allow to specify mouse button for panning in keys mode
         super().__init__(debug_drawer)
-        if pan_mode not in ["keys", "mouse"]:
-            raise ValueError("pan_mode must be either 'keys' or 'mouse'")
+        if mode not in ["keyboard", "mouse"]:
+            raise ValueError("mode must be either 'keyboard' or 'mouse'")
+        if len(keys) != 4:
+            raise ValueError(
+                "keys must contain exactly 4 keys in order: [up, down, left, right]"
+            )
 
         self.camera = camera
-        self.pan_mode = pan_mode
-        self.pan_speed = pan_speed
-        self.zoom_speed = zoom_speed
-
-        if self.pan_mode == "keys":
-            if pan_keys is None:
-                # Default to WASD if no custom keys are provided
-                self.pan_keys = {
-                    "up": pygame.K_w,  # pylint:disable=no-member
-                    "down": pygame.K_s,  # pylint:disable=no-member
-                    "left": pygame.K_a,  # pylint:disable=no-member
-                    "right": pygame.K_d,  # pylint:disable=no-member
-                }
-            else:
-                if set(pan_keys.keys()) != {"up", "down", "left", "right"}:
-                    raise ValueError(
-                        "pan_keys must contain 'up', 'down', 'left', and 'right' keys"
-                    )
-                self.pan_keys = pan_keys
-        elif self.pan_mode == "mouse":
-            self._last_mouse_pos: Optional[Vec2] = None
-        elif self.pan_mode is None:
-            pass
-        else:
-            raise ValueError("Invalid pan_mode. Must be 'keys', 'mouse', or None.")
+        self.mode = mode
+        self.mouse_button = mouse_button
+        self.speed = speed
+        self.keys = keys
+        self._last_mouse_pos: Optional[Vec2] = None
 
     def update(self, input_state: InputState, dt: float) -> None:
-        """Handles all camera controls based on the current input state."""
-        # Zooming (always active)
-        if input_state.mouse_wheel_delta != 0:
-            zoom_change = 1 + input_state.mouse_wheel_delta * self.zoom_speed
-            self.camera.zoom = max(0.1, self.camera.zoom * zoom_change)
+        """Handles camera panning based on the current input state."""
+        if self.mode == "keyboard":
+            if self.keys[0] in input_state.keys_held:  # up
+                self.camera.position.y += self.speed * dt / self.camera.zoom
+            if self.keys[1] in input_state.keys_held:  # down
+                self.camera.position.y -= self.speed * dt / self.camera.zoom
+            if self.keys[2] in input_state.keys_held:  # left
+                self.camera.position.x -= self.speed * dt / self.camera.zoom
+            if self.keys[3] in input_state.keys_held:  # right
+                self.camera.position.x += self.speed * dt / self.camera.zoom
 
-        # --- Keyboard Panning ---
-        if self.pan_mode == "keys":
-            if self.pan_keys["up"] in input_state.keys_held:
-                self.camera.position.y -= self.pan_speed * dt / self.camera.zoom
-            if self.pan_keys["down"] in input_state.keys_held:
-                self.camera.position.y += self.pan_speed * dt / self.camera.zoom
-            if self.pan_keys["left"] in input_state.keys_held:
-                self.camera.position.x -= self.pan_speed * dt / self.camera.zoom
-            if self.pan_keys["right"] in input_state.keys_held:
-                self.camera.position.x += self.pan_speed * dt / self.camera.zoom
+        elif self.mode == "mouse":
+            mouse_button_held = self.mouse_button in input_state.mouse_buttons_held
 
-        # --- Mouse Panning ---
-        elif self.pan_mode == "mouse":
-            middle_mouse_held = 1 in input_state.mouse_buttons_held
-
-            if middle_mouse_held and self._last_mouse_pos:
+            if mouse_button_held and self._last_mouse_pos:
                 # If currently panning, calculate the delta
                 mouse_delta_world = self.camera.screen_to_world(
                     input_state.mouse_position
@@ -180,10 +200,62 @@ class CameraController(AbstractController):
                 self.camera.position -= mouse_delta_world / self.camera.zoom
 
             # Update last mouse position for the next frame
-            if middle_mouse_held:
+            if mouse_button_held:
                 self._last_mouse_pos = input_state.mouse_position
             else:
                 self._last_mouse_pos = None
+
+
+class CameraZoomController(AbstractController):
+    """Handles camera zooming with configurable input methods."""
+
+    def __init__(
+        self,
+        camera: Camera,
+        mode: Literal["mousewheel", "keyboard"] = "mousewheel",
+        keys: Tuple[str, str] = ("+", "-"),
+        speed: float = 0.5,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
+    ):
+        """
+        Initializes the ZoomController.
+
+        Args:
+            camera: The Camera object to control.
+            mode: The input method for zooming, either "wheel" or "keyboard".
+            keys: An optional list to customize keyboard zoom keys.
+                  Defaults to ["+", "-"]. Order is [zoom_in, zoom_out].
+            speed: The sensitivity of zooming.
+        """
+        super().__init__(debug_drawer)
+        if mode not in ["mousewheel", "keyboard"]:
+            raise ValueError("mode must be either 'mousewheel' or 'keyboard'")
+        if len(keys) != 2:
+            raise ValueError(
+                "keys must contain exactly 2 keys in order: [zoom_in, zoom_out]"
+            )
+
+        self.camera = camera
+        self.mode = mode
+        self.speed = speed
+        self.keys = keys
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """Handles camera zooming based on the current input state."""
+        if self.mode == "mousewheel":
+            # Mouse wheel zooming
+            if input_state.mouse_wheel_delta != 0:
+                zoom_change = 1 + input_state.mouse_wheel_delta * self.speed
+                self.camera.zoom = max(0.1, self.camera.zoom * zoom_change)
+
+        elif self.mode == "keyboard":
+            # Keyboard zooming
+            if self.keys[0] in input_state.keys_held:  # zoom_in
+                zoom_change = 1 + self.speed * dt
+                self.camera.zoom = max(0.1, self.camera.zoom * zoom_change)
+            if self.keys[1] in input_state.keys_held:  # zoom_out
+                zoom_change = 1 - self.speed * dt
+                self.camera.zoom = max(0.1, self.camera.zoom * zoom_change)
 
 
 class BodyDragger(AbstractController):
@@ -290,9 +362,9 @@ class BodySpawner(AbstractController):
         self.default_density = 1  # Default density for spawned bodies
 
         if mouse_spawn_objects is None:
-            self.mouse_spawn_objects = {}
+            self.mouse_spawn_objects = {1: self.spawn_box, 3: self.spawn_circle}
         if keyboard_spawn_objects is None:
-            self.keyboard_spawn_objects = {0: self.spawn_box, 2: self.spawn_circle}
+            self.keyboard_spawn_objects = {}
 
     def spawn_circle(self) -> Body:
         """Spawns a circle body at the given position."""
@@ -469,35 +541,6 @@ class BodyMovementController(AbstractController):
                 angular_velocity += self.rotation_speed
 
             self.body.angular_velocity = angular_velocity
-
-
-class ApplicationController(AbstractController):
-    """Handles application-level controls like quitting."""
-
-    def __init__(
-        self,
-        quit_keys: Set[str] = None,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
-    ):
-        """
-        Initializes the ApplicationController.
-
-        Args:
-            quit_keys: Set of keys that will trigger application quit.
-                      Defaults to {"quit", "escape"}.
-        """
-        super().__init__(debug_drawer)
-
-        self.quit_keys = {"quit", "escape"} if quit_keys is None else quit_keys
-
-        self.should_quit = False
-
-    def update(self, input_state: InputState, dt: float) -> None:
-        """Checks for quit conditions."""
-        for key in self.quit_keys:
-            if key in input_state.keys_pressed:
-                self.should_quit = True
-                break
 
 
 class DebugController(AbstractController):
