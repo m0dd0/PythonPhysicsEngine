@@ -352,8 +352,10 @@ class BodyDragController(AbstractController):
                         sin_a, cos_a = math.sin(-body.angle), math.cos(-body.angle)
                         # offset in local coordinates
                         self.grab_point_local = Vec2(
-                            body_position_offset.x * cos_a - body_position_offset.y * sin_a,
-                            body_position_offset.x * sin_a + body_position_offset.y * cos_a,
+                            body_position_offset.x * cos_a
+                            - body_position_offset.y * sin_a,
+                            body_position_offset.x * sin_a
+                            + body_position_offset.y * cos_a,
                         )
                         break
 
@@ -404,7 +406,7 @@ class BodyDragController(AbstractController):
                     )
 
 
-class BodySpawner(AbstractController):
+class BodySpawnController(AbstractController):
     """Spawns new bodies on key press."""
 
     def __init__(
@@ -422,10 +424,15 @@ class BodySpawner(AbstractController):
 
         self.default_density = 1  # Default density for spawned bodies
 
-        if mouse_spawn_objects is None:
-            self.mouse_spawn_objects = {1: self.spawn_box, 3: self.spawn_circle}
-        if keyboard_spawn_objects is None:
-            self.keyboard_spawn_objects = {}
+        if mouse_spawn_objects is None and keyboard_spawn_objects is None:
+            mouse_spawn_objects = {1: self.spawn_box, 3: self.spawn_circle}
+
+        self.mouse_spawn_objects = (
+            dict() if mouse_spawn_objects is None else mouse_spawn_objects
+        )
+        self.keyboard_spawn_objects = (
+            dict() if keyboard_spawn_objects is None else keyboard_spawn_objects
+        )
 
     def spawn_circle(self) -> Body:
         """Spawns a circle body at the given position."""

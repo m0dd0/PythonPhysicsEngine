@@ -24,6 +24,7 @@ from ppe.utils.controller import (
     DebugController,
     AbstractController,
     BodyDragController,
+    BodySpawnController,
 )
 
 # Constants
@@ -77,14 +78,19 @@ def main():
         controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
     )
     controllers: List[AbstractController] = [
-        CameraPanController(view.camera, mode="mouse", mouse_button=2),
-        CameraZoomController(view.camera, mode="mousewheel"),
+        # CameraPanController(view.camera, mode="mouse", mouse_button=2),
+        # CameraZoomController(view.camera, mode="mousewheel"),
         app_controller,
         debug_controller,
         BodyDragController(
             world=world,
             camera=view.camera,
             mode="position",
+            mouse_button=2,
+        ),
+        BodySpawnController(
+            world=world,
+            camera=view.camera,
         )
         # BodyMovementController(
         #     is_body_selectable=True,
