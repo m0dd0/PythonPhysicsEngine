@@ -97,7 +97,7 @@ class Body:
             self.inverse_mass: float = 1.0 / mass
             self.inverse_inertia: float = 1.0 / self.shape.calculate_inertia(mass)
 
-        self.user_data = user_data
+        self.user_data = user_data if user_data is not None else dict()
 
     def clear_forces(self) -> None:
         self.force_accumulator = Vec2(0, 0)
@@ -370,9 +370,36 @@ class PolygonShape(Shape):
         return True
 
     def get_area(self) -> float:
-        raise NotImplementedError(
-            "Area calculation is not implemented for PolygonShape. Use a specific polygon type."
-        )
+        """
+        Calculates the area of the polygon using the shoelace formula.
+        
+        The shoelace formula (also known as the surveyor's formula) calculates the area
+        of a simple polygon given its vertices. For a polygon with vertices (x₀,y₀), (x₁,y₁), ..., (xₙ₋₁,yₙ₋₁),
+        the area is:
+        
+        Area = ½|∑ᵢ₌₀ⁿ⁻¹(xᵢyᵢ₊₁ - xᵢ₊₁yᵢ)|
+        
+        where indices are taken modulo n (so xₙ = x₀, yₙ = y₀).
+        
+        This formula works for any simple polygon (convex or concave) as long as the vertices
+        are ordered consistently (either clockwise or counter-clockwise).
+        
+        Returns:
+            The area of the polygon in square units.
+        """
+        if len(self.vertices) < 3:
+            return 0.0
+        
+        # Apply the shoelace formula
+        area = 0.0
+        n = len(self.vertices)
+        
+        for i in range(n):
+            j = (i + 1) % n  # Next vertex (wraps around to 0 for the last vertex)
+            area += self.vertices[i].x * self.vertices[j].y
+            area -= self.vertices[j].x * self.vertices[i].y
+        
+        return abs(area) / 2.0
 
 # class CompoundShape(Shape):
 #     def __init__(self, sub_shapes: List[Tuple[Shape, Vec2, float]]):

@@ -89,12 +89,12 @@ class AABBBroadPhase(AbstractBroadPhase):
         body_aabbs = [body.get_aabb() for body in bodies]
 
         # draw the AABBs for debugging purposes
-        if self.debug_drawer is not None:
-            for body, (min_a, max_a) in zip(bodies, body_aabbs):
-                self.debug_drawer.add_polygon(
-                    [min_a, Vec2(max_a.x, min_a.y), max_a, Vec2(min_a.x, max_a.y)],
-                    color=(0, 0, 255),
-                )
+        # if self.debug_drawer is not None:
+        #     for body, (min_a, max_a) in zip(bodies, body_aabbs):
+        #         self.debug_drawer.add_polygon(
+        #             [min_a, Vec2(max_a.x, min_a.y), max_a, Vec2(min_a.x, max_a.y)],
+        #             color=(0, 0, 255),
+        #         )
 
         potential_pairs = []
         for i, (body_a, (min_a, max_a)) in enumerate(zip(bodies, body_aabbs)):
