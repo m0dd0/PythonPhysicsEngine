@@ -1,10 +1,24 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 
 import pygame
 
 from ppe.engine.common import Body, PolygonShape, CircleShape, Vec2
 from ppe.engine.debug import AbstractDebugDrawer
+from ppe.utils.profiler import Profiler
+
+TAB10_COLORS = [
+    (31, 119, 180),  # blue
+    (255, 127, 14),  # orange
+    (44, 160, 44),  # green
+    (214, 39, 40),  # red
+    (148, 103, 189),  # purple
+    (140, 86, 75),  # brown
+    (227, 119, 194),  # pink
+    (127, 127, 127),  # gray
+    (188, 189, 34),  # olive
+    (23, 190, 207),  # cyan
+]
 
 
 class Camera:
@@ -104,7 +118,9 @@ class AbstractView(ABC):
         pass
 
     @abstractmethod
-    def render_text(self, text: str, position: tuple) -> None:
+    def render_text(
+        self, text: str, position: Tuple[int, int], color: Tuple[int, int, int]
+    ) -> None:
         """Renders UI text to the screen."""
         pass
 
@@ -118,39 +134,15 @@ class AbstractView(ABC):
         """Updates the screen to show the final rendered frame."""
         pass
 
-    def render_all(self, world, info_data: dict = None) -> None:
+    @abstractmethod
+    def render_profiler(self, profiler: Profiler) -> None:
         """
-        Renders the complete frame: background, bodies, debug, and info.
-        Default implementation calls individual render methods.
+        Renders profiler information with enhanced formatting.
 
         Args:
-            world: The world containing bodies and debug drawer
-            info_data: Optional dictionary of info text to display
+            profiler: Profiler instance with timing data
         """
-        self.render_background()
-        self.render_bodies(world.bodies)
-
-        world.debug_drawer.render_all()
-
-        if info_data:
-            self.render_info(info_data)
-
-    def render_info(self, info_dict: dict) -> None:
-        """
-        Renders informational text in a consistent format.
-        Default implementation calls render_text for each item.
-
-        Args:
-            info_dict: Dictionary of label: value pairs to display
-        """
-        # Default implementation - subclasses should override with their specific layout
-        y_offset = 0
-        start_pos = (10, 10)
-        line_height = 20
-        for label, value in info_dict.items():
-            text = f"{label}: {value}"
-            self.render_text(text, (start_pos[0], start_pos[1] + y_offset))
-            y_offset += line_height
+        pass
 
 
 class PygameDebugDrawer(AbstractDebugDrawer):
@@ -306,8 +298,9 @@ class PygameView(AbstractView):
         default_body_color=(50, 50, 200),
         default_outline_color=(0, 0, 0),
         default_outline_width=1,
-        info_start_pos=(10, 10),
-        info_line_height=20,
+        profiler_position=(10, 10),
+        profiler_pixels_per_ms=8,
+        smooth_profiler: bool = True,
     ):
         self.camera = camera
         self.screen = pygame.display.set_mode(
@@ -321,8 +314,19 @@ class PygameView(AbstractView):
         self.default_body_color = default_body_color
         self.default_outline_color = default_outline_color
         self.default_outline_width = default_outline_width
-        self.info_start_pos = info_start_pos
-        self.info_line_height = info_line_height
+
+        # profiler settings
+        self.profiler_position = profiler_position
+        self.profiler_pixels_per_ms = profiler_pixels_per_ms
+        self.smooth_profiler = smooth_profiler
+        self.profiler_font = pygame.font.SysFont("Arial", 12)
+        self.profiler_colors = TAB10_COLORS
+        self.profiler_bar_position = (profiler_position[0], profiler_position[1] + 25)
+        self.profiler_bar_height = 20
+        self.profiler_label_position = (
+            self.profiler_bar_position[0],
+            self.profiler_bar_position[1] + self.profiler_bar_height + 5,
+        )
 
     def render_background(self) -> None:
         self.screen.fill(self.background_color)
@@ -336,7 +340,7 @@ class PygameView(AbstractView):
             outline_width = body.user_data.get(
                 "outline_width", self.default_outline_width
             )
-            
+
             if isinstance(body.shape, PolygonShape):
                 screen_verts = [
                     self.camera.world_to_screen(v)
@@ -360,9 +364,12 @@ class PygameView(AbstractView):
 
             elif isinstance(body.shape, CircleShape):
                 screen_pos = self.camera.world_to_screen(body.position)
-                screen_radius = self.camera.world_to_screen(
-                    body.position + Vec2(body.shape.radius, 0)
-                ).x - screen_pos.x
+                screen_radius = (
+                    self.camera.world_to_screen(
+                        body.position + Vec2(body.shape.radius, 0)
+                    ).x
+                    - screen_pos.x
+                )
                 if screen_radius > 0:
                     pygame.draw.circle(
                         self.screen, color, screen_pos.to_int_tuple(), screen_radius
@@ -377,47 +384,91 @@ class PygameView(AbstractView):
                         )
 
             else:
-                raise ValueError(
-                    f"Unsupported shape type: {type(body.shape).__name__}"
-                )
+                raise ValueError(f"Unsupported shape type: {type(body.shape).__name__}")
 
-    def render_text(self, text: str, position: tuple) -> None:
-        text_surface = self.font.render(text, True, (0, 0, 0))
+    def render_text(
+        self, text: str, position: Tuple[int, int], color: Tuple[int, int, int]
+    ) -> None:
+        text_surface = self.font.render(text, True, color)
         self.screen.blit(text_surface, position)
 
     def create_debug_drawer(self) -> AbstractDebugDrawer:
         return self._debug_drawer
 
-    def render_all(self, world, info_data: dict = None) -> None:
+    def render_profiler(self, profiler: Profiler) -> None:
         """
-        Renders the complete frame: background, bodies, debug, and info.
+        Enhanced profiler visualization with a horizontal timeline bar.
+        Shows timing data as segments where 1ms = pixels_per_ms in width.
 
         Args:
-            world: The world containing bodies and debug drawer
-            info_data: Optional dictionary of info text to display
+            profiler: Profiler instance with timing data
         """
-        self.render_background()
-        self.render_bodies(world.bodies)
+        # Get timing data in milliseconds
+        if self.smooth_profiler:
+            frame_time = profiler.smoothed_total_frame_time
+            timings = profiler.smoothed_timings
+        else:
+            frame_time = profiler.total_frame_time
+            timings = profiler.timings
+        fps = 1000 / frame_time
 
-        world.debug_drawer.render_all()
+        # first we have a color-coded display of the frame time
+        header_text = f"{int(frame_time):03d}ms / {int(fps):02d} FPS"
+        if fps > 50:
+            header_color = (0, 200, 0)
+        elif fps > 30:
+            header_color = (255, 165, 0)
+        else:
+            header_color = (255, 50, 50)
+        self.render_text(header_text, self.profiler_position, header_color)
 
-        if info_data:
-            self.render_info(info_data)
+        # Draw timeline background (total frame time)
+        pygame.draw.rect(
+            self.screen,
+            (180, 180, 180),
+            (
+                self.profiler_bar_position[0],
+                self.profiler_bar_position[1],
+                int(frame_time * self.profiler_pixels_per_ms),
+                self.profiler_bar_height,
+            ),
+            width=0,
+        )
 
-    def render_info(self, info_dict: dict) -> None:
-        """
-        Renders informational text in a consistent format using instance attributes.
+        # Draw the timing segments as colored bars
+        x_offset = 0
+        for i, (name, time) in enumerate(timings.items()):
+            if time <= 0:
+                continue
 
-        Args:
-            info_dict: Dictionary of label: value pairs to display
-        """
-        y_offset = 0
-        for label, value in info_dict.items():
-            text = f"{label}: {value}"
-            self.render_text(
-                text, (self.info_start_pos[0], self.info_start_pos[1] + y_offset)
+            pygame.draw.rect(
+                self.screen,
+                self.profiler_colors[i % len(self.profiler_colors)],
+                (
+                    self.profiler_bar_position[0] + x_offset,
+                    self.profiler_bar_position[1],
+                    int(time * self.profiler_pixels_per_ms),
+                    self.profiler_bar_height,
+                ),
+                width=0,
             )
-            y_offset += self.info_line_height
+            x_offset += int(time * self.profiler_pixels_per_ms)
+
+        # draw timing labels: place them sequentially next to each other below the bar
+        x_offset = 0
+        for i, (name, time) in enumerate(timings.items()):
+            if time <= 0:
+                continue
+
+            label_color = self.profiler_colors[i % len(self.profiler_colors)]
+            label_text = f"{name}: {time:.1f}ms"
+            label_surface = self.profiler_font.render(label_text, True, label_color)
+
+            # Place this label next to the previous one
+            self.screen.blit(label_surface, (self.profiler_label_position[0] + x_offset, self.profiler_label_position[1]))
+
+            # Move to the right for the next label (add some spacing)
+            x_offset += label_surface.get_width() + 5
 
     def update_display(self) -> None:
         pygame.display.flip()

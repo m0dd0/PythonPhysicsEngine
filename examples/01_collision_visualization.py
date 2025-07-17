@@ -28,6 +28,7 @@ from ppe.utils.controller import (
     BodySteeringController,
     HoverRotateController,
 )
+from ppe.utils.profiler import Profiler
 
 # Constants
 SCREEN_WIDTH = 1024
@@ -44,7 +45,8 @@ def main():
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
             world_width=SCREEN_WIDTH_WORLD,
-        )
+        ),
+        smooth_profiler=True,
     )
     debug_drawer = view.create_debug_drawer()
 
@@ -95,35 +97,48 @@ def main():
         HoverRotateController(world=world, camera=view.camera),
     ]
 
+    # 4. Initialize the profiler
+    profiler = Profiler(smoothing_frames=30)
+
     ## Main Loop
     running = True
     clock = pygame.time.Clock()
 
     while running:
+        profiler.start_frame()
+
+        # wait until at least 1/60 seconds have passed
         dt = clock.tick(60) / 1000.0
 
         ## Input
-        input_state = InputState.from_pygame()
+        with profiler.time("Input"):
+            input_state = InputState.from_pygame()
 
         ## Controller Updates
-        for controller in controllers:
-            controller.update(input_state, dt)
+        with profiler.time("Controller"):
+            for controller in controllers:
+                controller.update(input_state, dt)
 
         # Check if application should quit
         if app_controller.should_quit:
             running = False
 
         ## Physics Update
-        world.step(dt)
+        with profiler.time("World"):
+            world.step(dt)
 
         # Render the world
-        view.render_all(
-            world,
-            info_data={
-                "Current FPS": int(clock.get_fps()),
-            },
-        )
+        with profiler.time("Render"):
+            view.render_background()
+            view.render_bodies(world.bodies)
+            world.debug_drawer.render_all()
+            view.update_display()
+
+        # Render profiler after timing is complete
+        profiler.end_frame()
+        view.render_profiler(profiler)
         view.update_display()
+
 
     pygame.quit()  # pylint: disable=no-member
 
