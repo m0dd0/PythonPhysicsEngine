@@ -34,6 +34,7 @@ class InputState:
     keys_pressed: Set[str] = field(default_factory=set)
     keys_released: Set[str] = field(default_factory=set)
     mouse_wheel_delta: float = 0.0
+    mouse_wheel_delta_x: float = 0.0  # Horizontal scroll for trackpad panning
 
     @classmethod
     def from_pygame(cls) -> "InputState":
@@ -58,11 +59,15 @@ class InputState:
         mouse_buttons_pressed = set()
         mouse_buttons_released = set()
         mouse_wheel_delta = 0.0
+        mouse_wheel_delta_x = 0.0
         for event in pygame.event.get():
             if event.type == pygame.QUIT:  # pylint: disable=no-member
                 keys_pressed.add("quit")
             elif event.type == pygame.MOUSEWHEEL:  # pylint: disable=no-member
-                mouse_wheel_delta = event.y
+                mouse_wheel_delta += event.y
+                # Capture horizontal scroll if available (for trackpad panning)
+                if hasattr(event, 'x'):
+                    mouse_wheel_delta_x += event.x
             elif event.type == pygame.KEYDOWN:  # pylint: disable=no-member
                 keys_pressed.add(pygame.key.name(event.key))
             elif event.type == pygame.KEYUP:  # pylint: disable=no-member
@@ -82,6 +87,7 @@ class InputState:
             keys_pressed=keys_pressed,
             keys_released=keys_released,
             mouse_wheel_delta=mouse_wheel_delta,
+            mouse_wheel_delta_x=mouse_wheel_delta_x,
         )
 
         return instance
@@ -146,10 +152,11 @@ class CameraPanController(AbstractController):
     def __init__(
         self,
         camera: Camera,
-        mode: Literal["keyboard", "mouse"] = "keyboard",
+        mode: Literal["keyboard", "mouse", "trackpad"] = "keyboard",
         keys: Tuple[str, str, str, str] = ("up", "down", "left", "right"),
         mouse_button: int = 2,
         speed: float = 5.0,
+        trackpad_sensitivity: float = 1.0,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
         """
@@ -157,14 +164,15 @@ class CameraPanController(AbstractController):
 
         Args:
             camera: The Camera object to control.
-            mode: The input method for panning, either "keyboard" or "mouse".
+            mode: The input method for panning, either "keyboard", "mouse", or "trackpad".
             keys: A tuple of keys for panning in the order (up, down, left, right).
             mouse_button: The mouse button to use for panning (1=left, 2=middle, 3=right).
             speed: The speed of panning.
+            trackpad_sensitivity: The sensitivity for trackpad scroll panning.
         """
         super().__init__(debug_drawer)
-        if mode not in ["keyboard", "mouse"]:
-            raise ValueError("mode must be either 'keyboard' or 'mouse'")
+        if mode not in ["keyboard", "mouse", "trackpad"]:
+            raise ValueError("mode must be either 'keyboard', 'mouse', or 'trackpad'")
         if len(keys) != 4:
             raise ValueError(
                 "keys must contain exactly 4 keys in order: [up, down, left, right]"
@@ -174,6 +182,7 @@ class CameraPanController(AbstractController):
         self.mode = mode
         self.mouse_button = mouse_button
         self.speed = speed
+        self.trackpad_sensitivity = trackpad_sensitivity
         self.keys = keys
         self._last_mouse_pos: Optional[Vec2] = None
 
@@ -204,6 +213,18 @@ class CameraPanController(AbstractController):
                 self._last_mouse_pos = input_state.mouse_position
             else:
                 self._last_mouse_pos = None
+
+        elif self.mode == "trackpad":
+            # Trackpad panning using horizontal/vertical scroll gestures
+            if input_state.mouse_wheel_delta_x != 0:
+                # Horizontal scroll for left/right panning
+                pan_x = input_state.mouse_wheel_delta_x * self.trackpad_sensitivity / self.camera.zoom
+                self.camera.position.x -= pan_x
+            
+            if input_state.mouse_wheel_delta != 0:
+                # Vertical scroll for up/down panning (when not used for zooming)
+                pan_y = input_state.mouse_wheel_delta * self.trackpad_sensitivity / self.camera.zoom
+                self.camera.position.y -= pan_y
 
 
 class CameraZoomController(AbstractController):

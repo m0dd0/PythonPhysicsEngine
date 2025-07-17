@@ -76,8 +76,8 @@ def main():
         controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
     )
     controllers: List[AbstractController] = [
-        CameraPanController(view.camera, mode="mouse"),
-        CameraZoomController(view.camera, mode="mousewheel"),
+        CameraPanController(view.camera, mode="trackpad"),
+        # CameraZoomController(view.camera, mode="mousewheel"),
         app_controller,
         debug_controller,
         # BodyMovementController(
