@@ -146,6 +146,40 @@ class ApplicationController(AbstractController):
                 break
 
 
+class DebugController(AbstractController):
+    """Handles debug mode toggling and debug-related functionality."""
+
+    def __init__(
+        self,
+        controlled_debug_drawer: AbstractDebugDrawer,
+        toggle_key: str = "d",
+        initial_debug_mode: bool = True,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
+    ):
+        """
+        Initializes the DebugController.
+
+        Args:
+            controlled_debug_drawer: The debug drawer to control (enable/disable).
+            toggle_key: The key to toggle debug mode. Defaults to "d".
+            initial_debug_mode: Whether debug mode starts enabled.
+            debug_drawer: Optional debug drawer for visualizing this controller's actions.
+        """
+        super().__init__(debug_drawer)
+
+        self.controlled_debug_drawer = controlled_debug_drawer
+        self.toggle_key = toggle_key
+        self.debug_mode = initial_debug_mode
+
+        self.controlled_debug_drawer.enabled = self.debug_mode
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """Handles debug mode toggling."""
+        if self.toggle_key in input_state.keys_pressed:
+            self.debug_mode = not self.debug_mode
+            self.controlled_debug_drawer.enabled = self.debug_mode
+
+
 class CameraPanController(AbstractController):
     """Handles camera panning with configurable input methods."""
 
@@ -483,7 +517,7 @@ class BodySpawnController(AbstractController):
                 self.world.add_body(new_body)
 
 
-class BodyMovementController(AbstractController):
+class BodySteeringController(AbstractController):
     """
     A reusable controller for moving and rotating a specific body with
     configurable keys and control modes.
@@ -491,155 +525,57 @@ class BodyMovementController(AbstractController):
 
     def __init__(
         self,
-        is_body_selectable: bool = True,
-        body: Optional[Body] = None,
-        world: Optional[World] = None,
-        camera: Optional[Camera] = None,
-        control_mode: Literal["position", "dynamic"] = "position",
-        move_speed: float = 150.0,
-        rotation_speed: float = math.pi,
-        key_bindings: Dict[
-            Literal["up", "down", "left", "right", "rotate_cw", "rotate_ccw"], str
-        ] = None,
+        body: Body,
+        move_speed: float = 5.0,
+        keys: Tuple[str, str, str, str] = ("w", "s", "a", "d"),
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
-        """
-        Initializes the controller.
-
-        Args:
-            body: The specific Body instance to control.
-            control_mode: "position" to control position directly, or
-                          "dynamic" to control velocity.
-            move_speed: The speed of linear movement.
-            rotation_speed: The speed of angular rotation in radians per second.
-            key_bindings: Optional dictionary to override default keys.
-                          Keys are "up", "down", "left", "right",
-                          "rotate_cw", "rotate_ccw".
-        """
         super().__init__(debug_drawer)
 
-        if control_mode not in ["position", "dynamic"]:
-            raise ValueError("control_mode must be 'position' or 'dynamic'")
-        if not is_body_selectable and body is None:
-            raise ValueError(
-                "If is_body_selectable is False, a body must be provided to control."
-            )
-        if is_body_selectable and (world is None or camera is None):
-            raise ValueError(
-                "If is_body_selectable is True, both world and camera must be provided."
-            )
-
-        self.is_body_selectable = is_body_selectable
-        self.camera = camera
-        self.world = world
         self.body = body
-        self.control_mode = control_mode
         self.move_speed = move_speed
-        self.rotation_speed = rotation_speed
-
-        # Set default key bindings if none are provided
-        if key_bindings is None:
-            self.key_bindings = {
-                "up": "w",
-                "down": "s",
-                "left": "a",
-                "right": "d",
-                "rotate_ccw": "q",
-                "rotate_cw": "e",
-            }
-        else:
-            self.key_bindings = key_bindings
+        self.keys = keys
 
     def update(self, input_state: InputState, dt: float) -> None:
-        """Updates the controlled body based on held keys."""
-        if self.is_body_selectable:
-            if 0 in input_state.mouse_buttons_pressed:
-                self.body = None  # Deselect by default
+        if self.keys[0] in input_state.keys_held:
+            self.body.position.y += self.move_speed * dt
+        if self.keys[1] in input_state.keys_held:
+            self.body.position.y -= self.move_speed * dt
+        if self.keys[2] in input_state.keys_held:
+            self.body.position.x -= self.move_speed * dt
+        if self.keys[3] in input_state.keys_held:
+            self.body.position.x += self.move_speed * dt
 
-                # select the new body if there is one under the mouse
-                mouse_world_pos = self.camera.screen_to_world(
-                    input_state.mouse_position
-                )
-                for body in reversed(self.world.bodies):
-                    if body.inverse_mass != 0.0 and body.is_point_inside(
-                        mouse_world_pos, body.position, body.angle
-                    ):
-                        self.body = body
-                        break
-
-        if self.body is None:
-            return
-
-        if self.control_mode == "position":
-            # Direct position manipulation
-            if self.key_bindings["up"] in input_state.keys_held:
-                self.body.position.y -= self.move_speed * dt
-            if self.key_bindings["down"] in input_state.keys_held:
-                self.body.position.y += self.move_speed * dt
-            if self.key_bindings["left"] in input_state.keys_held:
-                self.body.position.x -= self.move_speed * dt
-            if self.key_bindings["right"] in input_state.keys_held:
-                self.body.position.x += self.move_speed * dt
-
-            # Direct angle manipulation
-            if self.key_bindings["rotate_ccw"] in input_state.keys_held:
-                self.body.angle -= self.rotation_speed * dt
-            if self.key_bindings["rotate_cw"] in input_state.keys_held:
-                self.body.angle += self.rotation_speed * dt
-
-        elif self.control_mode == "dynamic":
-            # Dynamic control by setting velocity
-            linear_velocity = Vec2(0, 0)
-            if self.key_bindings["up"] in input_state.keys_held:
-                linear_velocity.y -= self.move_speed
-            if self.key_bindings["down"] in input_state.keys_held:
-                linear_velocity.y += self.move_speed
-            if self.key_bindings["left"] in input_state.keys_held:
-                linear_velocity.x -= self.move_speed
-            if self.key_bindings["right"] in input_state.keys_held:
-                linear_velocity.x += self.move_speed
-
-            self.body.velocity = linear_velocity
-
-            # Dynamic control by setting angular velocity
-            angular_velocity = 0.0
-            if self.key_bindings["rotate_ccw"] in input_state.keys_held:
-                angular_velocity -= self.rotation_speed
-            if self.key_bindings["rotate_cw"] in input_state.keys_held:
-                angular_velocity += self.rotation_speed
-
-            self.body.angular_velocity = angular_velocity
-
-
-class DebugController(AbstractController):
-    """Handles debug mode toggling and debug-related functionality."""
+class HoverRotateController(AbstractController):
+    """A controller that rotates a body around its center when the mousewheel is turnd and the mouse is hovering over it."""
 
     def __init__(
         self,
-        controlled_debug_drawer: AbstractDebugDrawer,
-        toggle_key: str = "d",
-        initial_debug_mode: bool = True,
+        world: World,
+        camera: Camera,
+        rotation_speed: float = 3.0,
+        allow_static_bodies: bool = True,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
-        """
-        Initializes the DebugController.
-
-        Args:
-            controlled_debug_drawer: The debug drawer to control (enable/disable).
-            toggle_key: The key to toggle debug mode. Defaults to "d".
-            initial_debug_mode: Whether debug mode starts enabled.
-            debug_drawer: Optional debug drawer for visualizing this controller's actions.
-        """
         super().__init__(debug_drawer)
 
-        self.controlled_debug_drawer = controlled_debug_drawer
-        self.toggle_key = toggle_key
-        self.debug_mode = initial_debug_mode
-
-        self.controlled_debug_drawer.enabled = self.debug_mode
+        self.rotation_speed = rotation_speed
+        self.world = world
+        self.camera = camera
+        self.allow_static_bodies = allow_static_bodies
 
     def update(self, input_state: InputState, dt: float) -> None:
-        """Handles debug mode toggling."""
-        if self.toggle_key in input_state.keys_pressed:
-            self.debug_mode = not self.debug_mode
-            self.controlled_debug_drawer.enabled = self.debug_mode
+        bodies = self.world.get_bodies_at_point(
+            self.camera.screen_to_world(input_state.mouse_position)
+        )
+        if not bodies:
+            return
+
+        body = bodies[0]
+        if not self.allow_static_bodies and body.inverse_mass == 0:
+            return
+        
+        if input_state.mouse_wheel_delta != 0:
+            # Rotate the body around its center based on mouse wheel input
+            rotation_amount = input_state.mouse_wheel_delta * self.rotation_speed * dt
+            body.angle += rotation_amount

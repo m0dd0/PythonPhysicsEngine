@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from ppe.engine.common import Body, Joint
+from ppe.engine.common import Body, Joint, Vec2
 from ppe.engine.solvers import AbstractSolver
 from ppe.engine.collision_broad import AbstractBroadPhase
 from ppe.engine.collision_narrow import AbstractNarrowPhase
@@ -142,3 +142,21 @@ class World:
         """
         if force_generator in self.force_generators:
             self.force_generators.remove(force_generator)
+
+    def get_bodies_at_point(self, point: Vec2) -> List[Body]:
+        """
+        Returns a list of bodies at the given world space point.
+
+        Args:
+            point: The world space point to check.
+
+        Returns:
+            A list of bodies at the specified point.
+        """
+        # this can probably be optimized by using a spatial partitioning structure
+        
+        bodies_at_point = []
+        for body in reversed(self.bodies):
+            if body.is_point_inside(point):
+                bodies_at_point.append(body)
+        return bodies_at_point

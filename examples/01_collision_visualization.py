@@ -25,6 +25,8 @@ from ppe.utils.controller import (
     AbstractController,
     BodyDragController,
     BodySpawnController,
+    BodySteeringController,
+    HoverRotateController,
 )
 
 # Constants
@@ -88,16 +90,9 @@ def main():
             mode="position",
             mouse_button=2,
         ),
-        BodySpawnController(
-            world=world,
-            camera=view.camera,
-        )
-        # BodyMovementController(
-        #     is_body_selectable=True,
-        #     world=world,
-        #     camera=view.camera,
-        #     control_mode="position",
-        # ),
+        BodySpawnController(world=world, camera=view.camera),
+        BodySteeringController(body=world.bodies[0]),
+        HoverRotateController(world=world, camera=view.camera),
     ]
 
     ## Main Loop
@@ -125,8 +120,6 @@ def main():
         view.render_all(
             world,
             info_data={
-                "Debug Mode (D)": "ON" if debug_controller.debug_mode else "OFF",
-                "Instructions": "Click to select a box, then use WASD/QE to move/rotate",
                 "Current FPS": int(clock.get_fps()),
             },
         )
