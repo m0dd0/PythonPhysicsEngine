@@ -91,7 +91,7 @@ def main():
             mouse_button=2,
         ),
         BodySpawnController(world=world, camera=view.camera),
-        BodySteeringController(body=world.bodies[0]),
+        # BodySteeringController(body=world.bodies[0]),
         HoverRotateController(world=world, camera=view.camera),
     ]
 

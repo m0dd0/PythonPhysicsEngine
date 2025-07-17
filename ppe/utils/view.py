@@ -304,6 +304,8 @@ class PygameView(AbstractView):
         camera: Camera,
         background_color=(240, 240, 240),
         default_body_color=(50, 50, 200),
+        default_outline_color=(0, 0, 0),
+        default_outline_width=1,
         info_start_pos=(10, 10),
         info_line_height=20,
     ):
@@ -317,6 +319,8 @@ class PygameView(AbstractView):
         self._debug_drawer = PygameDebugDrawer(self.screen, self.camera)
         self.background_color = background_color
         self.default_body_color = default_body_color
+        self.default_outline_color = default_outline_color
+        self.default_outline_width = default_outline_width
         self.info_start_pos = info_start_pos
         self.info_line_height = info_line_height
 
@@ -326,6 +330,13 @@ class PygameView(AbstractView):
     def render_bodies(self, bodies: List[Body]) -> None:
         for body in bodies:
             color = body.user_data.get("color", self.default_body_color)
+            outline_color = body.user_data.get(
+                "outline_color", self.default_outline_color
+            )
+            outline_width = body.user_data.get(
+                "outline_width", self.default_outline_width
+            )
+            
             if isinstance(body.shape, PolygonShape):
                 screen_verts = [
                     self.camera.world_to_screen(v)
@@ -339,6 +350,13 @@ class PygameView(AbstractView):
                     [v.to_int_tuple() for v in screen_verts],
                     width=0,
                 )
+                if outline_width > 0:
+                    pygame.draw.polygon(
+                        self.screen,
+                        outline_color,
+                        [v.to_int_tuple() for v in screen_verts],
+                        width=outline_width,
+                    )
 
             elif isinstance(body.shape, CircleShape):
                 screen_pos = self.camera.world_to_screen(body.position)
@@ -349,6 +367,14 @@ class PygameView(AbstractView):
                     pygame.draw.circle(
                         self.screen, color, screen_pos.to_int_tuple(), screen_radius
                     )
+                    if outline_width > 0:
+                        pygame.draw.circle(
+                            self.screen,
+                            outline_color,
+                            screen_pos.to_int_tuple(),
+                            screen_radius,
+                            width=outline_width,
+                        )
 
             else:
                 raise ValueError(
