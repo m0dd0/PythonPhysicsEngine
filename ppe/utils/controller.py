@@ -503,27 +503,30 @@ class DebugController(AbstractController):
 
     def __init__(
         self,
-        debug_drawer: AbstractDebugDrawer,
+        controlled_debug_drawer: AbstractDebugDrawer,
         toggle_key: str = "d",
         initial_debug_mode: bool = True,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
         """
         Initializes the DebugController.
 
         Args:
-            debug_drawer: The debug drawer to use for rendering debug information.
+            controlled_debug_drawer: The debug drawer to control (enable/disable).
             toggle_key: The key to toggle debug mode. Defaults to "d".
             initial_debug_mode: Whether debug mode starts enabled.
+            debug_drawer: Optional debug drawer for visualizing this controller's actions.
         """
         super().__init__(debug_drawer)
 
+        self.controlled_debug_drawer = controlled_debug_drawer
         self.toggle_key = toggle_key
         self.debug_mode = initial_debug_mode
 
-        self.debug_drawer.enabled = self.debug_mode
+        self.controlled_debug_drawer.enabled = self.debug_mode
 
     def update(self, input_state: InputState, dt: float) -> None:
         """Handles debug mode toggling."""
         if self.toggle_key in input_state.keys_pressed:
             self.debug_mode = not self.debug_mode
-            self.debug_drawer.enabled = self.debug_mode
+            self.controlled_debug_drawer.enabled = self.debug_mode

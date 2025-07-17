@@ -70,8 +70,10 @@ def main():
     )
 
     # 3. Initialize controllers
-    app_controller = ApplicationController()
-    debug_controller = DebugController(debug_drawer=debug_drawer)
+    app_controller = ApplicationController(debug_drawer=debug_drawer)
+    debug_controller = DebugController(
+        controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
+    )
     controllers: List[AbstractController] = [
         CameraController(view.camera, pan_mode="mouse"),
         app_controller,
