@@ -25,8 +25,8 @@ from ppe.utils.controller import (
 )
 
 # Constants
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
+SCREEN_WIDTH = 1024
+SCREEN_HEIGHT = 576
 SCREEN_WIDTH_WORLD = 10.0  # World width in physics units
 
 
@@ -75,7 +75,7 @@ def main():
         controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
     )
     controllers: List[AbstractController] = [
-        CameraController(view.camera, pan_mode="mouse"),
+        CameraController(view.camera, pan_mode="keys"),
         app_controller,
         debug_controller,
         # BodyMovementController(

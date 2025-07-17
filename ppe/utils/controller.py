@@ -43,12 +43,14 @@ class InputState:
                 for button, pressed in enumerate(pygame.mouse.get_pressed())
                 if pressed
             },
-            keys_held={
+            keys_held={  # TODO fix
                 pygame.key.name(k)
                 for k, pressed in enumerate(pygame.key.get_pressed())
                 if pressed
             },
         )
+        # print(instance.keys_held)
+        print(pygame.key.get_pressed())
 
         # 3. Process the event queue for single-frame events
         for event in pygame.event.get():
