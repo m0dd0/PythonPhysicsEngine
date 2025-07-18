@@ -72,7 +72,7 @@ def main():
         ),
         bodies=[
             Body(
-                shape=PolygonShape.create_rectangle(width=1, height=1),
+                shape=PolygonShape.create_rectangle(width=0.5, height=0.5),
                 position=Vec2(1, -1),
                 mass=1,
             ),
@@ -105,7 +105,7 @@ def main():
         app_controller,
         debug_controller,
         CameraZoomController(view.camera, mode="keyboard"),
-        CameraPanController(view.camera, mode="mouse"),
+        CameraPanController(view.camera, mode="keyboard"),
         BodyDragController(
             world=world,
             camera=view.camera,

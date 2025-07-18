@@ -70,16 +70,6 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
 class SatPolygonHandler(AbstractCollisionHandler):
     """Generates contacts for two colliding convex polygons using SAT."""
 
-    def _project_minmax(self, vertices: List[Vec2], axis: Vec2) -> Tuple[float, float]:
-        """Projects a polygon's vertices onto an axis."""
-        min_proj = float("inf")
-        max_proj = float("-inf")
-        for v in vertices:
-            proj = v.dot(axis)
-            min_proj = min(min_proj, proj)
-            max_proj = max(max_proj, proj)
-        return min_proj, max_proj
-
     def _clip_incident_edge(
         self,
         incident_edge: Tuple[Vec2, Vec2],
@@ -118,6 +108,14 @@ class SatPolygonHandler(AbstractCollisionHandler):
 
         return tuple(clipped_points)
 
+    def _distances_from_edge(
+        self, test_points: List[Vec2], edge_start: Vec2, edge_normal: Vec2
+    ) -> float:
+        """Calculates the signed distance from a point to an edge defined by a start point and a normal."""
+        return [
+            (test_point - edge_start).dot(edge_normal) for test_point in test_points
+        ]
+
     def generate_contact(self, body_a: Body, body_b: Body) -> Optional[Contact]:
         """Checks for collision using the Separating Axis Theorem."""
         assert body_a.shape.get_type() == "polygon"
@@ -134,8 +132,8 @@ class SatPolygonHandler(AbstractCollisionHandler):
 
         min_overlap = float("inf")
         collision_normal = None
-        reference_shape_is_a = True
         reference_edge = None
+        incident_edge = None
         # the shape whose normal has the smallest overlap "owns" the collision normal
         # this corresponding edge of this normal is called "reference edge" and is defined
         #   as the edge that is being hit/penetrated
@@ -144,24 +142,58 @@ class SatPolygonHandler(AbstractCollisionHandler):
         #   (but pointing in the opposite direction) with the collision normal
 
         # find overlap, reference edge and collision normal
-        for i_ab, (verts, normals) in enumerate(
-            ((verts_a, normals_a), (verts_b, normals_b))
-        ):
-            for i in range(len(normals)):  # pylint: disable=consider-using-enumerate
-                normal_i = normals[i]
-                vert_i = verts[i]
-                min_a_proj, max_a_proj = self._project_minmax(verts_a, normal_i)
-                min_b_proj, max_b_proj = self._project_minmax(verts_b, normal_i)
+        for i, normal_ai in enumerate(normals_a):
+            # checking fot overlap only ir not enough since in the case of parallel edges (e.g. in a rectangle)
+            # the overlap along the normals of parallel edges is the same
+            # in this case the opposite edge can be wrongly selected as the reference edge
+            # thus we use another criterion: we check whether the vertices of the other shape are on different sides
+            # of the edge defined by the reference edge
+            # if this is the case, we save the overlap by computing the distance of the farthest vertex of the other shape
+            # to the reference edge along the negative of the outward pointing normal
 
-                overlap = min(max_a_proj, max_b_proj) - max(min_a_proj, min_b_proj)
-                if overlap <= 0:
-                    return None  # Found a separating axis
-
+            distances = self._distances_from_edge(verts_b, verts_a[i], normal_ai)
+            # check the sign of the distances to know whether they are behind or in front of the edge
+            if all(d >= 0 for d in distances):
+                return None  # all vertices are in front of the edge -> no collision, we found a separating axis
+            elif all(d <= 0 for d in distances):
+                continue  # all points are "behind" the edge -> the opposite edge is "responible" for detecting potential collisions
+            else:
+                # some edges are in front of and other are behind the edge -> we have an overlap
+                # the overlap is simply the distnace of the most penetrating point to the edge
+                # we use argmin to also get the corrsponing incident edge
+                i_most_penetrating_vertex = min(
+                    range(len(distances)), key=lambda i: distances[i]
+                )
+                overlap = -distances[i_most_penetrating_vertex]
                 if overlap < min_overlap:
                     min_overlap = overlap
-                    collision_normal = normal_i
-                    reference_shape_is_a = i_ab == 0
-                    reference_edge = (vert_i, verts[(i + 1) % len(verts)])
+                    collision_normal = normal_ai
+                    reference_edge = (verts_a[i], verts_a[(i + 1) % len(verts_a)])
+                    incident_edge = (
+                        verts_b[i_most_penetrating_vertex],
+                        verts_b[(i_most_penetrating_vertex + 1) % len(verts_b)],
+                    )
+
+        # do the same for the other polygon
+        for i, normal_bi in enumerate(normals_b):
+            distances = self._distances_from_edge(verts_a, verts_b[i], normal_bi)
+            if all(d >= 0 for d in distances):
+                return None
+            elif all(d <= 0 for d in distances):
+                continue
+            else:
+                i_most_penetrating_vertex = min(
+                    range(len(distances)), key=lambda i: distances[i]
+                )
+                overlap = -distances[i_most_penetrating_vertex]
+                if overlap < min_overlap:
+                    min_overlap = overlap
+                    collision_normal = normal_bi
+                    reference_edge = (verts_b[i], verts_b[(i + 1) % len(verts_b)])
+                    incident_edge = (
+                        verts_a[i_most_penetrating_vertex],
+                        verts_a[(i_most_penetrating_vertex + 1) % len(verts_b)],
+                    )
 
         # some synity checks
         assert (
@@ -173,33 +205,29 @@ class SatPolygonHandler(AbstractCollisionHandler):
         assert (
             reference_edge is not None
         ), "Reference edge should be set if we reach here."
-        
 
-        # find the incident edge on the other shape
-        incident_shape_verts = verts_b
-        incident_shape_normals = normals_b
-        if not reference_shape_is_a:
-            incident_shape_verts = verts_a
-            incident_shape_normals = normals_a
+        # if self.debug_drawer is not None:
+        #     # draw the reference edge
+        #     self.debug_drawer.add_line(
+        #         reference_edge[0],
+        #         reference_edge[1],
+        #         color=(0, 255, 0),
+        #         arrow=True,
+        #     )
+        #     # draw the collision normal
+        #     self.debug_drawer.add_line(
+        #         reference_edge[0],
+        #         reference_edge[0] + collision_normal * min_overlap,
+        #         color=(255, 255, 0),
+        #         arrow=True,
+        #     )
 
-        i_incident_normal = min(
-            range(len(incident_shape_normals)),
-            lambda i_normal: collision_normal.dot(incident_shape_normals[i_normal]),
-        )
-        incident_edge = (
-            incident_shape_verts[i_incident_normal],
-            incident_shape_verts[(i_incident_normal + 1) % len(incident_shape_verts)],
-        )
-
-        # TODO maybe this can be skipped if the incident normal is not nearly parallel to the collision normal
-        
         ### clip the incident edge against the perpendicular planes at the end of the reference edge
         # define the clipping plands: each of the planes is defined by a normal and an offset (how far the plane is moved away from the origin along its normal)
-        reference_vertex_1, reference_vertex_2 = reference_edge
-        clip_plane_1_normal = (reference_vertex_2 - reference_vertex_1).normalize()
-        clip_plane_2_normal = (reference_vertex_1 - reference_vertex_2).normalize()
-        clip_plane_1_offset = reference_vertex_1.dot(clip_plane_1_normal)
-        clip_plane_2_offset = reference_vertex_2.dot(clip_plane_2_normal)
+        clip_plane_1_normal = (reference_edge[1] - reference_edge[0]).normalize()
+        clip_plane_2_normal = (reference_edge[0] - reference_edge[1]).normalize()
+        clip_plane_1_offset = reference_edge[0].dot(clip_plane_1_normal)
+        clip_plane_2_offset = reference_edge[1].dot(clip_plane_2_normal)
 
         # check wehther the incident edge corners are inside the clipping planes
         clipped_points = self._clip_incident_edge(
@@ -209,9 +237,14 @@ class SatPolygonHandler(AbstractCollisionHandler):
             clipped_points, clip_plane_2_normal, clip_plane_2_offset
         )
 
-        # TODO check if this realy works
+        # keep only clipped points that are behind the reference edge
+        clipped_points = [
+            p for p in clipped_points if (p -reference_edge[0]).dot(collision_normal) < 0
+        ]
 
-        return Contact(body_a, body_b, collision_normal, min_overlap, list(clipped_points))
+        return Contact(
+            body_a, body_b, collision_normal, min_overlap, list(clipped_points)
+        )
 
 
 class CircleVsPolygonHandler(AbstractCollisionHandler):
@@ -267,5 +300,5 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
         penetration = circle_shape.radius - dist
 
         # TODO add collision point
-        
+
         return Contact(body_a, body_b, normal, penetration)
