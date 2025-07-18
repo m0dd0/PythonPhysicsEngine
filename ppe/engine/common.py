@@ -54,11 +54,11 @@ class Vec2:
         if l == 0:
             return Vec2(0, 0)
         return self / l
-    
+
     def to_tuple(self) -> Tuple[float, float]:
         """Returns the vector as a tuple."""
         return (self.x, self.y)
-    
+
     def to_int_tuple(self) -> Tuple[int, int]:
         """Returns the vector as a tuple of integers."""
         return (int(self.x), int(self.y))
@@ -134,6 +134,7 @@ class Body:
         """
         return self.shape.is_point_inside(point, self.position, self.angle)
 
+
 class Shape(ABC):
     """An abstract base class for all collision shapes.
     Note that a shape does NOT have any notion of rotation or translations and is always defined
@@ -192,6 +193,7 @@ class Shape(ABC):
         """
         pass
 
+
 class CircleShape(Shape):
     def __init__(self, radius: float):
         self.radius = radius
@@ -201,7 +203,9 @@ class CircleShape(Shape):
         # TODO add constructors for random circles
 
     @classmethod
-    def create_random_circle(cls, min_radius: float = 0.05, max_radius: float = 1.0) -> "CircleShape":
+    def create_random_circle(
+        cls, min_radius: float = 0.05, max_radius: float = 1.0
+    ) -> "CircleShape":
         """
         Creates a random circle shape with a radius between min_radius and max_radius.
 
@@ -238,6 +242,7 @@ class CircleShape(Shape):
         """Calculates the area of the circle."""
         return math.pi * self.radius**2
 
+
 class PolygonShape(Shape):
     def __init__(self, vertices: List[Vec2]):
         self.vertices = vertices
@@ -268,9 +273,11 @@ class PolygonShape(Shape):
             Vec2(-width / 2, height / 2),
         ]
         return cls(vertices)
-    
+
     @classmethod
-    def create_random_rectangle(cls, min_size: float = 0.05, max_size: float = 1.0) -> "PolygonShape":
+    def create_random_rectangle(
+        cls, min_size: float = 0.05, max_size: float = 1.0
+    ) -> "PolygonShape":
         """
         Creates a random rectangle shape with width and height between min_size and max_size.
 
@@ -316,6 +323,16 @@ class PolygonShape(Shape):
             )  # right normal is the outward normal for convex, counter-clockwise polygons
         return normals
 
+    def get_edges(self, position: Vec2, angle: float) -> List[Tuple[Vec2, Vec2]]:
+        """Calculates the world-space edges of the polygon."""
+        world_space_vertices = self.get_world_space_vertices(position, angle)
+        edges = []
+        for i in range(len(world_space_vertices)):
+            v1 = world_space_vertices[i]
+            v2 = world_space_vertices[(i + 1) % len(world_space_vertices)]
+            edges.append((v1, v2))
+        return edges
+
     def calculate_inertia(self, mass: float) -> float:
         min_x = min(v.x for v in self.vertices)
         max_x = max(v.x for v in self.vertices)
@@ -339,77 +356,84 @@ class PolygonShape(Shape):
     def is_point_inside(self, point: Vec2, position: Vec2, angle: float) -> bool:
         """
         Checks if a point is inside the polygon using the separating axis theorem.
-        
+
         For a convex polygon, a point is inside if it's on the correct side of all edges.
         We use the dot product with edge normals to determine which side of each edge the point is on.
-        
+
         Args:
             point: The point to check in world space.
             position: The world-space position of the polygon's body.
             angle: The world-space angle of the polygon's body.
-            
+
         Returns:
             True if the point is inside the polygon, False otherwise.
         """
         # First, do a quick AABB test for early rejection
         aabb_min, aabb_max = self.get_aabb(position, angle)
-        if (point.x < aabb_min.x or point.x > aabb_max.x or 
-            point.y < aabb_min.y or point.y > aabb_max.y):
+        if (
+            point.x < aabb_min.x
+            or point.x > aabb_max.x
+            or point.y < aabb_min.y
+            or point.y > aabb_max.y
+        ):
             return False
-        
+
         # Get world-space vertices and normals
         world_vertices = self.get_world_space_vertices(position, angle)
-        
+
         # For each edge of the polygon, check if the point is on the inside
-        for i in range(len(world_vertices)): # pylint: disable=consider-using-enumerate
+        for i in range(len(world_vertices)):  # pylint: disable=consider-using-enumerate
             v1 = world_vertices[i]
             v2 = world_vertices[(i + 1) % len(world_vertices)]
-            
+
             # Calculate edge vector and outward normal
             edge = v2 - v1
-            outward_normal = edge.right_normal()  # right normal is outward for CCW vertices
-            
+            outward_normal = (
+                edge.right_normal()
+            )  # right normal is outward for CCW vertices
+
             # Vector from edge start to the test point
             to_point = point - v1
-            
+
             # If the dot product is positive, the point is outside this edge
             if to_point.dot(outward_normal) > 0:
                 return False
-        
+
         # Point is inside all edges, so it's inside the polygon
         return True
 
     def get_area(self) -> float:
         """
         Calculates the area of the polygon using the shoelace formula.
-        
+
         The shoelace formula (also known as the surveyor's formula) calculates the area
         of a simple polygon given its vertices. For a polygon with vertices (x₀,y₀), (x₁,y₁), ..., (xₙ₋₁,yₙ₋₁),
         the area is:
-        
+
         Area = ½|∑ᵢ₌₀ⁿ⁻¹(xᵢyᵢ₊₁ - xᵢ₊₁yᵢ)|
-        
+
         where indices are taken modulo n (so xₙ = x₀, yₙ = y₀).
-        
+
         This formula works for any simple polygon (convex or concave) as long as the vertices
         are ordered consistently (either clockwise or counter-clockwise).
-        
+
         Returns:
             The area of the polygon in square units.
         """
         if len(self.vertices) < 3:
             return 0.0
-        
+
         # Apply the shoelace formula
         area = 0.0
         n = len(self.vertices)
-        
+
         for i in range(n):
             j = (i + 1) % n  # Next vertex (wraps around to 0 for the last vertex)
             area += self.vertices[i].x * self.vertices[j].y
             area -= self.vertices[j].x * self.vertices[i].y
-        
+
         return abs(area) / 2.0
+
 
 # class CompoundShape(Shape):
 #     def __init__(self, sub_shapes: List[Tuple[Shape, Vec2, float]]):
@@ -471,5 +495,6 @@ class DistanceJoint(Joint):
         self.anchor_a = anchor_a
         self.anchor_b = anchor_b
         self.distance = distance
+
 
 # TODO more joints

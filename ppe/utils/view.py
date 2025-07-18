@@ -156,7 +156,7 @@ class PygameDebugDrawer(AbstractDebugDrawer):
         camera: Camera,
         marker_size: int = 4,
         line_width: int = 1,
-        marker_line_length: int = 20,
+        marker_line_length: int = 40,
         world_coordinate_frame_size: Optional[float] = 1.0,
     ):
         super().__init__()  # Initialize the enabled flag
@@ -219,7 +219,7 @@ class PygameDebugDrawer(AbstractDebugDrawer):
 
         if arrow:
             direction = (screen_end - screen_start).normalize()
-            arrow_length_screen = min((screen_end - screen_start).length() / 10, 10)
+            arrow_length_screen = (screen_end - screen_start).length() / 5
             arrow_width_screen = arrow_length_screen / 2
             triangle_points_screem = [
                 screen_end,
@@ -283,21 +283,14 @@ class PygameDebugDrawer(AbstractDebugDrawer):
         arrow: bool = False,
     ):
         """Renders a line with an optional arrow starting from a point in a given direction."""
+        # in order to use the _render_line method, we need to calculate the end point in
+        # world coordinates
         screen_start = self.camera.world_to_screen(start)
-        screen_end = screen_start + direction * self.marker_line_length
-
-        pygame.draw.line(
-            self.surface,
-            color,
-            screen_start.to_int_tuple(),
-            screen_end.to_int_tuple(),
-            width=self.line_width,
-        )
-
-        if arrow:
-            self._render_line(
-                screen_end, screen_end + direction * 0.5, color, arrow=True
-            )
+        screen_end = self.camera.world_to_screen(start + direction)
+        screen_direction = screen_end - screen_start
+        screen_end = screen_start + (screen_direction.normalize() * self.marker_line_length)
+        world_end = self.camera.screen_to_world(screen_end)
+        self._render_line(start, world_end, color, arrow)
 
     def _render_all_impl(self):
         """Executes all buffered draw commands for the frame."""
