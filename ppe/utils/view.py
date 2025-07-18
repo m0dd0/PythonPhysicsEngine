@@ -200,105 +200,139 @@ class PygameDebugDrawer(AbstractDebugDrawer):
     ):
         self._commands.append(("marker_line", (start, direction, color, arrow)))
 
+    def _render_coordinate_frame(self):
+        """Renders a coordinate frame at the origin."""
+        self._add_line_impl(
+            Vec2(0, 0),
+            Vec2(self.world_coordinate_frame_size, 0),
+            color=(255, 0, 0),
+            arrow=True,
+        )
+        self._add_line_impl(
+            Vec2(0, 0),
+            Vec2(0, self.world_coordinate_frame_size),
+            color=(0, 255, 0),
+            arrow=True,
+        )
+
+    def _render_line(
+        self, start: Vec2, end: Vec2, color: Tuple[int, int, int], arrow: bool = False
+    ):
+        """Renders a line from start to end with an optional arrow."""
+        screen_start = self.camera.world_to_screen(start)
+        screen_end = self.camera.world_to_screen(end)
+        pygame.draw.line(
+            self.surface,
+            color,
+            screen_start.to_int_tuple(),
+            screen_end.to_int_tuple(),
+            width=self.line_width,
+        )
+
+        if arrow:
+            direction = (screen_end - screen_start).normalize()
+            arrow_length_screen = min((screen_end - screen_start).length() / 10, 10)
+            arrow_width_screen = arrow_length_screen / 2
+            triangle_points_screem = [
+                screen_end,
+                screen_end
+                - direction * arrow_length_screen
+                + Vec2(-direction.y, direction.x) * 0.5 * arrow_width_screen,
+                screen_end
+                - direction * arrow_length_screen
+                + Vec2(direction.y, -direction.x) * 0.5 * arrow_width_screen,
+            ]
+            pygame.draw.polygon(
+                self.surface,
+                color,
+                [p.to_int_tuple() for p in triangle_points_screem],
+                width=0,  # filled triangle
+            )
+
+    def _render_circle(
+        self, center: Vec2, radius: float, color: Tuple[int, int, int], filled: bool
+    ):
+        """Renders a circle at the specified center with a given radius."""
+        screen_center = self.camera.world_to_screen(center)
+        screen_radius = int(radius * self.camera.zoom)
+        if screen_radius > 0:
+            pygame.draw.circle(
+                self.surface,
+                color,
+                screen_center.to_int_tuple(),
+                screen_radius,
+                width=0 if filled else self.line_width,
+            )
+
+    def _render_polygon(self, vertices: List[Vec2], color: Tuple[int, int, int], filled: bool):
+        """Renders a polygon defined by the given vertices."""
+        screen_verts = [self.camera.world_to_screen(v).to_int_tuple() for v in vertices]
+        pygame.draw.polygon(
+            self.surface,
+            color,
+            screen_verts,
+            width=0 if filled else self.line_width,
+        )
+
+    def _render_marker(self, position: Vec2, color: Tuple[int, int, int]):
+        """Renders a marker at the specified position."""
+        screen_pos = self.camera.world_to_screen(position)
+        pygame.draw.circle(
+            self.surface,
+            color,
+            screen_pos.to_int_tuple(),
+            self.marker_size,
+            width=0,  # filled circle
+        )
+
+    def _render_marker_line(
+        self,
+        start: Vec2,
+        direction: Vec2,
+        color: Tuple[int, int, int],
+        arrow: bool = False,
+    ):
+        """Renders a line with an optional arrow starting from a point in a given direction."""
+        screen_start = self.camera.world_to_screen(start)
+        screen_end = screen_start + direction * self.marker_line_length
+
+        pygame.draw.line(
+            self.surface,
+            color,
+            screen_start.to_int_tuple(),
+            screen_end.to_int_tuple(),
+            width=self.line_width,
+        )
+
+        if arrow:
+            self._render_line(screen_end, screen_end + direction * 0.5, color, arrow=True)
+
     def _render_all_impl(self):
         """Executes all buffered draw commands for the frame."""
         # TODO use subfunctions
         if self.world_coordinate_frame_size is not None:
-            self._add_line_impl(
-                Vec2(0, 0),
-                Vec2(self.world_coordinate_frame_size, 0),
-                color=(255, 0, 0),
-                arrow=True,
-            )
-            self._add_line_impl(
-                Vec2(0, 0),
-                Vec2(0, self.world_coordinate_frame_size),
-                color=(0, 255, 0),
-                arrow=True,
-            )
+            self._render_coordinate_frame()
 
         for cmd_type, data in self._commands:
             if cmd_type == "line":
                 start, end, color, arrow = data
-                screen_start = self.camera.world_to_screen(start)
-                screen_end = self.camera.world_to_screen(end)
-                pygame.draw.line(
-                    self.surface,
-                    color,
-                    screen_start.to_int_tuple(),
-                    screen_end.to_int_tuple(),
-                    width=self.line_width,
-                )
-                if arrow:
-                    direction = (screen_end - screen_start).normalize()
-                    arrow_length_screen = min(
-                        (screen_end - screen_start).length() / 10, 10
-                    )
-                    arrow_width_screen = arrow_length_screen / 2
-                    triangle_points_screem = [
-                        screen_end,
-                        screen_end
-                        - direction * arrow_length_screen
-                        + Vec2(-direction.y, direction.x) * 0.5 * arrow_width_screen,
-                        screen_end
-                        - direction * arrow_length_screen
-                        + Vec2(direction.y, -direction.x) * 0.5 * arrow_width_screen,
-                    ]
-                    pygame.draw.polygon(
-                        self.surface,
-                        color,
-                        [p.to_int_tuple() for p in triangle_points_screem],
-                        width=0,  # filled triangle
-                    )
+                self._render_line(start, end, color, arrow)
 
             elif cmd_type == "circle":
                 center, radius, color, filled = data
-                screen_center = self.camera.world_to_screen(center)
-                screen_radius = int(radius * self.camera.zoom)
-                if screen_radius > 0:
-                    pygame.draw.circle(
-                        self.surface,
-                        color,
-                        screen_center.to_int_tuple(),
-                        screen_radius,
-                        width=0 if filled else self.line_width,
-                    )
+                self._render_circle(center, radius, color, filled)
 
             elif cmd_type == "polygon":
                 verts, color, filled = data
-                screen_verts = [
-                    self.camera.world_to_screen(v).to_int_tuple() for v in verts
-                ]
-                pygame.draw.polygon(
-                    self.surface,
-                    color,
-                    screen_verts,
-                    width=0 if filled else self.line_width,
-                )
+                self._render_polygon(verts, color, filled)
 
             elif cmd_type == "marker":
-                pos, color = data
-                screen_pos = self.camera.world_to_screen(pos)
-                pygame.draw.circle(
-                    self.surface,
-                    color,
-                    screen_pos.to_int_tuple(),
-                    self.marker_size,
-                    width=0,
-                )
+                position, color = data
+                self._render_marker(position, color)
 
             elif cmd_type == "marker_line":
                 start, direction, color, arrow = data
-                screen_start = self.camera.world_to_screen(start)
-                screen_stop = screen_start + direction * self.marker_line_length
-
-                pygame.draw.line(
-                    self.surface,
-                    color,
-                    screen_start.to_int_tuple(),
-                    screen_stop.to_int_tuple(),
-                    width=self.line_width,
-                )
+                self._render_marker_line(start, direction, color, arrow)
 
         self._commands.clear()
 
@@ -364,59 +398,59 @@ class PygameView(AbstractView):
     def render_background(self) -> None:
         self.screen.fill(self.background_color)
 
-    def render_bodies(self, bodies: List[Body]) -> None:
-        # TODO use subfunctions for rendering different shapes
-        for body in bodies:
-            color = body.user_data.get("color", self.default_body_color)
-            outline_color = body.user_data.get(
-                "outline_color", self.default_outline_color
-            )
-            outline_width = body.user_data.get(
-                "outline_width", self.default_outline_width
+    def _render_polygon(self, body: Body) -> None:
+        color = body.user_data.get("color", self.default_body_color)
+        outline_color = body.user_data.get("outline_color", self.default_outline_color)
+        outline_width = body.user_data.get("outline_width", self.default_outline_width)
+
+        screen_verts = [
+            self.camera.world_to_screen(v)
+            for v in body.shape.get_world_space_vertices(body.position, body.angle)
+        ]
+        pygame.draw.polygon(
+            self.screen,
+            color,
+            [v.to_int_tuple() for v in screen_verts],
+            width=0,
+        )
+        if outline_width > 0:
+            pygame.draw.polygon(
+                self.screen,
+                outline_color,
+                [v.to_int_tuple() for v in screen_verts],
+                width=outline_width,
             )
 
-            if isinstance(body.shape, PolygonShape):
-                screen_verts = [
-                    self.camera.world_to_screen(v)
-                    for v in body.shape.get_world_space_vertices(
-                        body.position, body.angle
-                    )
-                ]
-                pygame.draw.polygon(
+    def _render_circle(self, body: Body) -> None:
+        color = body.user_data.get("color", self.default_body_color)
+        outline_color = body.user_data.get("outline_color", self.default_outline_color)
+        outline_width = body.user_data.get("outline_width", self.default_outline_width)
+
+        screen_pos = self.camera.world_to_screen(body.position)
+        screen_radius = (
+            self.camera.world_to_screen(body.position + Vec2(body.shape.radius, 0)).x
+            - screen_pos.x
+        )
+        if screen_radius > 0:
+            pygame.draw.circle(
+                self.screen, color, screen_pos.to_int_tuple(), screen_radius
+            )
+            if outline_width > 0:
+                pygame.draw.circle(
                     self.screen,
-                    color,
-                    [v.to_int_tuple() for v in screen_verts],
-                    width=0,
+                    outline_color,
+                    screen_pos.to_int_tuple(),
+                    screen_radius,
+                    width=outline_width,
                 )
-                if outline_width > 0:
-                    pygame.draw.polygon(
-                        self.screen,
-                        outline_color,
-                        [v.to_int_tuple() for v in screen_verts],
-                        width=outline_width,
-                    )
+
+    def render_bodies(self, bodies: List[Body]) -> None:
+        for body in bodies:
+            if isinstance(body.shape, PolygonShape):
+                self._render_polygon(body)
 
             elif isinstance(body.shape, CircleShape):
-                screen_pos = self.camera.world_to_screen(body.position)
-                screen_radius = (
-                    self.camera.world_to_screen(
-                        body.position + Vec2(body.shape.radius, 0)
-                    ).x
-                    - screen_pos.x
-                )
-                if screen_radius > 0:
-                    pygame.draw.circle(
-                        self.screen, color, screen_pos.to_int_tuple(), screen_radius
-                    )
-                    if outline_width > 0:
-                        pygame.draw.circle(
-                            self.screen,
-                            outline_color,
-                            screen_pos.to_int_tuple(),
-                            screen_radius,
-                            width=outline_width,
-                        )
-
+                self._render_circle(body)
             else:
                 raise ValueError(f"Unsupported shape type: {type(body.shape).__name__}")
 
