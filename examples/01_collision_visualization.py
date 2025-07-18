@@ -2,7 +2,7 @@ from typing import List
 
 import pygame
 
-from ppe.engine.common import Body, PolygonShape, Vec2
+from ppe.engine.common import Body, PolygonShape, Vec2, CircleShape
 from ppe.engine.world import World
 from ppe.engine.solvers import NoOpSolver
 from ppe.engine.integrators import NoOpIntegrator
@@ -24,8 +24,6 @@ from ppe.utils.controller import (
     DebugController,
     AbstractController,
     BodyDragController,
-    BodySpawnController,
-    BodySteeringController,
     HoverRotateController,
 )
 from ppe.utils.profiler import Profiler
@@ -47,6 +45,9 @@ def main():
             world_width=SCREEN_WIDTH_WORLD,
         ),
         smooth_profiler=True,
+        # define the default style for rendering bodies
+        default_is_filled=False,
+        default_outline_width=3,
     )
     debug_drawer = view.create_debug_drawer()
 
@@ -67,13 +68,28 @@ def main():
                 ),
                 ("polygon", "polygon"): SatPolygonHandler(debug_drawer=debug_drawer),
             },
+        
         ),
         bodies=[
             Body(
-                shape=PolygonShape.create_rectangle(width=2, height=1),
-                position=Vec2(0, 0),
-                mass=10,  # Static body
-                user_data={"color": (50, 50, 50)},
+                shape=PolygonShape.create_rectangle(width=1, height=1),
+                position=Vec2(1, -1),
+                mass=1,
+            ),
+            Body(
+                shape=PolygonShape.create_rectangle(width=1, height=1),
+                position=Vec2(1, 1),
+                mass=1,
+            ),
+            Body(
+                shape=CircleShape(radius=0.5),
+                position=Vec2(-1, 1),
+                mass=1,
+            ),
+            Body(
+                shape=CircleShape(radius=0.5),
+                position=Vec2(-1, -1),
+                mass=1,
             ),
         ],
         debug_drawer=debug_drawer,
@@ -86,18 +102,16 @@ def main():
         controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
     )
     controllers: List[AbstractController] = [
-        # CameraPanController(view.camera, mode="mouse", mouse_button=2),
-        # CameraZoomController(view.camera, mode="mousewheel"),
         app_controller,
         debug_controller,
+        CameraZoomController(view.camera, mode="keyboard"),
+        CameraPanController(view.camera, mode="mouse"),
         BodyDragController(
             world=world,
             camera=view.camera,
             mode="position",
-            mouse_button=2,
+            mouse_button=1,
         ),
-        BodySpawnController(world=world, camera=view.camera),
-        # BodySteeringController(body=world.bodies[0]),
         HoverRotateController(world=world, camera=view.camera),
     ]
 

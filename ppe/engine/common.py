@@ -40,6 +40,15 @@ class Vec2:
         """Returns the right normal of the vector."""
         return Vec2(self.y, -self.x).normalize()
 
+    def rotate(self, angle: float) -> "Vec2":
+        """Rotates the vector by the given angle in radians."""
+        cos_angle = math.cos(angle)
+        sin_angle = math.sin(angle)
+        return Vec2(
+            self.x * cos_angle - self.y * sin_angle,
+            self.x * sin_angle + self.y * cos_angle,
+        )
+
     def normalize(self) -> "Vec2":
         l = self.length()
         if l == 0:
@@ -66,6 +75,7 @@ class Body:
         shape: "Shape",
         position: Vec2,
         mass: Union[float, None],
+        angle: float = 0.0,
         restitution: float = 0.2,
         user_data: dict = None,
     ):
@@ -74,7 +84,7 @@ class Body:
 
         self.shape = shape
         self.position = position
-        self.angle: float = 0.0
+        self.angle = angle
 
         self.previous_position: Vec2 = (
             self.position

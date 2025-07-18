@@ -264,7 +264,9 @@ class PygameDebugDrawer(AbstractDebugDrawer):
                 width=0 if filled else self.line_width,
             )
 
-    def _render_polygon(self, vertices: List[Vec2], color: Tuple[int, int, int], filled: bool):
+    def _render_polygon(
+        self, vertices: List[Vec2], color: Tuple[int, int, int], filled: bool
+    ):
         """Renders a polygon defined by the given vertices."""
         screen_verts = [self.camera.world_to_screen(v).to_int_tuple() for v in vertices]
         pygame.draw.polygon(
@@ -305,11 +307,12 @@ class PygameDebugDrawer(AbstractDebugDrawer):
         )
 
         if arrow:
-            self._render_line(screen_end, screen_end + direction * 0.5, color, arrow=True)
+            self._render_line(
+                screen_end, screen_end + direction * 0.5, color, arrow=True
+            )
 
     def _render_all_impl(self):
         """Executes all buffered draw commands for the frame."""
-        # TODO use subfunctions
         if self.world_coordinate_frame_size is not None:
             self._render_coordinate_frame()
 
@@ -347,6 +350,7 @@ class PygameView(AbstractView):
         default_body_color: Tuple[int, int, int] = (50, 50, 200),
         default_outline_color: Tuple[int, int, int] = (0, 0, 0),
         default_outline_width: int = 1,
+        default_is_filled: bool = True,
         profiler_position: Tuple[int, int] = (10, 10),
         profiler_pixels_per_ms: int = 8,
         smooth_profiler: bool = True,
@@ -366,6 +370,8 @@ class PygameView(AbstractView):
         self.default_body_color = default_body_color
         self.default_outline_color = default_outline_color
         self.default_outline_width = default_outline_width
+        self.default_is_filled = default_is_filled
+        self.default_circle_orientation_line = True
 
         # info rendering settings
         self.info_position = (
@@ -399,6 +405,7 @@ class PygameView(AbstractView):
         self.screen.fill(self.background_color)
 
     def _render_polygon(self, body: Body) -> None:
+        filled = body.user_data.get("filled", self.default_is_filled)
         color = body.user_data.get("color", self.default_body_color)
         outline_color = body.user_data.get("outline_color", self.default_outline_color)
         outline_width = body.user_data.get("outline_width", self.default_outline_width)
@@ -407,12 +414,13 @@ class PygameView(AbstractView):
             self.camera.world_to_screen(v)
             for v in body.shape.get_world_space_vertices(body.position, body.angle)
         ]
-        pygame.draw.polygon(
-            self.screen,
-            color,
-            [v.to_int_tuple() for v in screen_verts],
-            width=0,
-        )
+        if filled:
+            pygame.draw.polygon(
+                self.screen,
+                color,
+                [v.to_int_tuple() for v in screen_verts],
+                width=0,
+            )
         if outline_width > 0:
             pygame.draw.polygon(
                 self.screen,
@@ -422,27 +430,46 @@ class PygameView(AbstractView):
             )
 
     def _render_circle(self, body: Body) -> None:
+        filled = body.user_data.get("filled", self.default_is_filled)
         color = body.user_data.get("color", self.default_body_color)
         outline_color = body.user_data.get("outline_color", self.default_outline_color)
         outline_width = body.user_data.get("outline_width", self.default_outline_width)
+        orientation_line = body.user_data.get(
+            "orientation_line", self.default_circle_orientation_line
+        )
 
         screen_pos = self.camera.world_to_screen(body.position)
         screen_radius = (
             self.camera.world_to_screen(body.position + Vec2(body.shape.radius, 0)).x
             - screen_pos.x
         )
-        if screen_radius > 0:
+        if screen_radius <= 0:
+            return
+
+        if filled:
             pygame.draw.circle(
                 self.screen, color, screen_pos.to_int_tuple(), screen_radius
             )
-            if outline_width > 0:
-                pygame.draw.circle(
-                    self.screen,
-                    outline_color,
-                    screen_pos.to_int_tuple(),
-                    screen_radius,
-                    width=outline_width,
-                )
+        if outline_width > 0:
+            pygame.draw.circle(
+                self.screen,
+                outline_color,
+                screen_pos.to_int_tuple(),
+                screen_radius,
+                width=outline_width,
+            )
+        if orientation_line:
+            # Draw orientation line
+            end_pos = self.camera.world_to_screen(
+                body.position + Vec2(body.shape.radius, 0).rotate(body.angle)
+            )
+            pygame.draw.line(
+                self.screen,
+                outline_color,
+                screen_pos.to_int_tuple(),
+                end_pos.to_int_tuple(),
+                width=outline_width,
+            )
 
     def render_bodies(self, bodies: List[Body]) -> None:
         for body in bodies:
