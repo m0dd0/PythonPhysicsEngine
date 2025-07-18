@@ -144,6 +144,17 @@ class AbstractView(ABC):
         """
         pass
 
+    @abstractmethod
+    def render_info(self, info: List[str]) -> None:
+        """
+        Renders additional information to the screen, such as debug info or
+        simulation state.
+
+        Args:
+            info: A list of strings to render as information.
+        """
+        pass
+
 
 class PygameDebugDrawer(AbstractDebugDrawer):
     """A concrete implementation of the debug drawer for Pygame."""
@@ -188,6 +199,7 @@ class PygameDebugDrawer(AbstractDebugDrawer):
 
     def _render_all_impl(self):
         """Executes all buffered draw commands for the frame."""
+        # TODO use subfunctions
         if self.world_coordinate_frame_size is not None:
             self._add_line_impl(
                 Vec2(0, 0),
@@ -294,13 +306,14 @@ class PygameView(AbstractView):
     def __init__(
         self,
         camera: Camera,
-        background_color=(240, 240, 240),
-        default_body_color=(50, 50, 200),
-        default_outline_color=(0, 0, 0),
-        default_outline_width=1,
-        profiler_position=(10, 10),
-        profiler_pixels_per_ms=8,
+        background_color: Tuple[int, int, int] = (240, 240, 240),
+        default_body_color: Tuple[int, int, int] = (50, 50, 200),
+        default_outline_color: Tuple[int, int, int] = (0, 0, 0),
+        default_outline_width: int = 1,
+        profiler_position: Tuple[int, int] = (10, 10),
+        profiler_pixels_per_ms: int = 8,
         smooth_profiler: bool = True,
+        info_position: Tuple[int, int] = None,
     ):
         self.camera = camera
         self.screen = pygame.display.set_mode(
@@ -310,10 +323,20 @@ class PygameView(AbstractView):
         self.font = pygame.font.SysFont("Arial", 18)
 
         self._debug_drawer = PygameDebugDrawer(self.screen, self.camera)
+
+        # appearance settings
         self.background_color = background_color
         self.default_body_color = default_body_color
         self.default_outline_color = default_outline_color
         self.default_outline_width = default_outline_width
+
+        # info rendering settings
+        self.info_position = (
+            info_position if info_position else (10, camera.screen_height - 100)
+        )
+        self.info_font = pygame.font.SysFont("Arial", 12)
+        self.info_line_height = 15  # height of each line in the info display
+        self.info_color = (0, 0, 0)  # default color for info text
 
         # profiler settings
         self.profiler_position = profiler_position
@@ -332,6 +355,7 @@ class PygameView(AbstractView):
         self.screen.fill(self.background_color)
 
     def render_bodies(self, bodies: List[Body]) -> None:
+        # TODO use subfunctions for rendering different shapes
         for body in bodies:
             color = body.user_data.get("color", self.default_body_color)
             outline_color = body.user_data.get(
@@ -403,6 +427,7 @@ class PygameView(AbstractView):
         Args:
             profiler: Profiler instance with timing data
         """
+        # TODO better subsection rendering
         # Get timing data in milliseconds
         if self.smooth_profiler:
             frame_time = profiler.smoothed_total_frame_time
@@ -465,10 +490,34 @@ class PygameView(AbstractView):
             label_surface = self.profiler_font.render(label_text, True, label_color)
 
             # Place this label next to the previous one
-            self.screen.blit(label_surface, (self.profiler_label_position[0] + x_offset, self.profiler_label_position[1]))
+            self.screen.blit(
+                label_surface,
+                (
+                    self.profiler_label_position[0] + x_offset,
+                    self.profiler_label_position[1],
+                ),
+            )
 
             # Move to the right for the next label (add some spacing)
             x_offset += label_surface.get_width() + 5
+
+    def render_info(self, info: List[str]) -> None:
+        """
+        Renders additional information to the screen, such as debug info or
+        simulation state.
+
+        Args:
+            info: A list of strings to render as information.
+        """
+        for i, line in enumerate(info):
+            text_surface = self.info_font.render(line, True, self.info_color)
+            self.screen.blit(
+                text_surface,
+                (
+                    self.info_position[0],
+                    self.info_position[1] + i * self.info_line_height,
+                ),
+            )
 
     def update_display(self) -> None:
         pygame.display.flip()

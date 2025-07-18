@@ -134,13 +134,16 @@ def main():
             view.render_background()
             view.render_bodies(world.bodies)
             world.debug_drawer.render_all()
-            view.update_display()
+            view.render_info([c.action_description for c in controllers])
 
         # Render profiler after timing is complete
+        # start = time.perf_counter()
         profiler.end_frame()
         view.render_profiler(profiler)
         view.update_display()
-
+        # end = time.perf_counter()
+        # print(f"Profiler rendering took {((end - start) * 1000):.2f} ms")
+        # -> time that is not included in the profiler is negligible (<1 ms)
 
     pygame.quit()  # pylint: disable=no-member
 

@@ -105,6 +105,17 @@ class AbstractController(ABC):
         """
         self.debug_drawer = debug_drawer
 
+    @property
+    @abstractmethod
+    def action_description(self) -> str:
+        """
+        Returns a description of the controller's behavior based on its configuration.
+        
+        Returns:
+            A human-readable string describing what the controller does and how to use it.
+        """
+        pass
+
     @abstractmethod
     def update(self, input_state: InputState, dt: float) -> None:
         """
@@ -114,7 +125,7 @@ class AbstractController(ABC):
             input_state: An object containing the current input state.
             dt: The time step for the frame.
         """
-        raise NotImplementedError
+        pass
 
 
 class ApplicationController(AbstractController):
@@ -137,6 +148,11 @@ class ApplicationController(AbstractController):
         self.quit_keys = {"quit", "escape"} if quit_keys is None else quit_keys
 
         self.should_quit = False
+
+    @property
+    def action_description(self) -> str:
+        """Returns a description of the controller's behavior."""
+        return f"Quit application by pressing one of [{', '.join(sorted(self.quit_keys))}]"
 
     def update(self, input_state: InputState, dt: float) -> None:
         """Checks for quit conditions."""
@@ -172,6 +188,12 @@ class DebugController(AbstractController):
         self.debug_mode = initial_debug_mode
 
         self.controlled_debug_drawer.enabled = self.debug_mode
+
+    @property
+    def action_description(self) -> str:
+        """Returns a description of the controller's behavior."""
+        status = "enabled" if self.debug_mode else "disabled"
+        return f"Toggle debug mode (currently {status}) with '{self.toggle_key}' key"
 
     def update(self, input_state: InputState, dt: float) -> None:
         """Handles debug mode toggling."""
@@ -219,6 +241,19 @@ class CameraPanController(AbstractController):
         self.trackpad_sensitivity = trackpad_sensitivity
         self.keys = keys
         self._last_mouse_pos: Optional[Vec2] = None
+
+    @property
+    def action_description(self) -> str:
+        """Returns a description of the controller's behavior."""
+        if self.mode == "keyboard":
+            up, down, left, right = self.keys
+            return f"Pan camera with keyboard: {up}/{down} (up/down), {left}/{right} (left/right) at speed {self.speed}"
+        elif self.mode == "mouse":
+            button_names = {1: "left", 2: "middle", 3: "right"}
+            button_name = button_names.get(self.mouse_button, f"button {self.mouse_button}")
+            return f"Pan camera by dragging with {button_name} mouse button"
+        elif self.mode == "trackpad":
+            return f"Pan camera with trackpad scroll gestures (sensitivity: {self.trackpad_sensitivity})"
 
     def update(self, input_state: InputState, dt: float) -> None:
         """Handles camera panning based on the current input state."""
@@ -303,6 +338,15 @@ class CameraZoomController(AbstractController):
         self.speed = speed
         self.keys = keys
 
+    @property
+    def action_description(self) -> str:
+        """Returns a description of the controller's behavior."""
+        if self.mode == "mousewheel":
+            return f"Zoom camera with mouse wheel (sensitivity: {self.speed})"
+        elif self.mode == "keyboard":
+            zoom_in, zoom_out = self.keys
+            return f"Zoom camera with keyboard: '{zoom_in}' (zoom in), '{zoom_out}' (zoom out) at speed {self.speed}"
+
     def update(self, input_state: InputState, dt: float) -> None:
         """Handles camera zooming based on the current input state."""
         if self.mode == "mousewheel":
@@ -361,6 +405,19 @@ class BodyDragController(AbstractController):
 
         self.dragged_body: Optional[Body] = None
         self.grab_point_local: Optional[Vec2] = None
+
+    @property
+    def action_description(self) -> str:
+        """Returns a description of the controller's behavior."""
+        button_names = {1: "left", 2: "middle", 3: "right"}
+        button_name = button_names.get(self.mouse_button, f"button {self.mouse_button}")
+        
+        mode_desc = "kinematically" if self.mode == "position" else f"with spring force (stiffness: {self.stiffness})"
+        static_desc = " (including static bodies)" if self.allow_static_bodies else " (dynamic bodies only)"
+        
+        body_desc = "any body" if self.dragable_bodies is None else f"{len(self.dragable_bodies)} specific bodies"
+        
+        return f"Drag {body_desc}{static_desc} {mode_desc} using {button_name} mouse button"
 
     def update(self, input_state: InputState, dt: float) -> None:
         mouse_world_pos = self.camera.screen_to_world(input_state.mouse_position)
@@ -468,6 +525,38 @@ class BodySpawnController(AbstractController):
             dict() if keyboard_spawn_objects is None else keyboard_spawn_objects
         )
 
+    @property
+    def action_description(self) -> str:
+        """Returns a description of the controller's behavior."""
+        descriptions = []
+        
+        if self.mouse_spawn_objects:
+            button_names = {1: "left", 2: "middle", 3: "right"}
+            mouse_desc = []
+            for button, spawn_option in self.mouse_spawn_objects.items():
+                button_name = button_names.get(button, f"button {button}")
+                if callable(spawn_option):
+                    object_name = spawn_option.__name__.replace("spawn_", "")
+                else:
+                    object_name = f"{len(spawn_option)} predefined objects"
+                mouse_desc.append(f"{button_name} click: {object_name}")
+            descriptions.append("Mouse - " + ", ".join(mouse_desc))
+        
+        if self.keyboard_spawn_objects:
+            key_desc = []
+            for key, spawn_option in self.keyboard_spawn_objects.items():
+                if callable(spawn_option):
+                    object_name = spawn_option.__name__.replace("spawn_", "")
+                else:
+                    object_name = f"{len(spawn_option)} predefined objects"
+                key_desc.append(f"'{key}': {object_name}")
+            descriptions.append("Keyboard - " + ", ".join(key_desc))
+        
+        if not descriptions:
+            descriptions.append("No spawn bindings configured")
+        
+        return "Spawn bodies at mouse position: " + "; ".join(descriptions)
+
     def spawn_circle(self) -> Body:
         """Spawns a circle body at the given position."""
         circle_shape = CircleShape.create_random_circle()
@@ -536,6 +625,12 @@ class BodySteeringController(AbstractController):
         self.move_speed = move_speed
         self.keys = keys
 
+    @property
+    def action_description(self) -> str:
+        """Returns a description of the controller's behavior."""
+        up, down, left, right = self.keys
+        return f"Control body movement with keys: {up}/{down} (up/down), {left}/{right} (left/right) at speed {self.move_speed}"
+
     def update(self, input_state: InputState, dt: float) -> None:
         if self.keys[0] in input_state.keys_held:
             self.body.position.y += self.move_speed * dt
@@ -563,6 +658,12 @@ class HoverRotateController(AbstractController):
         self.world = world
         self.camera = camera
         self.allow_static_bodies = allow_static_bodies
+
+    @property
+    def action_description(self) -> str:
+        """Returns a description of the controller's behavior."""
+        body_desc = "any body" if self.allow_static_bodies else "dynamic bodies only"
+        return f"Rotate {body_desc} with mouse wheel when hovering (speed: {self.rotation_speed})"
 
     def update(self, input_state: InputState, dt: float) -> None:
         bodies = self.world.get_bodies_at_point(
