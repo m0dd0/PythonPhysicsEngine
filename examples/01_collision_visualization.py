@@ -50,6 +50,9 @@ def main():
     )
     debug_drawer = view.create_debug_drawer()
 
+    # Initialize the profiler
+    profiler = Profiler(smoothing_frames=30)
+    
     # 2. Setup the world simulation
     world = World(
         integrator=NoOpIntegrator(),
@@ -74,6 +77,7 @@ def main():
             ),
         ],
         debug_drawer=debug_drawer,
+        profiler=profiler,
     )
 
     # 3. Initialize controllers
@@ -97,8 +101,6 @@ def main():
         HoverRotateController(world=world, camera=view.camera),
     ]
 
-    # 4. Initialize the profiler
-    profiler = Profiler(smoothing_frames=30)
 
     ## Main Loop
     running = True
@@ -111,11 +113,11 @@ def main():
         dt = clock.tick(60) / 1000.0
 
         ## Input
-        with profiler.time("Input"):
+        with profiler.time("input"):
             input_state = InputState.from_pygame()
 
         ## Controller Updates
-        with profiler.time("Controller"):
+        with profiler.time("controller"):
             for controller in controllers:
                 controller.update(input_state, dt)
 
@@ -124,11 +126,11 @@ def main():
             running = False
 
         ## Physics Update
-        with profiler.time("World"):
+        with profiler.time("world"):
             world.step(dt)
 
         # Render the world
-        with profiler.time("Render"):
+        with profiler.time("render"):
             view.render_background()
             view.render_bodies(world.bodies)
             world.debug_drawer.render_all()

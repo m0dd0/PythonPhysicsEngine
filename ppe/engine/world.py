@@ -7,6 +7,7 @@ from ppe.engine.collision_narrow import AbstractNarrowPhase
 from ppe.engine.integrators import AbstractIntegrator
 from ppe.engine.force_generators import AbstractForceGenerator
 from ppe.engine.debug import AbstractDebugDrawer
+from ppe.utils.profiler import Profiler
 
 
 class World:
@@ -25,6 +26,7 @@ class World:
         joints: List[Joint] = None,
         force_generators: List[AbstractForceGenerator] = None,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
+        profiler: Optional[Profiler] = None,
     ):
         """
         Initializes the physics world.
@@ -51,6 +53,7 @@ class World:
         self.narrow_phase = narrow_phase
 
         self.debug_drawer = debug_drawer
+        self.profiler = profiler if profiler else Profiler()
 
         # TODO add option to automatically remove bodies once they are outside a certain area
 
@@ -70,17 +73,22 @@ class World:
             force_generator.apply(self.bodies)
 
         ## Updates velocities based on accumulated forces
-        self.integrator.integrate_velocities(self.bodies, dt)
+        with self.profiler.time("world/integrate1"):
+            self.integrator.integrate_velocities(self.bodies, dt)
 
         ## Collision Detection
-        potential_pairs = self.broad_phase.find_potential_pairs(self.bodies)
-        contacts = self.narrow_phase.generate_contacts(potential_pairs)
+        with self.profiler.time("world/collision_broad"):
+            potential_pairs = self.broad_phase.find_potential_pairs(self.bodies)
+        with self.profiler.time("world/collision_narrow"):
+            contacts = self.narrow_phase.generate_contacts(potential_pairs)
 
         ## solver adjusts velocities to resolve all contacts and joints
-        self.solver.solve(contacts, self.joints, dt)
+        with self.profiler.time("world/solver"):
+            self.solver.solve(contacts, self.joints, dt)
 
         ## Updates positions based on the new, corrected velocities
-        self.integrator.integrate_positions(self.bodies, dt)
+        with self.profiler.time("world/integrate2"):
+            self.integrator.integrate_positions(self.bodies, dt)
 
         # Reset all forces for the next frame
         for body in self.bodies:
