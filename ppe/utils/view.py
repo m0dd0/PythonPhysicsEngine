@@ -135,12 +135,15 @@ class AbstractView(ABC):
         pass
 
     @abstractmethod
-    def render_profiler(self, profiler: Profiler) -> None:
+    def render_profiler(
+        self, profiler: Profiler, subsections: List[str] = None
+    ) -> None:
         """
         Renders profiler information with enhanced formatting.
 
         Args:
             profiler: Profiler instance with timing data
+            subsections: Optional list of subsection names to display.
         """
         pass
 
@@ -342,14 +345,21 @@ class PygameView(AbstractView):
         self.profiler_position = profiler_position
         self.profiler_pixels_per_ms = profiler_pixels_per_ms
         self.smooth_profiler = smooth_profiler
-        self.profiler_font = pygame.font.SysFont("Arial", 12)
+        self.profiler_label_font = pygame.font.SysFont("Arial", 12)
+        self.profiler_header_font = pygame.font.SysFont("Arial", 12)
         self.profiler_colors = TAB10_COLORS
-        self.profiler_bar_position = (profiler_position[0], profiler_position[1] + 25)
-        self.profiler_bar_height = 20
+        self.profiler_bar_position = (profiler_position[0] + 80, profiler_position[1])
+        self.profiler_bar_height = 10
         self.profiler_label_position = (
             self.profiler_bar_position[0],
             self.profiler_bar_position[1] + self.profiler_bar_height + 5,
         )
+        self.profiler_bar_background_color = (180, 180, 180)
+        self.fps_color_profile = {
+            50: (0, 200, 0),  # green for >50 FPS
+            30: (255, 165, 0),  # orange for >30
+            0: (255, 50, 50),  # red for <=30 FPS
+        }
 
     def render_background(self) -> None:
         self.screen.fill(self.background_color)
@@ -419,7 +429,71 @@ class PygameView(AbstractView):
     def create_debug_drawer(self) -> AbstractDebugDrawer:
         return self._debug_drawer
 
-    def render_profiler(self, profiler: Profiler) -> None:
+    def _render_color_bar(
+        self,
+        position: Tuple[int, int],
+        section_widths: List[int],
+        height: int = 20,
+        colors: List[Tuple[int, int, int]] = None,
+        total_width: int = None,
+        background_color: Tuple[int, int, int] = (240, 240, 240),
+        labels: List[str] = None,
+        label_font: Optional[pygame.font.Font] = None,
+    ) -> None:
+        # input validation
+        if colors is None:
+            colors = [
+                TAB10_COLORS[i % len(TAB10_COLORS)] for i in range(len(section_widths))
+            ]
+        elif len(colors) != len(section_widths):
+            raise ValueError("Colors must match the number of sections.")
+
+        # draw background
+        if total_width is not None:
+            pygame.draw.rect(
+                self.screen,
+                background_color,
+                (position[0], position[1], total_width, height),
+                width=0,
+            )
+
+        # draw the colored sections
+        x_offset = position[0]
+        for width, color in zip(section_widths, colors):
+            pygame.draw.rect(
+                self.screen,
+                color,
+                (x_offset, position[1], width, height),
+                width=0,
+            )
+            x_offset += width
+
+        # draw labels if provided
+        if labels is not None:
+            if len(labels) != len(section_widths):
+                raise ValueError("Labels must match the number of sections.")
+
+            label_font = label_font or self.font
+            x_offset = position[0]
+            for label, color in zip(labels, colors):
+                label_surface = label_font.render(label, True, color)
+                self.screen.blit(
+                    label_surface,
+                    (x_offset, position[1] + height),
+                )
+                x_offset += label_surface.get_width() + 10
+
+    def _get_fps_color(self, fps: float) -> Tuple[int, int, int]:
+        for threshold, color in self.fps_color_profile.items():
+            if fps > threshold:
+                return color
+        raise ValueError(
+            "FPS must be a positive number or the fps_color_profile is not properly defined."
+        )
+
+    def render_profiler(
+        self, profiler: Profiler, subsections: List[str] = None
+    ) -> None:
         """
         Enhanced profiler visualization with a horizontal timeline bar.
         Shows timing data as segments where 1ms = pixels_per_ms in width.
@@ -427,7 +501,8 @@ class PygameView(AbstractView):
         Args:
             profiler: Profiler instance with timing data
         """
-        # TODO better subsection rendering
+        subsections = subsections or []
+
         # Get timing data in milliseconds
         if self.smooth_profiler:
             frame_time = profiler.smoothed_total_frame_time
@@ -436,70 +511,77 @@ class PygameView(AbstractView):
             frame_time = profiler.total_frame_time
             timings = profiler.timings
         fps = 1000 / frame_time
+        toplevel_timings = {k: v for k, v in timings.items() if "/" not in k}
 
         # first we have a color-coded display of the frame time
-        header_text = f"{int(frame_time):03d}ms / {int(fps):02d} FPS"
-        if fps > 50:
-            header_color = (0, 200, 0)
-        elif fps > 30:
-            header_color = (255, 165, 0)
-        else:
-            header_color = (255, 50, 50)
-        self.render_text(header_text, self.profiler_position, header_color)
+        text_surface = self.profiler_header_font.render(
+            f"{int(frame_time):03d}ms / {int(fps):02d} FPS",
+            True,
+            self._get_fps_color(fps),
+        )
+        self.screen.blit(text_surface, self.profiler_position)
 
-        # Draw timeline background (total frame time)
-        pygame.draw.rect(
-            self.screen,
-            (180, 180, 180),
-            (
-                self.profiler_bar_position[0],
-                self.profiler_bar_position[1],
-                int(frame_time * self.profiler_pixels_per_ms),
-                self.profiler_bar_height,
-            ),
-            width=0,
+        # render the color bar for the top-level timings
+        self._render_color_bar(
+            position=self.profiler_bar_position,
+            section_widths=[
+                int(timing * self.profiler_pixels_per_ms)
+                for timing in toplevel_timings.values()
+            ],
+            height=self.profiler_bar_height,
+            colors=[
+                self.profiler_colors[i % len(self.profiler_colors)]
+                for i in range(len(toplevel_timings))
+            ],
+            total_width=int(frame_time * self.profiler_pixels_per_ms),
+            background_color=self.profiler_bar_background_color,
+            labels=[
+                f"{key} ({int(value):02d}ms/{int(value / frame_time * 100):02d}%)"
+                for key, value in toplevel_timings.items()
+            ],
+            label_font=self.profiler_label_font,
         )
 
-        # Draw the timing segments as colored bars
-        x_offset = 0
-        for i, (name, time) in enumerate(timings.items()):
-            if time <= 0:
+        # render subsection bars below the main bar
+        y_spacing = self.profiler_bar_height + text_surface.get_height() + 5
+        for i_sub, subsection in enumerate(subsections):
+            subsections_timings = {
+                k: v for k, v in timings.items() if k.startswith(subsection + "/")
+            }
+            if not subsections_timings:
                 continue
 
-            pygame.draw.rect(
-                self.screen,
-                self.profiler_colors[i % len(self.profiler_colors)],
-                (
-                    self.profiler_bar_position[0] + x_offset,
-                    self.profiler_bar_position[1],
-                    int(time * self.profiler_pixels_per_ms),
-                    self.profiler_bar_height,
-                ),
-                width=0,
-            )
-            x_offset += int(time * self.profiler_pixels_per_ms)
-
-        # draw timing labels: place them sequentially next to each other below the bar
-        x_offset = 0
-        for i, (name, time) in enumerate(timings.items()):
-            if time <= 0:
-                continue
-
-            label_color = self.profiler_colors[i % len(self.profiler_colors)]
-            label_text = f"{name}: {time:.1f}ms"
-            label_surface = self.profiler_font.render(label_text, True, label_color)
-
-            # Place this label next to the previous one
+            # render the subsection header
             self.screen.blit(
-                label_surface,
+                self.profiler_header_font.render(subsection, True, (0, 0, 0)),
                 (
-                    self.profiler_label_position[0] + x_offset,
-                    self.profiler_label_position[1],
+                    self.profiler_position[0],
+                    self.profiler_position[1] + (i_sub + 1) * y_spacing,
                 ),
             )
 
-            # Move to the right for the next label (add some spacing)
-            x_offset += label_surface.get_width() + 5
+            # render the subsection color bar
+            self._render_color_bar(
+                position=(
+                    self.profiler_bar_position[0],
+                    self.profiler_bar_position[1] + (i_sub + 1) * y_spacing,
+                ),
+                section_widths=[
+                    int(timing * self.profiler_pixels_per_ms)
+                    for timing in subsections_timings.values()
+                ],
+                height=self.profiler_bar_height,
+                colors=[
+                    self.profiler_colors[i % len(self.profiler_colors)]
+                    for i in range(len(subsections_timings))
+                ],
+                total_width=None,
+                labels=[
+                    f"{key[len(subsection)+1:]} ({int(value):02d}ms/{int(value / frame_time * 100):02d}%)"
+                    for key, value in subsections_timings.items()
+                ],
+                label_font=self.profiler_label_font,
+            )
 
     def render_info(self, info: List[str]) -> None:
         """
