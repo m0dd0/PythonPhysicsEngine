@@ -1,24 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Tuple
 
 import pygame
 
 from ppe.engine.common import Body, PolygonShape, CircleShape, Vec2
 from ppe.engine.debug import AbstractDebugDrawer
 from ppe.utils.profiler import Profiler
-
-TAB10_COLORS = [
-    (31, 119, 180),  # blue
-    (255, 127, 14),  # orange
-    (44, 160, 44),  # green
-    (214, 39, 40),  # red
-    (148, 103, 189),  # purple
-    (140, 86, 75),  # brown
-    (227, 119, 194),  # pink
-    (127, 127, 127),  # gray
-    (188, 189, 34),  # olive
-    (23, 190, 207),  # cyan
-]
+from ppe.utils.colors import TAB10_COLORS
 
 
 class Camera:
