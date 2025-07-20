@@ -212,13 +212,14 @@ class SatPolygonHandler(AbstractCollisionHandler):
                 color=(0, 255, 0),
                 arrow=True,
             )
+
             # draw the collision normal
-            self.debug_drawer.add_line(
-                reference_edge[0],
-                reference_edge[0] + collision_normal * min_overlap,
-                color=(255, 255, 0),
-                arrow=True,
-            )
+            # self.debug_drawer.add_line(
+            #     reference_edge[0],
+            #     reference_edge[0] + collision_normal * min_overlap,
+            #     color=(255, 255, 0),
+            #     arrow=True,
+            # )
 
             # draw the incident edge
             self.debug_drawer.add_line(

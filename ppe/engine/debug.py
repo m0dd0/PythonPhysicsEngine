@@ -107,8 +107,45 @@ class AbstractDebugDrawer(ABC):
             return
         self._add_marker_line_impl(start, direction, color, arrow)
 
-    # TODO add methods for drawing arbirary text 
-    # TODO add method for drawign info section
+    def add_text_world(
+        self,
+        position: Vec2,
+        text: str,
+        color: Tuple[int, int, int] = (0, 0, 0),
+        size: float = 12.0,
+    ) -> None:
+        """
+        Adds text to the render queue at the specified position with the given color and size.
+
+        Args:
+            position: The position of the text in world space.
+            text: The text to render.
+            color: The color of the text.
+            size: The font size of the text (in pixels).
+        """
+        if not self.enabled:
+            return
+        self._add_text_world_impl(position, text, color, size)
+
+    def add_text_screen(
+        self,
+        position: Vec2,
+        text: str,
+        color: Tuple[int, int, int] = (0, 0, 0),
+        size: float = 12.0,
+    ) -> None:
+        """
+        Adds text to the render queue at the specified screen position with the given color and size.
+
+        Args:
+            position: The screen position of the text (in pixels).
+            text: The text to render.
+            color: The color of the text.
+            size: The font size of the text (in pixels).
+        """
+        if not self.enabled:
+            return
+        self._add_text_screen_impl(position, text, color, size)
 
     def render_all(self) -> None:
         """
@@ -165,6 +202,28 @@ class AbstractDebugDrawer(ABC):
         self, start: Vec2, direction: Vec2, color: Tuple[int, int, int], arrow: bool
     ) -> None:
         """Implementation-specific marker line drawing."""
+        pass
+
+    @abstractmethod
+    def _add_text_world_impl(
+        self,
+        position: Vec2,
+        text: str,
+        color: Tuple[int, int, int],
+        size: float,
+    ) -> None:
+        """Implementation-specific world space text rendering."""
+        pass
+
+    @abstractmethod
+    def _add_text_screen_impl(
+        self,
+        position: Vec2,
+        text: str,
+        color: Tuple[int, int, int],
+        size: float,
+    ) -> None:
+        """Implementation-specific screen space text rendering."""
         pass
 
     @abstractmethod

@@ -188,6 +188,16 @@ class PygameDebugDrawer(AbstractDebugDrawer):
     ):
         self._commands.append(("marker_line", (start, direction, color, arrow)))
 
+    def _add_text_world_impl(
+        self, position: Vec2, text: str, color=(0, 0, 0), size: float = 12.0
+    ):
+        self._commands.append(("text_world", (position, text, color, size)))
+
+    def _add_text_screen_impl(
+        self, position: Vec2, text: str, color=(0, 0, 0), size: float = 12.0
+    ):
+        self._commands.append(("text_screen", (position, text, color, size)))
+
     def _render_coordinate_frame(self):
         """Renders a coordinate frame at the origin."""
         self._add_line_impl(
@@ -292,6 +302,29 @@ class PygameDebugDrawer(AbstractDebugDrawer):
         world_end = self.camera.screen_to_world(screen_end)
         self._render_line(start, world_end, color, arrow)
 
+    def _render_text_world(
+        self, position: Vec2, text: str, color: Tuple[int, int, int], size: float
+    ):
+        """Renders text at a world position."""
+        # Create a font for the specific size
+        font = pygame.font.SysFont("Arial", int(size))
+        text_surface = font.render(text, True, color)
+        
+        # Convert world position to screen coordinates
+        screen_pos = self.camera.world_to_screen(position)
+        self.surface.blit(text_surface, screen_pos.to_int_tuple())
+
+    def _render_text_screen(
+        self, position: Vec2, text: str, color: Tuple[int, int, int], size: float
+    ):
+        """Renders text at a screen position."""
+        # Create a font for the specific size
+        font = pygame.font.SysFont("Arial", int(size))
+        text_surface = font.render(text, True, color)
+        
+        # Use screen position directly
+        self.surface.blit(text_surface, position.to_int_tuple())
+
     def _render_all_impl(self):
         """Executes all buffered draw commands for the frame."""
         if self.world_coordinate_frame_size is not None:
@@ -317,6 +350,14 @@ class PygameDebugDrawer(AbstractDebugDrawer):
             elif cmd_type == "marker_line":
                 start, direction, color, arrow = data
                 self._render_marker_line(start, direction, color, arrow)
+
+            elif cmd_type == "text_world":
+                position, text, color, size = data
+                self._render_text_world(position, text, color, size)
+
+            elif cmd_type == "text_screen":
+                position, text, color, size = data
+                self._render_text_screen(position, text, color, size)
 
         self._commands.clear()
 

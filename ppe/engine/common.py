@@ -210,8 +210,6 @@ class CircleShape(Shape):
 
         # TODO check if caching of aabb and interatia improves performance and by how much. try lru cache util and custom caching implemenation where we do not need to hash the inputs
 
-        # TODO add constructors for random circles
-
     @classmethod
     def create_random_circle(
         cls, min_radius: float = 0.05, max_radius: float = 1.0
