@@ -30,7 +30,7 @@ class Euler(IntegratorBase):
         body.vel += body.acc * dt
 
 
-# TODO implement the following integrators and check the correctness of AI suggestions
+# implement the following integrators and check the correctness of AI suggestions
 # class Verlet(Integrator):
 #     def integrate(self, body, dt):
 #         body.pos += body.vel * dt + 0.5 * body.acc * dt ** 2

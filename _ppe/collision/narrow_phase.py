@@ -252,7 +252,6 @@ class GJK(NarrowPhaseBase):
     def __call__(
         self, collision_candidates: List[Tuple[Body, Body]]
     ) -> List[Collision]:
-        # TODO
         raise NotImplementedError
 
 

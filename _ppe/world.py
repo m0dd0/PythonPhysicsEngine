@@ -49,7 +49,7 @@ class World:
         """
         self.collisions = self.collision_detector.get_collisions(self.bodies)
 
-        # TODO figure out way to treat external forces
+        # figure out way to treat external forces
         self.solver.solve(self.collisions, self.joints, [], dt)
 
         for body in self.bodies:

@@ -163,7 +163,6 @@ class PyGameVisualizer(Visualizer):
             self.world_2_pixel_coord(collision.penetrating_point).to_tuple(),
             self._collision_point_size,
         )
-        # TODO draw depth and normal
 
     def draw(
         self, world: World, draw_bbox: bool = False, draw_contact_manifold: bool = False
