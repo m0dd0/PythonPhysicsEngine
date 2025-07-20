@@ -264,9 +264,10 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
         closest_point = None
         min_dist_sq = float("inf")
 
-        for i, p1 in enumerate(verts):
-            # compute wdge vector on the polygon and the vector from the circle center to the polygon vertices on the edge
-            p2 = verts[(i + 1) % len(verts)]
+        for i_vert in range(len(verts)): # pylint: disable=consider-using-enumerate
+            # compute edge vector on the polygon and the vector from the circle center to the polygon vertices on the edge
+            p1 = verts[i_vert]
+            p2 = verts[(i_vert + 1) % len(verts)]
             edge = p2 - p1  # from p1 to p2
             line_vec = body_a.position - p1  # from p1 to circle center
 
@@ -298,7 +299,6 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
         dist = math.sqrt(min_dist_sq)
         normal = (body_a.position - closest_point).normalize()
         penetration = circle_shape.radius - dist
+        collision_point = closest_point - normal * penetration
 
-        # TODO add collision point
-
-        return Contact(body_a, body_b, normal, penetration)
+        return Contact(body_a, body_b, normal, penetration, [collision_point])
