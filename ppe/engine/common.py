@@ -249,6 +249,7 @@ class CircleShape(Shape):
 
 class PolygonShape(Shape):
     def __init__(self, vertices: List[Vec2]):
+        self.vertices = vertices
         # if len(vertices) < 3:
         #     raise ValueError("A polygon must have at least 3 vertices")
         

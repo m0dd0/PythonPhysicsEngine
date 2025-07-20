@@ -133,13 +133,15 @@ class SatPolygonHandler(AbstractCollisionHandler):
         min_overlap = float("inf")
         collision_normal = None
         reference_edge = None
-        incident_edge = None
+        reference_body_is_a = None
         # the shape whose normal has the smallest overlap "owns" the collision normal
         # this corresponding edge of this normal is called "reference edge" and is defined
         #   as the edge that is being hit/penetrated
         # contrary the edge that penetrates the other shape is called "incident edge"
         #   and is defined as the edge on the other shape whose normal is most aligned
         #   (but pointing in the opposite direction) with the collision normal
+        #   note that a definition using the most penetrating point would not work as it 
+        #   would not work in the case of parallel edges (e.g. in a rectangle)
 
         # find overlap, reference edge and collision normal
         for i, normal_ai in enumerate(normals_a):
@@ -160,19 +162,14 @@ class SatPolygonHandler(AbstractCollisionHandler):
             else:
                 # some edges are in front of and other are behind the edge -> we have an overlap
                 # the overlap is simply the distnace of the most penetrating point to the edge
-                # we use argmin to also get the corrsponing incident edge
-                i_most_penetrating_vertex = min(
-                    range(len(distances)), key=lambda i: distances[i]
-                )
-                overlap = -distances[i_most_penetrating_vertex]
+                
+                overlap = -min(distances)
                 if overlap < min_overlap:
                     min_overlap = overlap
                     collision_normal = normal_ai
                     reference_edge = (verts_a[i], verts_a[(i + 1) % len(verts_a)])
-                    incident_edge = (
-                        verts_b[i_most_penetrating_vertex],
-                        verts_b[(i_most_penetrating_vertex + 1) % len(verts_b)],
-                    )
+                    reference_body_is_a = True
+
 
         # do the same for the other polygon
         for i, normal_bi in enumerate(normals_b):
@@ -182,45 +179,54 @@ class SatPolygonHandler(AbstractCollisionHandler):
             elif all(d <= 0 for d in distances):
                 continue
             else:
-                i_most_penetrating_vertex = min(
-                    range(len(distances)), key=lambda i: distances[i]
-                )
-                overlap = -distances[i_most_penetrating_vertex]
+                overlap = -min(distances)
                 if overlap < min_overlap:
                     min_overlap = overlap
                     collision_normal = normal_bi
                     reference_edge = (verts_b[i], verts_b[(i + 1) % len(verts_b)])
-                    incident_edge = (
-                        verts_a[i_most_penetrating_vertex],
-                        verts_a[(i_most_penetrating_vertex + 1) % len(verts_b)],
-                    )
+                    reference_body_is_a = False
 
-        # some synity checks
-        assert (
-            collision_normal is not None
-        ), "Collision normal should be set if we reach here."
-        assert (
-            0 < min_overlap < float("inf")
-        ), "Overlap should be a positive finite value."
-        assert (
-            reference_edge is not None
-        ), "Reference edge should be set if we reach here."
+        ### find the incident edge: the edge whose normal is most contrary to the collision normal
+        if reference_body_is_a:
+            incident_shape_normals = normals_b
+            incident_shape_verts = verts_b
+        else:
+            incident_shape_normals = normals_a
+            incident_shape_verts = verts_a
+        
+        incident_edge_index = min(
+            range(len(incident_shape_normals)),
+            key=lambda i: incident_shape_normals[i].dot(collision_normal)
+        )
+        incident_edge = (
+            incident_shape_verts[incident_edge_index],
+            incident_shape_verts[(incident_edge_index + 1) % len(incident_shape_verts)],
+        )
 
-        # if self.debug_drawer is not None:
-        #     # draw the reference edge
-        #     self.debug_drawer.add_line(
-        #         reference_edge[0],
-        #         reference_edge[1],
-        #         color=(0, 255, 0),
-        #         arrow=True,
-        #     )
-        #     # draw the collision normal
-        #     self.debug_drawer.add_line(
-        #         reference_edge[0],
-        #         reference_edge[0] + collision_normal * min_overlap,
-        #         color=(255, 255, 0),
-        #         arrow=True,
-        #     )
+        # debug drawing
+        if self.debug_drawer is not None:
+            # draw the reference edge
+            self.debug_drawer.add_line(
+                reference_edge[0],
+                reference_edge[1],
+                color=(0, 255, 0),
+                arrow=True,
+            )
+            # draw the collision normal
+            self.debug_drawer.add_line(
+                reference_edge[0],
+                reference_edge[0] + collision_normal * min_overlap,
+                color=(255, 255, 0),
+                arrow=True,
+            )
+
+            # draw the incident edge
+            self.debug_drawer.add_line(
+                incident_edge[0],
+                incident_edge[1],
+                color=(0, 0, 255),
+                arrow=True,
+            )
 
         ### clip the incident edge against the perpendicular planes at the end of the reference edge
         # define the clipping plands: each of the planes is defined by a normal and an offset (how far the plane is moved away from the origin along its normal)

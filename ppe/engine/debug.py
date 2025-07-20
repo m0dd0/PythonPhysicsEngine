@@ -107,6 +107,9 @@ class AbstractDebugDrawer(ABC):
             return
         self._add_marker_line_impl(start, direction, color, arrow)
 
+    # TODO add methods for drawing arbirary text 
+    # TODO add method for drawign info section
+
     def render_all(self) -> None:
         """
         Renders all debug graphics. Only renders if enabled.

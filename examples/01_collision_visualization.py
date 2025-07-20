@@ -141,7 +141,11 @@ def main():
 
         ## Physics Update
         with profiler.time("world"):
-            world.step(dt)
+            try:
+                world.step(dt)
+            except Exception as e:
+                print(f"Error during world step: {e}")
+                running = False
 
         # Render the world
         with profiler.time("render"):
@@ -158,6 +162,11 @@ def main():
         # end = time.perf_counter()
         # print(f"Profiler rendering took {((end - start) * 1000):.2f} ms")
         # -> time that is not included in the profiler is negligible (<1 ms)
+
+    # for keeping the window open for debugging purposes
+    # import time
+    # while True:
+    #     time.sleep(0.1)
 
     pygame.quit()  # pylint: disable=no-member
 
