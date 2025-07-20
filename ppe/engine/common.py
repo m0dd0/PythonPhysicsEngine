@@ -26,6 +26,10 @@ class Vec2:
     def dot(self, other: "Vec2") -> float:
         return self.x * other.x + self.y * other.y
 
+    def cross(self, other: "Vec2") -> float:
+        """Returns the z-component of the cross product (2D cross product)."""
+        return self.x * other.y - self.y * other.x
+
     def length_squared(self) -> float:
         return self.x * self.x + self.y * self.y
 
@@ -54,7 +58,7 @@ class Vec2:
         if l == 0:
             return Vec2(0, 0)
         return self / l
-
+    
     def to_tuple(self) -> Tuple[float, float]:
         """Returns the vector as a tuple."""
         return (self.x, self.y)
@@ -245,15 +249,145 @@ class CircleShape(Shape):
 
 class PolygonShape(Shape):
     def __init__(self, vertices: List[Vec2]):
-        self.vertices = vertices
-        # TODO check that the vertices are in counter-clockwise order and form a convex polygon
+        # if len(vertices) < 3:
+        #     raise ValueError("A polygon must have at least 3 vertices")
+        
+        # # Remove collinear vertices first to simplify the polygon
+        # simplified_vertices = self._remove_collinear_vertices(vertices)
+        
+        # # Check if we still have enough vertices after simplification
+        # if len(simplified_vertices) < 3:
+        #     raise ValueError("After removing collinear vertices, less than 3 vertices remain")
+        
+        # # Validate and process vertices
+        # if not self._is_convex(simplified_vertices):
+        #     raise ValueError("Vertices must form a convex polygon")
+        
+        # # Ensure vertices are in counter-clockwise order
+        # self.vertices = self._ensure_ccw_order(simplified_vertices)
 
         # TODO check if caching of aabb and interatia improves performance and by how much. try lru cache util and custom caching implemenation where we do not need to hash the inputs
 
         # TODO adapt the vertices coordinats so that the geometric center is at the origin
 
         # TODO add different constructors for regular polygons, rectangles, etc.
+    
+    def _is_convex(self, vertices: List[Vec2]) -> bool:
+        """
+        Checks if the given vertices form a convex polygon.
+        
+        A polygon is convex if all interior angles are less than 180 degrees.
+        This is equivalent to all cross products of consecutive edge vectors
+        having the same sign (all positive for CCW, all negative for CW).
+        
+        Args:
+            vertices: List of vertices to check
+            
+        Returns:
+            True if the vertices form a convex polygon, False otherwise
+        """
+        if len(vertices) < 3:
+            return False
+        
+        # Calculate cross products for all consecutive edge pairs
+        cross_products = []
+        for i in range(len(vertices)): # pylint: disable=consider-using-enumerate
+            # Get three consecutive vertices
+            p1 = vertices[i]
+            p2 = vertices[(i + 1) % len(vertices)]
+            p3 = vertices[(i + 2) % len(vertices)]
+            
+            # Calculate vectors for consecutive edges
+            edge1 = p2 - p1
+            edge2 = p3 - p2
 
+            # Calculate cross product
+            cross_products.append(edge1.cross(edge2))
+
+        # Check if all cross products have the same sign (ignoring zeros)
+        non_zero_cross_products = [cp for cp in cross_products if abs(cp) > 1e-10]
+        
+        if not non_zero_cross_products:
+            return False  # Degenerate case
+        
+        # All cross products should have the same sign for a convex polygon
+        first_sign = 1 if non_zero_cross_products[0] > 0 else -1
+        return all(
+            (1 if cp > 0 else -1) == first_sign 
+            for cp in non_zero_cross_products
+        )
+    
+    def _ensure_ccw_order(self, vertices: List[Vec2]) -> List[Vec2]:
+        """
+        Ensures vertices are ordered counter-clockwise.
+        
+        Uses the shoelace formula to calculate the signed area.
+        If the area is negative, the vertices are in clockwise order
+        and need to be reversed.
+        
+        Args:
+            vertices: List of vertices
+            
+        Returns:
+            List of vertices in counter-clockwise order
+        """
+        if len(vertices) < 3:
+            return vertices
+        
+        # Calculate signed area using shoelace formula
+        signed_area = 0.0
+        n = len(vertices)
+        
+        for i in range(n):
+            j = (i + 1) % n
+            signed_area += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y
+        
+        # If signed area is negative, vertices are clockwise - reverse them
+        if signed_area < 0:
+            return list(reversed(vertices))
+        else:
+            return list(vertices)  # Return a copy to avoid modifying the original
+    
+    def _remove_collinear_vertices(self, vertices: List[Vec2], tolerance: float = 1e-10) -> List[Vec2]:
+        """
+        Removes vertices that are collinear (lie on a straight line) with their neighbors.
+        
+        A vertex is considered collinear if the cross product of the vectors from the previous
+        vertex to the current vertex and from the current vertex to the next vertex is close to zero.
+        
+        Args:
+            vertices: List of vertices to process
+            tolerance: Tolerance for considering vertices collinear (default: 1e-10)
+            
+        Returns:
+            List of vertices with collinear vertices removed
+        """
+        if len(vertices) < 3:
+            return list(vertices)
+        
+        simplified = []
+        n = len(vertices)
+        
+        for i in range(n):
+            # Get three consecutive vertices
+            prev_vertex = vertices[(i - 1) % n]
+            current_vertex = vertices[i]
+            next_vertex = vertices[(i + 1) % n]
+            
+            # Calculate vectors from previous to current and current to next
+            edge1 = current_vertex - prev_vertex
+            edge2 = next_vertex - current_vertex
+            
+            # Calculate cross product to check collinearity
+            cross_product = edge1.cross(edge2)
+            
+            # Keep the vertex if it's not collinear (cross product is significant)
+            if abs(cross_product) > tolerance:
+                simplified.append(current_vertex)
+        
+        # Ensure we still have at least 3 vertices for a valid polygon
+        return simplified if len(simplified) >= 3 else vertices
+    
     @classmethod
     def create_rectangle(cls, width: float, height: float) -> "PolygonShape":
         """
@@ -327,7 +461,9 @@ class PolygonShape(Shape):
         """Calculates the world-space edges of the polygon."""
         world_space_vertices = self.get_world_space_vertices(position, angle)
         edges = []
-        for i in range(len(world_space_vertices)):
+        for i in range( # pylint: disable=consider-using-enumerate
+            len(world_space_vertices)
+        ):
             v1 = world_space_vertices[i]
             v2 = world_space_vertices[(i + 1) % len(world_space_vertices)]
             edges.append((v1, v2))
