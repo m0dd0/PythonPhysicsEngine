@@ -62,7 +62,7 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
         dist = math.sqrt(dist_sq)
         penetration = sum_radii - dist
         normal = a_to_b.normalize()
-        contact_point = body_a.position + normal * shape_a.radius
+        contact_point = body_b.position - normal * shape_b.radius
 
         return Contact(body_a, body_b, normal, penetration, [contact_point])
 
@@ -140,7 +140,7 @@ class SatPolygonHandler(AbstractCollisionHandler):
         # contrary the edge that penetrates the other shape is called "incident edge"
         #   and is defined as the edge on the other shape whose normal is most aligned
         #   (but pointing in the opposite direction) with the collision normal
-        #   note that a definition using the most penetrating point would not work as it 
+        #   note that a definition using the most penetrating point would not work as it
         #   would not work in the case of parallel edges (e.g. in a rectangle)
 
         # find overlap, reference edge and collision normal
@@ -162,14 +162,13 @@ class SatPolygonHandler(AbstractCollisionHandler):
             else:
                 # some edges are in front of and other are behind the edge -> we have an overlap
                 # the overlap is simply the distnace of the most penetrating point to the edge
-                
+
                 overlap = -min(distances)
                 if overlap < min_overlap:
                     min_overlap = overlap
                     collision_normal = normal_ai
                     reference_edge = (verts_a[i], verts_a[(i + 1) % len(verts_a)])
                     reference_body_is_a = True
-
 
         # do the same for the other polygon
         for i, normal_bi in enumerate(normals_b):
@@ -193,10 +192,10 @@ class SatPolygonHandler(AbstractCollisionHandler):
         else:
             incident_shape_normals = normals_a
             incident_shape_verts = verts_a
-        
+
         incident_edge_index = min(
             range(len(incident_shape_normals)),
-            key=lambda i: incident_shape_normals[i].dot(collision_normal)
+            key=lambda i: incident_shape_normals[i].dot(collision_normal),
         )
         incident_edge = (
             incident_shape_verts[incident_edge_index],
@@ -246,8 +245,16 @@ class SatPolygonHandler(AbstractCollisionHandler):
 
         # keep only clipped points that are behind the reference edge
         clipped_points = [
-            p for p in clipped_points if (p -reference_edge[0]).dot(collision_normal) < 0
+            p
+            for p in clipped_points
+            if (p - reference_edge[0]).dot(collision_normal) < 0
         ]
+
+        # it is assumed that the collision normal always points from collision.body_a to collision.body_b
+        # the collision normal we found here points from the reference shape to the incident shape
+        # thus we need to flip it if the reference body is not body_a
+        if not reference_body_is_a:
+            body_a, body_b = body_b, body_a
 
         return Contact(
             body_a, body_b, collision_normal, min_overlap, list(clipped_points)
@@ -261,22 +268,26 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
         """Checks for collision between a circle and a polygon."""
         # if isinstance(body_b.shape, CircleShape):
         #     body_a, body_b = body_b, body_a
-        assert body_a.shape.get_type() == "circle"
-        assert body_b.shape.get_type() == "polygon"
+        circle_body = body_a
+        polygon_body = body_b
+        assert circle_body.shape.get_type() == "circle"
+        assert polygon_body.shape.get_type() == "polygon"
 
-        circle_shape: CircleShape = body_a.shape
-        poly_shape: PolygonShape = body_b.shape
+        circle_shape: CircleShape = circle_body.shape
+        poly_shape: PolygonShape = polygon_body.shape
 
-        verts = poly_shape.get_world_space_vertices(body_b.position, body_b.angle)
+        verts = poly_shape.get_world_space_vertices(
+            polygon_body.position, polygon_body.angle
+        )
         closest_point = None
         min_dist_sq = float("inf")
 
-        for i_vert in range(len(verts)): # pylint: disable=consider-using-enumerate
+        for i_vert in range(len(verts)):  # pylint: disable=consider-using-enumerate
             # compute edge vector on the polygon and the vector from the circle center to the polygon vertices on the edge
             p1 = verts[i_vert]
             p2 = verts[(i_vert + 1) % len(verts)]
             edge = p2 - p1  # from p1 to p2
-            line_vec = body_a.position - p1  # from p1 to circle center
+            line_vec = circle_body.position - p1  # from p1 to circle center
 
             # Project the circle center onto the edge to find the closest point
             t = line_vec.dot(edge) / edge.length_squared()
@@ -291,7 +302,7 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
             #         body_a.position, closest_on_edge, color=(0, 0, 255)
             #     )
 
-            dist_sq = (body_a.position - closest_on_edge).length_squared()
+            dist_sq = (circle_body.position - closest_on_edge).length_squared()
             if dist_sq < min_dist_sq:
                 min_dist_sq = dist_sq
                 closest_point = closest_on_edge
@@ -304,8 +315,11 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
             return None
 
         dist = math.sqrt(min_dist_sq)
-        normal = (body_a.position - closest_point).normalize()
+        # normal points from the closest point on the polygon edge to the circle center
+        normal = (circle_body.position - closest_point).normalize()
         penetration = circle_shape.radius - dist
         collision_point = closest_point - normal * penetration
 
-        return Contact(body_a, body_b, normal, penetration, [collision_point])
+        return Contact(
+            polygon_body, circle_body, normal, penetration, [collision_point]
+        )
