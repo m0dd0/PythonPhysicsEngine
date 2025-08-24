@@ -229,9 +229,9 @@ class PygameDebugDrawer(AbstractDebugDrawer):
 
         if arrow:
             direction = (screen_end - screen_start).normalize()
-            arrow_length_screen = (screen_end - screen_start).length() / 5
+            arrow_length_screen = min((screen_end - screen_start).length() / 5, 50)
             arrow_width_screen = arrow_length_screen / 2
-            triangle_points_screem = [
+            triangle_points_screen = [
                 screen_end,
                 screen_end
                 - direction * arrow_length_screen
@@ -243,7 +243,7 @@ class PygameDebugDrawer(AbstractDebugDrawer):
             pygame.draw.polygon(
                 self.surface,
                 color,
-                [p.to_int_tuple() for p in triangle_points_screem],
+                [p.to_int_tuple() for p in triangle_points_screen],
                 width=0,  # filled triangle
             )
 

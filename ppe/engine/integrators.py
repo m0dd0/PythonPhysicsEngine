@@ -28,7 +28,8 @@ class AbstractIntegrator(ABC):
             dt: The time step for the frame.
         """
         raise NotImplementedError
-    
+
+
 class NoOpIntegrator(AbstractIntegrator):
     """An integrator that performs no action, for debugging or simple kinematics."""
 
@@ -81,6 +82,7 @@ class PositionVerletIntegrator(AbstractIntegrator):
     This integrator is highly stable and designed to be paired with a
     position-based solver.
     """
+
     def __init__(self) -> None:
         """Initializes the Position Verlet integrator."""
         pass
@@ -123,7 +125,7 @@ class PositionVerletIntegrator(AbstractIntegrator):
         for body in bodies:
             if body.inverse_mass == 0.0:
                 continue
-            
+
             # The solver may have corrected body.position. We use this
             # final position to derive the velocity for the frame.
             body.velocity = (body.position - body.previous_position) / dt

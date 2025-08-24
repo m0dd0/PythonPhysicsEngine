@@ -576,8 +576,10 @@ class Contact:
     ):
         self.body_a = body_a
         self.body_b = body_b
+        # normal is assumed to always point from body_a to body_b
         self.normal = normal
         self.penetration_depth = penetration_depth
+        # contact_points are assumed to be located on body_b
         self.contact_points = contact_points
 
 
