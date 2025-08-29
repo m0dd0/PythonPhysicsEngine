@@ -87,10 +87,35 @@ class Body:
         mass: Union[float, None],
         angle: float = 0.0,
         restitution: float = 0.2,
+        initial_velocity: Vec2 = Vec2(0, 0),
+        initial_angular_velocity: float = 0.0,
         user_data: dict = None,
     ):
+        """
+        Initializes a new Body instance.
+
+        Args:
+            shape (Shape): The shape of the body.
+            position (Vec2): The initial position of the body.
+            mass (Union[float, None]): The mass of the body. If None, the body is 
+                considered static.
+            angle (float, optional): The initial rotation angle of the body in radians. 
+                Defaults to 0.0.
+            restitution (float, optional): The restitution (bounciness) of the body. 
+                Defaults to 0.2.
+            initial_velocity (Vec2, optional): The initial linear velocity of the body.
+                Defaults to (0, 0).
+            initial_angular_velocity (float, optional): The initial angular velocity of the body.
+                Defaults to 0.0.
+            user_data (dict, optional): Custom user data associated with the body. 
+                This data is irrelevant for the physics simulation but might be for 
+                other purposes like rendering. Defaults to None.
+
+        Raises:
+            ValueError: If the mass is not positive or None.
+        """
         if mass is not None and mass <= 0:
-            raise ValueError("Mass must be positive or None for static bodies.")
+            raise ValueError("Mass must be positive or None.")
 
         self.shape = shape
         self.position = position
@@ -101,8 +126,8 @@ class Body:
         )  # used by some integrators like Verlet
         self.previous_angle: float = self.angle  # used by some integrators like Verlet
 
-        self.velocity: Vec2 = Vec2(0, 0)
-        self.angular_velocity: float = 0.0
+        self.velocity: Vec2 = initial_velocity
+        self.angular_velocity: float = initial_angular_velocity
 
         self.force_accumulator: Vec2 = Vec2(0, 0)
         self.torque_accumulator: float = 0.0
@@ -362,6 +387,7 @@ class PolygonShape(Shape):
     def create_rectangle(cls, width: float, height: float) -> "PolygonShape":
         """
         Creates a rectangle shape with the given width and height.
+        Note that the shapes origin will be in the center of the rectangle.
 
         Args:
             width: The width of the rectangle.
