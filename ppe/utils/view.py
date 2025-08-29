@@ -239,9 +239,7 @@ class AbstractView(ABC):
         pass
 
     @abstractmethod
-    def render_profiler(
-        self, profiler: Profiler
-    ) -> None:
+    def render_profiler(self, profiler: Profiler) -> None:
         """
         Renders performance profiling information to the screen.
 
@@ -577,10 +575,13 @@ class PygameView(AbstractView):
         # draw the header text
         self.screen.blit(
             self.profiler_settings["font"].render(heading, True),
-            (position[0], position[1])
+            (position[0], position[1]),
         )
 
-        bar_position = (position[0] + self.profiler_settings["horizontal_bar_offset"], position[1])
+        bar_position = (
+            position[0] + self.profiler_settings["horizontal_bar_offset"],
+            position[1],
+        )
 
         # draw background
         if total_timing is not None:
@@ -588,12 +589,13 @@ class PygameView(AbstractView):
                 self.screen,
                 self.profiler_settings["bar_background_color"],
                 (
-                        bar_position[0],
-                        bar_position[1],
-                        bar_position[0] + total_timing * self.profiler_settings["pixels_per_ms"],
-                        bar_position[1] + self.profiler_settings["bar_height"],
+                    bar_position[0],
+                    bar_position[1],
+                    bar_position[0]
+                    + total_timing * self.profiler_settings["pixels_per_ms"],
+                    bar_position[1] + self.profiler_settings["bar_height"],
                 ),
-                width=0, # no outline
+                width=0,  # no outline
             )
 
         # compute the section based properties
@@ -616,7 +618,12 @@ class PygameView(AbstractView):
             pygame.draw.rect(
                 self.screen,
                 color,
-                (section_x_position, bar_position[1], width, self.profiler_settings["bar_height"]),
+                (
+                    section_x_position,
+                    bar_position[1],
+                    width,
+                    self.profiler_settings["bar_height"],
+                ),
                 width=0,
             )
             self.screen.blit(
@@ -653,35 +660,27 @@ class PygameView(AbstractView):
         toplevel_timings = {k: v for k, v in timings.items() if "/" not in k}
         self._render_profiler_bar(
             position=self.profiler_settings["position"],
-            timings = toplevel_timings,
-            heading = f"{int(frame_time):03d}ms / {int(1000 / frame_time):02d} FPS",
-            total_timing=frame_time
+            timings=toplevel_timings,
+            heading=f"{int(frame_time):03d}ms / {int(1000 / frame_time):02d} FPS",
+            total_timing=frame_time,
         )
 
         # render subsection bars below the main bar
-        for i_sub, subsection_key in enumerate(
-            self.profiler_settings["subsection_keys"]
-        ):
+        y_position = self.profiler_settings["position"][1]
+        for subsection_key in self.profiler_settings["subsection_keys"]:
+            y_position += self.profiler_settings["vertical_bar_offset"]
             subsections_timings = {
                 k: v for k, v in timings.items() if k.startswith(f"{subsection_key}/")
             }
             if not subsections_timings:
                 continue
 
-            subsection_position = [
-                self.profiler_settings["position"][0],
-                self.profiler_settings["position"][1]
-                + (i_sub + 1) * self.profiler_settings["vertical_bar_offset"],
-            ]
-
             self._render_profiler_bar(
-                position=subsection_position,
+                position=[self.profiler_settings["position"][0], y_position],
                 timings=subsections_timings,
                 heading=subsection_key,
-                total_timing=None
+                total_timing=None,
             )
-
-
 
     def render_info(self, info: List[str]) -> None:
         """
