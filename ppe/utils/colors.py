@@ -10,6 +10,8 @@ from typing import List, Tuple
 # Type alias for RGB color tuples
 Color = Tuple[int, int, int]
 
+V1_COLORS =  ["#ffbe0b", "#fb5607", "#ff006e", "#8338ec", "#3a86ff"]
+
 # Matplotlib's Tab10 color palette - good for categorical data
 TAB10_COLORS: List[Color] = [
     (31, 119, 180),   # blue

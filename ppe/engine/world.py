@@ -1,10 +1,15 @@
 from typing import List, Optional
 
 from ppe.engine.common import Body, Joint, Vec2
-from ppe.engine.solvers import AbstractSolver
-from ppe.engine.collision_broad import AbstractBroadPhase
-from ppe.engine.collision_narrow import AbstractNarrowPhase
-from ppe.engine.integrators import AbstractIntegrator
+from ppe.engine.solvers import AbstractSolver, IterativeImpulseSolver
+from ppe.engine.collision_broad import AbstractBroadPhase, AABBBroadPhase
+from ppe.engine.collision_narrow import AbstractNarrowPhase, DispatchNarrowPhase
+from ppe.engine.collision_handlers import (
+    CircleVsCircleHandler,
+    SatPolygonHandler,
+    CircleVsPolygonHandler,
+)
+from ppe.engine.integrators import AbstractIntegrator, SemiImplicitEulerIntegrator
 from ppe.engine.force_generators import AbstractForceGenerator
 from ppe.engine.debug import AbstractDebugDrawer
 from ppe.utils.profiler import Profiler
@@ -18,24 +23,37 @@ class World:
 
     def __init__(
         self,
-        integrator: AbstractIntegrator,
-        solver: AbstractSolver,
-        broad_phase: AbstractBroadPhase,
-        narrow_phase: AbstractNarrowPhase,
-        bodies: List[Body] = None,
-        joints: List[Joint] = None,
-        force_generators: List[AbstractForceGenerator] = None,
+        integrator: Optional[AbstractIntegrator] = None,
+        solver: Optional[AbstractSolver] = None,
+        broad_phase: Optional[AbstractBroadPhase] = None,
+        narrow_phase: Optional[AbstractNarrowPhase] = None,
+        bodies: Optional[List[Body]] = None,
+        joints: Optional[List[Joint]] = None,
+        force_generators: Optional[List[AbstractForceGenerator]] = None,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
         profiler: Optional[Profiler] = None,
     ):
         """
-        Initializes the physics world.
+        Initializes the physics world by defining the initial objects, constraints and the
+        strategies used to detect collisions and handle the physics update.
 
         Args:
-            integrator: The integration strategy to use for updating motion.
-            solver: The solver strategy to use for resolving constraints.
-            broad_phase: The broad-phase collision detection strategy.
-            narrow_phase: The narrow-phase collision detection strategy.
+            integrator (Optional[AbstractIntegrator]): The integrator to use for the simulation.
+                The integrator is responsible for updating the velocities and positions of the bodies
+                in the simulation based on the forces acting on them. Defaults to SemiImplicitEulerIntegrator.
+            solver (Optional[AbstractSolver]): The solver to use for the simulation. The solver is
+                responsible for resolving contacts and joints. Defaults to IterativeImpulseSolver.
+            broad_phase (Optional[AbstractBroadPhase]): The broad phase collision detection strategy.
+                Used to find potential collision pairs. Defaults to AABBBroadPhase.
+            narrow_phase (Optional[AbstractNarrowPhase]): The narrow phase collision detection strategy.
+                Used to generate contacts from potential pairs. Defaults to DispatchNarrowPhase.
+            bodies (Optional[List[Body]]): A list of bodies to add to the world initially. Defaults to None.
+            joints (Optional[List[Joint]]): A list of joints to add to the world initially. Defaults to None.
+            force_generators (Optional[List[AbstractForceGenerator]]): A list of force generators to add
+                to the world initially. Defaults to None.
+            debug_drawer (Optional[AbstractDebugDrawer]): A debug drawer for visualizing the simulation.
+                Defaults to None.
+            profiler (Optional[Profiler]): A profiler for measuring performance. Defaults to None.
         """
         if type(integrator) not in solver.COMPATIBLE_INTEGRATORS:
             raise TypeError(
@@ -47,13 +65,31 @@ class World:
         self.force_generators = [] if force_generators is None else force_generators
 
         # Inject the strategies
-        self.integrator = integrator
-        self.solver = solver
-        self.broad_phase = broad_phase
-        self.narrow_phase = narrow_phase
+        self.integrator = (
+            SemiImplicitEulerIntegrator() if integrator is None else integrator
+        )
+        self.solver = IterativeImpulseSolver() if solver is None else solver
+        self.broad_phase = AABBBroadPhase() if broad_phase is None else broad_phase
+        self.narrow_phase = (
+            DispatchNarrowPhase(
+                handlers={
+                    ("circle", "circle"): CircleVsCircleHandler(
+                        debug_drawer=debug_drawer
+                    ),
+                    ("circle", "polygon"): CircleVsPolygonHandler(
+                        debug_drawer=debug_drawer
+                    ),
+                    ("polygon", "polygon"): SatPolygonHandler(
+                        debug_drawer=debug_drawer
+                    ),
+                }
+            )
+            if narrow_phase is None
+            else narrow_phase
+        )
 
         self.debug_drawer = debug_drawer
-        self.profiler = profiler if profiler else Profiler()
+        self.profiler = Profiler() if profiler is None else profiler
 
         # TODO add option to automatically remove bodies once they are outside a certain area
 
@@ -162,7 +198,7 @@ class World:
             A list of bodies at the specified point.
         """
         # this can probably be optimized by using a spatial partitioning structure
-        
+
         bodies_at_point = []
         for body in reversed(self.bodies):
             if body.is_point_inside(point):
