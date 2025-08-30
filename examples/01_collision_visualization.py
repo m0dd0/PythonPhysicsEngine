@@ -1,7 +1,28 @@
+"""
+An example that visualizes the collision detection system.
+
+This example sets up a world with a few static bodies (rectangles and circles).
+The bodies do not move on their own, but can be dragged around with the mouse
+and rotated by hovering over them.
+Note that no collision resolution or other physical constraints are applied.
+
+The debug drawer is used to visualize the different collision detection phases:
+- Broad phase: Axis-Aligned Bounding Boxes (AABBs) are shown.
+- Narrow phase: Collision points and normals are shown.
+
+Controls:
+- Left-click and drag a body to move it.
+- Hover over a body to rotate it.
+- Use the keyboard arrow keys to pan the camera.
+- Use the mouse wheel to zoom the camera.
+- Press 'd' to toggle debug drawing.
+"""
+
 from typing import List, Tuple
 
 import pygame
 
+# engine components
 from ppe.engine.common import Body, PolygonShape, Vec2, CircleShape
 from ppe.engine.world import World
 from ppe.engine.solvers import NoOpSolver
@@ -33,21 +54,17 @@ from ppe.utils.profiler import Profiler
 SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 576
 SCREEN_WIDTH_WORLD = 10.0  # World width in physics units
-BODY_STYLE = {
-    "is_filled": False,
-    "outline_width": 3
-}
+BODY_STYLE = {"is_filled": False, "outline_width": 3}
 
-def setup() -> (
-    Tuple[
-        PygameView,
-        World,
-        List[AbstractController],
-        ApplicationController,
-        Profiler,
-        pygame.time.Clock,
-    ]
-):
+
+def setup() -> Tuple[
+    PygameView,
+    World,
+    List[AbstractController],
+    ApplicationController,
+    Profiler,
+    pygame.time.Clock,
+]:
     pygame.init()  # pylint: disable=no-member
 
     ## Initialize View
@@ -57,10 +74,8 @@ def setup() -> (
             screen_height=SCREEN_HEIGHT,
             world_width=SCREEN_WIDTH_WORLD,
         ),
-        profiler_settings={
-            "subsection_keys": ["world"]
-        },
-        body_style_defaults=BODY_STYLE
+        profiler_settings={"subsection_keys": ["world"]},
+        body_style_defaults=BODY_STYLE,
     )
     debug_drawer = PygameDebugDrawer(camera=view.camera, surface=view.screen)
 
@@ -113,12 +128,11 @@ def setup() -> (
 
     ## Initialize controllers
     app_controller = ApplicationController(debug_drawer=debug_drawer)
-    debug_controller = DebugController(
-        controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
-    )
     controllers: List[AbstractController] = [
         app_controller,
-        debug_controller,
+        DebugController(
+            controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
+        ),
         CameraZoomController(view.camera, mode="keyboard"),
         CameraPanController(view.camera, mode="keyboard"),
         BodyDragController(

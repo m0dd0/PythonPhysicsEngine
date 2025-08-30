@@ -649,6 +649,7 @@ class BodySpawnController(AbstractController):
         camera: Camera,
         mouse_spawn_objects: Dict[int, Union[List[Body], Callable]] = None,
         keyboard_spawn_objects: Dict[str, Union[List[Body], Callable]] = None,
+        spawn_object_at_mouse_position: Optional[bool] = True,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
         """Initialize the BodySpawnController.
@@ -665,6 +666,9 @@ class BodySpawnController(AbstractController):
             keyboard_spawn_objects (Dict[str, Union[List[Body], Callable]]): A dictionary
                 mapping key names to either a list of Body objects or a callable that
                 returns a new Body.
+            spawn_object_at_mouse_position (Optional[bool]): Whether to spawn the object at the
+                current mouse position. If set the bodies position value will be overridden
+                with the mouse position before the body is added to the world. Defaults to True.
             debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer.
         """
         super().__init__(debug_drawer)
@@ -672,10 +676,10 @@ class BodySpawnController(AbstractController):
         self.world = world
         self.camera = camera
 
-        self.default_density = 1  # Default density for spawned bodies
+        self.spawn_object_at_mouse_position = spawn_object_at_mouse_position
 
         if mouse_spawn_objects is None and keyboard_spawn_objects is None:
-            mouse_spawn_objects = {1: self.spawn_box, 3: self.spawn_circle}
+            raise ValueError("At least one spawn object source must be provided.")
 
         self.mouse_spawn_objects = (
             dict() if mouse_spawn_objects is None else mouse_spawn_objects
@@ -720,38 +724,6 @@ class BodySpawnController(AbstractController):
 
         return "Spawn bodies at mouse position: " + "; ".join(descriptions)
 
-    def spawn_circle(self) -> Body:
-        """Create and return a new circle Body with random radius.
-
-        The body is created with a default density and a placeholder position.
-
-        Returns:
-            (Body): The newly created circle body.
-        """
-        circle_shape = CircleShape.create_random_circle()
-        circle_body = Body(
-            shape=circle_shape,
-            position=Vec2(0, 0),  # Placeholder position, will be set by the controller
-            mass=circle_shape.get_area() * self.default_density,
-        )
-        return circle_body
-
-    def spawn_box(self) -> Body:
-        """Create and return a new rectangular Body with random dimensions.
-
-        The body is created with a default density and a placeholder position.
-
-        Returns:
-            (Body): The newly created box body.
-        """
-        box_shape = PolygonShape.create_random_rectangle()
-        box_body = Body(
-            shape=box_shape,
-            position=Vec2(0, 0),  # Placeholder position, will be set by the controller
-            mass=box_shape.get_area() * self.default_density,
-        )
-        return box_body
-
     def get_new_body(self, spawn_option: Union[List[Body], Callable]) -> Body:
         """Generate a new body based on the provided spawn option.
 
@@ -779,23 +751,22 @@ class BodySpawnController(AbstractController):
             dt (float): The time step for the frame.
         """
         # Check for button presses
+        bodies_to_spawn = []
         for button, spawn_option in self.mouse_spawn_objects.items():
             if button in input_state.mouse_buttons_pressed:
-                new_body = self.get_new_body(spawn_option)
-                new_body.position = self.camera.screen_to_world(
-                    input_state.mouse_position
-                )
-                self.world.add_body(new_body)
+                bodies_to_spawn.append(self.get_new_body(spawn_option))
 
         # Check for key presses
         for key, spawn_option in self.keyboard_spawn_objects.items():
             if key in input_state.keys_pressed:
-                new_body = self.get_new_body(spawn_option)
-                new_body.position = self.camera.screen_to_world(
+                bodies_to_spawn.append(self.get_new_body(spawn_option))
+
+        for body in bodies_to_spawn:
+            if self.spawn_object_at_mouse_position:
+                body.position = self.camera.screen_to_world(
                     input_state.mouse_position
                 )
-                self.world.add_body(new_body)
-
+            self.world.add_body(body)
 
 class BodySteeringController(AbstractController):
     """A controller for moving a specific body with keyboard inputs.

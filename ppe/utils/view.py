@@ -286,7 +286,7 @@ class PygameView(AbstractView):
                 for rendered physics bodies. Can be overridden by `user_data` on
                 individual bodies. The following is the default configuration showing all
                 valid keys:
-                    - body_color: The fill color of the body (default: (50, 50, 200))
+                    - color: The fill color of the body (default: (50, 50, 200))
                     - outline_color: The color of the body outline (default: (0, 0, 0))
                     - outline_width: The width of the body outline (default: 1)
                     - is_filled: Whether the body is filled (default: True)
@@ -328,7 +328,7 @@ class PygameView(AbstractView):
         # appearance settings
         self.background_color = background_color
         self.body_style_defaults = {
-            "body_color": (50, 50, 200),
+            "color": (60, 170, 200),
             "outline_color": (0, 0, 0),
             "outline_width": 1,
             "is_filled": True,
@@ -424,7 +424,7 @@ class PygameView(AbstractView):
         if style["is_filled"]:
             pygame.draw.polygon(
                 self.screen,
-                style["body_color"],
+                style["color"],
                 [v.to_int_tuple() for v in screen_verts],
                 width=0,
             )
@@ -462,7 +462,7 @@ class PygameView(AbstractView):
         if style["is_filled"]:
             pygame.draw.circle(
                 self.screen,
-                style["body_color"],
+                style["color"],
                 screen_pos.to_int_tuple(),
                 screen_radius,
             )
@@ -597,11 +597,11 @@ class PygameView(AbstractView):
                 ),
                 width=0,
             )
-            label_rect = self.profiler_settings["label_font"].render(label, True, color)
+            label_rect = self.profiler_settings["label_font"].render(label, True, (0,0,0))
             if label_rect.get_width() > width:
                 label = f"{label.split(' ')[0][:5]}"
                 label_rect = self.profiler_settings["label_font"].render(
-                    label, True, color
+                    label, True, (0,0,0)
                 )
             if label_rect.get_width() <= width:
                 # only draw the label if it fits within the section

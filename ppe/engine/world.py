@@ -55,11 +55,6 @@ class World:
                 Defaults to None.
             profiler (Optional[Profiler]): A profiler for measuring performance. Defaults to None.
         """
-        if type(integrator) not in solver.COMPATIBLE_INTEGRATORS:
-            raise TypeError(
-                f"{type(solver).__name__} is not compatible with {type(integrator).__name__}."
-            )
-
         self.bodies: List[Body] = [] if bodies is None else bodies
         self.joints: List[Joint] = [] if joints is None else joints
         self.force_generators = [] if force_generators is None else force_generators
@@ -91,6 +86,11 @@ class World:
         self.debug_drawer = debug_drawer
         self.profiler = Profiler() if profiler is None else profiler
 
+        if type(self.integrator) not in self.solver.COMPATIBLE_INTEGRATORS:
+            raise TypeError(
+                f"{type(self.solver).__name__} is not compatible with {type(self.integrator).__name__}."
+            )
+        
         # TODO add option to automatically remove bodies once they are outside a certain area
 
     def step(self, dt: float) -> None:

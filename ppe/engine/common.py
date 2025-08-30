@@ -144,6 +144,22 @@ class Body:
 
         self.user_data = user_data if user_data is not None else dict()
 
+    @classmethod
+    def create_with_density(cls, shape: "Shape", density: float, *args, **kwargs) -> "Body":
+        """Alternative initializer to create a new Body instance with a specific density.
+
+        Args:
+            shape (Shape): The shape of the body.
+            density (float): The density of the body.
+            *args: Additional positional arguments to pass to the Body constructor.
+            **kwargs: Additional keyword arguments to pass to the Body constructor.
+
+        Returns:
+            Body: The newly created body instance.
+        """
+        mass = shape.get_area() * density
+        return cls(shape=shape, mass=mass, *args, **kwargs)
+
     def clear_forces(self) -> None:
         self.force_accumulator = Vec2(0, 0)
         self.torque_accumulator = 0.0
@@ -285,6 +301,10 @@ class PolygonShape(Shape):
         1. Remove co-linear vertices.
         2. Ensure the vertex winding order is counter-clockwise (CCW).
         3. Validate that the final shape is convex.
+        4. Center the vertices around the origin (0,0).
+
+        Args:
+            vertices (List[Vec2]): A list of Vec2 vertices defining the polygon's shape.
         """
         if len(vertices) < 3:
             raise ValueError("A polygon must have at least 3 vertices")
