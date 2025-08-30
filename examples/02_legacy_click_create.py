@@ -28,7 +28,9 @@ from ppe.utils.colors import V1_COLORS
 SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 576
 SCREEN_WIDTH_WORLD = 10.0  # World width in physics units
-BODY_STYLE_DEFAULTS = {}
+BODY_STYLE_DEFAULTS = {
+    "circle_orientation_line": False
+}
 
 CIRCLE_SPAWN_RADIUS_RANGE = (0.1, 0.3)
 POLYGON_SPAWN_SIDE_RANGE = (0.1, 0.5)
@@ -56,6 +58,7 @@ def setup() -> Tuple[
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
             world_width=SCREEN_WIDTH_WORLD,
+            position=Vec2(0, 1),
         ),
         profiler_settings={"subsection_keys": ["world"]},
         body_style_defaults=BODY_STYLE_DEFAULTS,

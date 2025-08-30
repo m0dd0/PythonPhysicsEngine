@@ -786,8 +786,10 @@ class PygameDebugDrawer(AbstractDebugDrawer):
 
         if arrow:
             direction = (screen_end - screen_start).normalize()
-            arrow_length_screen = min((screen_end - screen_start).length() / 5, 50)
-            arrow_width_screen = arrow_length_screen / 2
+            # arrow_length_screen = min((screen_end - screen_start).length() / 5, 50)
+            # arrow_width_screen = arrow_length_screen / 2
+            arrow_length_screen = 8
+            arrow_width_screen = 6
             triangle_points_screen = [
                 screen_end,
                 screen_end
