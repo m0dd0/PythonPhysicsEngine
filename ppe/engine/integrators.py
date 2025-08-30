@@ -81,6 +81,8 @@ class PositionVerletIntegrator(AbstractIntegrator):
     Updates motion using the Position Verlet integration method.
     This integrator is highly stable and designed to be paired with a
     position-based solver.
+    This integrator requires that the solver only updates position and
+    not velocity.
     """
 
     def __init__(self) -> None:

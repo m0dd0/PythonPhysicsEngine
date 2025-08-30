@@ -63,7 +63,11 @@ class World:
         self.integrator = (
             SemiImplicitEulerIntegrator() if integrator is None else integrator
         )
-        self.solver = IterativeImpulseSolver() if solver is None else solver
+        self.solver = (
+            IterativeImpulseSolver(debug_drawer=debug_drawer)
+            if solver is None
+            else solver
+        )
         self.broad_phase = AABBBroadPhase() if broad_phase is None else broad_phase
         self.narrow_phase = (
             DispatchNarrowPhase(
@@ -90,7 +94,7 @@ class World:
             raise TypeError(
                 f"{type(self.solver).__name__} is not compatible with {type(self.integrator).__name__}."
             )
-        
+
         # TODO add option to automatically remove bodies once they are outside a certain area
 
     def step(self, dt: float) -> None:

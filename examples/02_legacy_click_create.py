@@ -9,6 +9,7 @@ import pygame
 from ppe.engine.common import Body, PolygonShape, Vec2, CircleShape
 from ppe.engine.world import World
 from ppe.engine.force_generators import GlobalForceField
+from ppe.engine.solvers import LegacySolver
 
 # application components
 from ppe.utils.view import PygameView, Camera, PygameDebugDrawer
@@ -35,7 +36,7 @@ BODY_STYLE_DEFAULTS = {
 CIRCLE_SPAWN_RADIUS_RANGE = (0.1, 0.3)
 POLYGON_SPAWN_SIDE_RANGE = (0.1, 0.5)
 GRAVITY = Vec2(0, -9.81)
-BOUNCINESS = 0.8
+BOUNCINESS = 0.99
 
 BACKGROUND_COLOR = (255, 255, 255)
 
@@ -92,6 +93,7 @@ def setup() -> Tuple[
         debug_drawer=debug_drawer,
         profiler=profiler,
         force_generators=[GlobalForceField(strength=GRAVITY)],
+        solver=LegacySolver(),
     )
 
     ## Initialize controllers
@@ -171,11 +173,11 @@ def main_loop(
 
         ## Physics Update
         with profiler.time("world"):
-            try:
-                world.step(dt)
-            except Exception as e:
-                print(f"Error during world step: {e}")
-                running = False
+            # try:
+            world.step(dt)
+            # except Exception as e:
+            #     print(f"Error during world step: {e}")
+            #     running = False
 
         # Render the world
         with profiler.time("render"):

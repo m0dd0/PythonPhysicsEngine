@@ -20,6 +20,9 @@ class Vec2:
     def __mul__(self, scalar: float) -> "Vec2":
         return Vec2(self.x * scalar, self.y * scalar)
 
+    def __rmul__(self, scalar: float) -> "Vec2":
+        return self * scalar
+
     def __truediv__(self, scalar: float) -> "Vec2":
         return Vec2(self.x / scalar, self.y / scalar)
 
