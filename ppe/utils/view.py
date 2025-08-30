@@ -213,21 +213,6 @@ class AbstractView(ABC):
         pass
 
     @abstractmethod
-    def create_debug_drawer(self) -> AbstractDebugDrawer:
-        """
-        Creates and returns a debug drawer instance compatible with this view.
-
-        The debug drawer is used for rendering visualization aids like collision shapes,
-        contact points, and forces. Each view implementation must provide a
-        corresponding debug drawer that knows how to render on its surface.
-
-        Returns:
-            AbstractDebugDrawer: An object that implements the `AbstractDebugDrawer`
-                interface for this view.
-        """
-        pass
-
-    @abstractmethod
     def update_display(self) -> None:
         """
         Updates the screen to show the final rendered frame.
@@ -383,7 +368,7 @@ class PygameView(AbstractView):
             "label_font_style": "Arial",
             "label_font_size": 12,
             "vertical_bar_offset": 15,
-            "horizontal_bar_offset": 20,
+            "horizontal_bar_offset": 70,
         }
         if profiler_settings:
             self.profiler_settings.update(profiler_settings)
@@ -561,7 +546,6 @@ class PygameView(AbstractView):
         position: Tuple[int, int],
         timings: Dict[str, float],
         heading: str,
-        total_timing: float,
     ) -> None:
         """Renders a horizontal bar for the profiler including its heading and the labels.
 
@@ -574,29 +558,15 @@ class PygameView(AbstractView):
         """
         # draw the header text
         self.screen.blit(
-            self.profiler_settings["font"].render(heading, True),
+            self.profiler_settings["font"].render(heading, True, (0, 0, 0)),
             (position[0], position[1]),
         )
 
+        # TODO center bar vertically
         bar_position = (
             position[0] + self.profiler_settings["horizontal_bar_offset"],
             position[1],
         )
-
-        # draw background
-        if total_timing is not None:
-            pygame.draw.rect(
-                self.screen,
-                self.profiler_settings["bar_background_color"],
-                (
-                    bar_position[0],
-                    bar_position[1],
-                    bar_position[0]
-                    + total_timing * self.profiler_settings["pixels_per_ms"],
-                    bar_position[1] + self.profiler_settings["bar_height"],
-                ),
-                width=0,  # no outline
-            )
 
         # compute the section based properties
         section_widths = [
@@ -607,8 +577,9 @@ class PygameView(AbstractView):
             self.profiler_settings["colors"][i % len(self.profiler_settings["colors"])]
             for i in range(len(timings))
         ]
+        total_time = sum(timings.values())
         section_labels = [
-            f"{key} ({int(value):02d}ms/{int(value / total_timing * 100):02d}%)"
+            f"{key} ({int(value):02d}ms/{int(value / total_time * 100):02d}%)"
             for key, value in timings.items()
         ]
 
@@ -626,10 +597,18 @@ class PygameView(AbstractView):
                 ),
                 width=0,
             )
-            self.screen.blit(
-                self.profiler_settings["label_font"].render(label, True, color),
-                (section_x_position, bar_position[1]),
-            )
+            label_rect = self.profiler_settings["label_font"].render(label, True, color)
+            if label_rect.get_width() > width:
+                label = f"{label.split(' ')[0][:5]}"
+                label_rect = self.profiler_settings["label_font"].render(
+                    label, True, color
+                )
+            if label_rect.get_width() <= width:
+                # only draw the label if it fits within the section
+                self.screen.blit(
+                    label_rect,
+                    (section_x_position, bar_position[1]),
+                )
 
             section_x_position += width
 
@@ -661,8 +640,8 @@ class PygameView(AbstractView):
         self._render_profiler_bar(
             position=self.profiler_settings["position"],
             timings=toplevel_timings,
-            heading=f"{int(frame_time):03d}ms / {int(1000 / frame_time):02d} FPS",
-            total_timing=frame_time,
+            # heading=f"{int(frame_time):03d}ms ({int(1000 / frame_time):02d} FPS)",
+            heading=f"total ({int(frame_time):03d}ms)",
         )
 
         # render subsection bars below the main bar
@@ -678,8 +657,7 @@ class PygameView(AbstractView):
             self._render_profiler_bar(
                 position=[self.profiler_settings["position"][0], y_position],
                 timings=subsections_timings,
-                heading=subsection_key,
-                total_timing=None,
+                heading=f"{subsection_key} ({int(sum(subsections_timings.values())):03d}ms)",
             )
 
     def render_info(self, info: List[str]) -> None:
@@ -696,7 +674,7 @@ class PygameView(AbstractView):
         """
         for i, line in enumerate(info):
             text_surface = self.info_section_settings["font"].render(
-                line, True, self.info_color
+                line, True, self.info_section_settings["text_color"]
             )
             self.screen.blit(
                 text_surface,
