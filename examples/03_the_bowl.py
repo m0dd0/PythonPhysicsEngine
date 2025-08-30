@@ -149,7 +149,7 @@ def main():
         # Render profiler after timing is complete
         # start = time.perf_counter()
         profiler.end_frame()
-        view.render_profiler(profiler, subsections=["world"])
+        view.render_profiler(profiler)
         view.update_display()
         # end = time.perf_counter()
         # print(f"Profiler rendering took {((end - start) * 1000):.2f} ms")
