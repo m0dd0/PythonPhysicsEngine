@@ -54,6 +54,8 @@ class IterativeImpulseSolver(AbstractSolver):
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         """Resolves collision contacts by applying impulses iteratively."""
+        if len(joints) > 0:
+            raise NotImplementedError("Joint solving is not implemented yet.")
 
         # The main loop that iterates multiple times to allow impulses to propagate
         for i in range(self.iterations):
@@ -136,6 +138,44 @@ class IterativeImpulseSolver(AbstractSolver):
             self._apply_impulse(body_a, bias_impulse * -1.0, r_a)
             self._apply_impulse(body_b, bias_impulse, r_b)
 
+
+class LegacySolver(AbstractSolver):
+    COMPATIBLE_INTEGRATORS = [SemiImplicitEulerIntegrator]
+
+
+    def _solve_contact(self, contact: Contact, dt: float) -> None:
+        if contact.body_a.inverse_mass == 0 and contact.body_b.inverse_mass == 0:
+            return
+
+        # move objects so that they don't overlap anymore
+        if contact.body_a.inverse_mass != 0 and contact.body_b.inverse_mass != 0:
+            contact.body_a.position -= contact.normal * (contact.penetration_depth / 2)
+            contact.body_b.position += contact.normal * (contact.penetration_depth / 2)
+        elif contact.body_a.inverse_mass == 0:
+            contact.body_b.position += contact.normal * contact.penetration_depth
+        else:
+            contact.body_a.position -= contact.normal * contact.penetration_depth
+
+        # change velocities
+        # https://en.wikipedia.org/wiki/Collision_response
+        # https://www.chrishecker.com/images/e/e7/Gdmphys3.pdf
+        # not sure if min or average of bouncieness models reality better
+        e = (contact.body_a.restitution + contact.body_b.restitution) / 2
+        impulse = (
+            -(1 + e)
+            * (contact.body_a.velocity - contact.body_b.velocity).dot(contact.normal)
+            / (contact.body_a.inverse_mass + contact.body_b.inverse_mass)
+        )
+
+        # avoid that fixed objects get a velocity value after a collision
+        if contact.body_a.inverse_mass != 0:
+            contact.body_a.velocity += impulse / contact.body_a.mass * contact.normal * dt
+        if contact.body_b.inverse_mass != 0:
+            contact.body_b.velocity -= impulse / contact.body_b.mass * contact.normal * dt
+
+    def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
+        for contact in contacts:
+            self._solve_contact(contact, dt)
 
 class PositionBasedSolver(AbstractSolver):
     # This solver would declare its own compatibility

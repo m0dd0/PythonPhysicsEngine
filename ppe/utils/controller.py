@@ -1,3 +1,26 @@
+"""A collection of controllers for handling user input in a physics simulation.
+
+This module provides a flexible controller system for managing user interactions to actions
+in the simulation. It defines an abstract base class, `AbstractController`,
+and a data class, `InputState`, to create a standardized way of handling input.
+The use of the `InputState` class allows to make the controllers independent of the used
+library for detecting user inputs (currently only PyGame is supported).
+
+The available controllers include:
+- `ApplicationController`: Handles application-level actions like quitting.
+- `DebugController`: Toggles debug visualizations.
+- `CameraPanController`: Manages camera movement (panning) via keyboard, mouse, or trackpad.
+- `CameraZoomController`: Manages camera zoom via mouse wheel or keyboard.
+- `BodyDragController`: Allows users to click and drag physics bodies.
+- `BodySpawnController`: Spawns new physics bodies based on user input.
+- `BodySteeringController`: Provides direct keyboard control over a specific body.
+- `HoverRotateController`: Rotates a body when the mouse hovers over it and the scroll
+    wheel is used.
+
+These controllers are designed to be modular and configurable, allowing for easy
+customization of user controls in different simulation scenarios.
+"""
+
 import math
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Set, Literal, Union, Callable, List, Tuple
@@ -38,9 +61,14 @@ class InputState:
 
     @classmethod
     def from_pygame(cls) -> "InputState":
-        """
-        A factory method that creates an InputState snapshot from the
-        current Pygame input state.
+        """Create an InputState snapshot from the current Pygame input state.
+
+        This method polls Pygame for the current state of the mouse and keyboard,
+        including which buttons and keys are held down, and processes the event
+        queue to capture single-frame events like key presses and releases.
+
+        Returns:
+            InputState: An instance of InputState populated with the current input data.
         """
         # get the held keys. note the caveats documented at https://www.pygame.org/docs/ref/key.html
         key_states = pygame.key.get_pressed()
@@ -112,7 +140,7 @@ class AbstractController(ABC):
         Returns a description of the controller's behavior based on its configuration.
 
         Returns:
-            A human-readable string describing what the controller does and how to use it.
+            str: A human-readable string describing what the controller does and how to use it.
         """
         pass
 
@@ -122,26 +150,34 @@ class AbstractController(ABC):
         Performs updates based on the current input state for the frame.
 
         Args:
-            input_state: An object containing the current input state.
-            dt: The time step for the frame.
+            input_state (InputState): An object containing the current input state.
+            dt (float): The time step for the frame.
         """
         pass
 
 
 class ApplicationController(AbstractController):
-    """Handles application-level controls like quitting."""
+    """Handles application-level controls like quitting.
+
+    This controller monitors for specific key presses that signal the user's
+    intent to close the application. When one of the designated quit keys is
+    pressed, it sets a flag that the main application loop can check to
+    initiate a clean shutdown.
+    """
 
     def __init__(
         self,
         quit_keys: Set[str] = None,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
-        """
-        Initializes the ApplicationController.
+        """Initialize the ApplicationController.
 
         Args:
-            quit_keys: Set of keys that will trigger application quit.
-                      Defaults to {"quit", "escape"}.
+            quit_keys (Set[str]): A set of key names that will trigger the application
+                to quit. Defaults to {"quit", "escape"}. The "quit" key corresponds
+                to the window's close button.
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+                visualizing controller actions.
         """
         super().__init__(debug_drawer)
 
@@ -151,13 +187,22 @@ class ApplicationController(AbstractController):
 
     @property
     def action_description(self) -> str:
-        """Returns a description of the controller's behavior."""
+        """Return a description of the controller's behavior.
+
+        Returns:
+            (str): A human-readable string describing how to quit the application.
+        """
         return (
             f"Quit application by pressing one of [{', '.join(sorted(self.quit_keys))}]"
         )
 
     def update(self, input_state: InputState, dt: float) -> None:
-        """Checks for quit conditions."""
+        """Check for quit conditions and update the should_quit flag.
+
+        Args:
+            input_state (InputState): The current input state for the frame.
+            dt (float): The time step for the frame.
+        """
         for key in self.quit_keys:
             if key in input_state.keys_pressed:
                 self.should_quit = True
@@ -165,7 +210,12 @@ class ApplicationController(AbstractController):
 
 
 class DebugController(AbstractController):
-    """Handles debug mode toggling and debug-related functionality."""
+    """Handles debug mode toggling and debug-related functionality.
+
+    This controller allows the user to toggle a debug visualization layer on and
+    off by pressing a designated key. It directly controls the `enabled` state
+    of a given debug drawer instance.
+    """
 
     def __init__(
         self,
@@ -174,14 +224,16 @@ class DebugController(AbstractController):
         initial_debug_mode: bool = True,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
-        """
-        Initializes the DebugController.
+        """Initialize the DebugController.
 
         Args:
-            controlled_debug_drawer: The debug drawer to control (enable/disable).
-            toggle_key: The key to toggle debug mode. Defaults to "d".
-            initial_debug_mode: Whether debug mode starts enabled.
-            debug_drawer: Optional debug drawer for visualizing this controller's actions.
+            controlled_debug_drawer (AbstractDebugDrawer): The debug drawer instance
+                to be controlled (e.g., enabled or disabled).
+            toggle_key (str): The key used to toggle the debug mode. Defaults to "d".
+            initial_debug_mode (bool): The initial state of the debug mode.
+                Defaults to True (enabled).
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+                visualizing this controller's own actions.
         """
         super().__init__(debug_drawer)
 
@@ -193,19 +245,35 @@ class DebugController(AbstractController):
 
     @property
     def action_description(self) -> str:
-        """Returns a description of the controller's behavior."""
+        """Return a description of the controller's behavior.
+
+        Returns:
+            (str): A human-readable string describing how to toggle debug mode.
+        """
         status = "enabled" if self.debug_mode else "disabled"
         return f"Toggle debug mode (currently {status}) with '{self.toggle_key}' key"
 
     def update(self, input_state: InputState, dt: float) -> None:
-        """Handles debug mode toggling."""
+        """Toggle debug mode if the designated key is pressed.
+
+        Args:
+            input_state (InputState): The current input state for the frame.
+            dt (float): The time step for the frame.
+        """
         if self.toggle_key in input_state.keys_pressed:
             self.debug_mode = not self.debug_mode
             self.controlled_debug_drawer.enabled = self.debug_mode
 
 
 class CameraPanController(AbstractController):
-    """Handles camera panning with configurable input methods."""
+    """Handles camera panning with configurable input methods.
+
+    This controller allows the user to move the camera's viewpoint horizontally
+    and vertically. It supports three modes of operation:
+    - "keyboard": Uses arrow keys or custom keys to pan.
+    - "mouse": Drags the view by holding a specific mouse button.
+    - "trackpad": Uses horizontal and vertical scroll gestures, common on trackpads.
+    """
 
     def __init__(
         self,
@@ -217,16 +285,21 @@ class CameraPanController(AbstractController):
         trackpad_sensitivity: float = 1.0,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
-        """
-        Initializes the PanController.
+        """Initialize the CameraPanController.
 
         Args:
-            camera: The Camera object to control.
-            mode: The input method for panning, either "keyboard", "mouse", or "trackpad".
-            keys: A tuple of keys for panning in the order (up, down, left, right).
-            mouse_button: The mouse button to use for panning (1=left, 2=middle, 3=right).
-            speed: The speed of panning.
-            trackpad_sensitivity: The sensitivity for trackpad scroll panning.
+            camera (Camera): The camera object to be controlled.
+            mode (Literal["keyboard", "mouse", "trackpad"]): The input method for panning.
+                Defaults to "keyboard".
+            keys (Tuple[str, str, str, str]): A tuple of key names for panning, in the
+                order (up, down, left, right). Defaults to ("up", "down", "left", "right").
+            mouse_button (int): The mouse button to use for drag-panning (1=left, 2=middle,
+                3=right). Defaults to 2 (middle).
+            speed (float): The speed of keyboard-based panning. Defaults to 5.0.
+            trackpad_sensitivity (float): The sensitivity multiplier for trackpad scroll
+                panning. Defaults to 1.0.
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+                visualizing controller actions.
         """
         super().__init__(debug_drawer)
         if mode not in ["keyboard", "mouse", "trackpad"]:
@@ -246,7 +319,11 @@ class CameraPanController(AbstractController):
 
     @property
     def action_description(self) -> str:
-        """Returns a description of the controller's behavior."""
+        """Return a description of the controller's behavior.
+
+        Returns:
+            (str): A human-readable string describing the currently active panning controls.
+        """
         if self.mode == "keyboard":
             up, down, left, right = self.keys
             return f"Pan camera with keyboard: {up}/{down} (up/down), {left}/{right} (left/right) at speed {self.speed}"
@@ -260,7 +337,12 @@ class CameraPanController(AbstractController):
             return f"Pan camera with trackpad scroll gestures (sensitivity: {self.trackpad_sensitivity})"
 
     def update(self, input_state: InputState, dt: float) -> None:
-        """Handles camera panning based on the current input state."""
+        """Update the camera's position based on the current input state.
+
+        Args:
+            input_state (InputState): The current input state for the frame.
+            dt (float): The time step for the frame.
+        """
         if self.mode == "keyboard":
             if self.keys[0] in input_state.keys_held:  # up
                 self.camera.position.y += self.speed * dt / self.camera.zoom
@@ -309,7 +391,12 @@ class CameraPanController(AbstractController):
 
 
 class CameraZoomController(AbstractController):
-    """Handles camera zooming with configurable input methods."""
+    """Handles camera zooming with configurable input methods.
+
+    This controller adjusts the camera's zoom level. It supports two modes:
+    - "mousewheel": Uses the mouse wheel to zoom in and out.
+    - "keyboard": Uses designated keys to zoom in and out.
+    """
 
     def __init__(
         self,
@@ -319,15 +406,17 @@ class CameraZoomController(AbstractController):
         speed: float = 0.5,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
-        """
-        Initializes the ZoomController.
+        """Initialize the CameraZoomController.
 
         Args:
-            camera: The Camera object to control.
-            mode: The input method for zooming, either "wheel" or "keyboard".
-            keys: An optional list to customize keyboard zoom keys.
-                  Defaults to ["+", "-"]. Order is [zoom_in, zoom_out].
-            speed: The sensitivity of zooming.
+            camera (Camera): The camera object to be controlled.
+            mode (Literal["mousewheel", "keyboard"]): The input method for zooming.
+                Defaults to "mousewheel".
+            keys (Tuple[str, str]): A tuple of key names for zooming, in the order
+                [zoom_in, zoom_out]. Defaults to ("+", "-").
+            speed (float): The sensitivity or speed of zooming. Defaults to 0.5.
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+                visualizing controller actions.
         """
         super().__init__(debug_drawer)
         if mode not in ["mousewheel", "keyboard"]:
@@ -344,7 +433,11 @@ class CameraZoomController(AbstractController):
 
     @property
     def action_description(self) -> str:
-        """Returns a description of the controller's behavior."""
+        """Return a description of the controller's behavior.
+
+        Returns:
+            (str): A human-readable string describing the currently active zoom controls.
+        """
         if self.mode == "mousewheel":
             return f"Zoom camera with mouse wheel (sensitivity: {self.speed})"
         elif self.mode == "keyboard":
@@ -352,7 +445,12 @@ class CameraZoomController(AbstractController):
             return f"Zoom camera with keyboard: '{zoom_in}' (zoom in), '{zoom_out}' (zoom out) at speed {self.speed}"
 
     def update(self, input_state: InputState, dt: float) -> None:
-        """Handles camera zooming based on the current input state."""
+        """Update the camera's zoom level based on the current input state.
+
+        Args:
+            input_state (InputState): The current input state for the frame.
+            dt (float): The time step for the frame.
+        """
         if self.mode == "mousewheel":
             # Mouse wheel zooming
             if input_state.mouse_wheel_delta != 0:
@@ -370,7 +468,17 @@ class CameraZoomController(AbstractController):
 
 
 class BodyDragController(AbstractController):
-    """Allows clicking and dragging physics bodies with the mouse."""
+    """Allows clicking and dragging physics bodies with the mouse.
+
+    This controller enables direct manipulation of physics bodies. It can operate
+    in two modes:
+    - "position": The body's position is kinematically moved to follow the mouse cursor.
+      This is a hard constraint and ignores physics.
+    - "force": A spring-like force is applied to pull the body towards the mouse
+      cursor, allowing for more dynamic and physically-based interactions.
+
+    Static bodies, if draggable, are always moved kinematically.
+    """
 
     def __init__(
         self,
@@ -383,20 +491,22 @@ class BodyDragController(AbstractController):
         allow_static_bodies: bool = True,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
-        """
-        Initializes the BodyDragger.
+        """Initialize the BodyDragController.
 
         Args:
-            world: The World containing the bodies to drag.
-            camera: The Camera for screen-to-world coordinate conversion.
-            mode: The dragging mode, either "position" or "force".
-            mouse_button: The mouse button to use for dragging (1=left, 2=middle, 3=right).
-            stiffness: The spring stiffness for force-based dragging.
-            dragable_bodies: Optional list of specific bodies that can be dragged.
-                           If None, all bodies in the world are draggable.
-            allow_static_bodies: Whether static bodies can be dragged. Static bodies
-                               are always moved kinematically regardless of mode.
-            debug_drawer: Optional debug drawer for visualizing drag forces.
+            world (World): The physics world containing the bodies.
+            camera (Camera): The camera for converting screen to world coordinates.
+            mode (Literal["position", "force"]): The dragging mode. Defaults to "force".
+            mouse_button (int): The mouse button used for dragging (1=left, 2=middle,
+                3=right). Defaults to 1 (left).
+            stiffness (float): The stiffness of the spring force in "force" mode.
+                Defaults to 5000.0.
+            dragable_bodies (Optional[List[Body]]): A specific list of bodies that can
+                be dragged. If None, any body in the world is draggable. Defaults to None.
+            allow_static_bodies (bool): Whether static bodies (mass=0) can be dragged.
+                Defaults to True.
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+                visualizing the drag force.
         """
         super().__init__(debug_drawer)
         self.world = world
@@ -412,7 +522,11 @@ class BodyDragController(AbstractController):
 
     @property
     def action_description(self) -> str:
-        """Returns a description of the controller's behavior."""
+        """Return a description of the controller's behavior.
+
+        Returns:
+            (str): A human-readable string describing how to drag bodies.
+        """
         button_names = {1: "left", 2: "middle", 3: "right"}
         button_name = button_names.get(self.mouse_button, f"button {self.mouse_button}")
 
@@ -436,6 +550,12 @@ class BodyDragController(AbstractController):
         return f"Drag {body_desc}{static_desc} {mode_desc} using {button_name} mouse button"
 
     def update(self, input_state: InputState, dt: float) -> None:
+        """Handle the logic for grabbing, dragging, and releasing bodies.
+
+        Args:
+            input_state (InputState): The current input state for the frame.
+            dt (float): The time step for the frame.
+        """
         mouse_world_pos = self.camera.screen_to_world(input_state.mouse_position)
 
         # Check for a new grab
@@ -514,7 +634,14 @@ class BodyDragController(AbstractController):
 
 
 class BodySpawnController(AbstractController):
-    """Spawns new bodies on key press."""
+    """Spawns new bodies into the world based on user input.
+
+    This controller allows for the creation of new physics bodies at the current
+    mouse position. Spawning can be triggered by mouse clicks or key presses.
+    The type of body to spawn can be a specific list of predefined bodies or
+    generated by a callable function.
+    The body gets added to the world instance via the add_body() method.
+    """
 
     def __init__(
         self,
@@ -522,17 +649,37 @@ class BodySpawnController(AbstractController):
         camera: Camera,
         mouse_spawn_objects: Dict[int, Union[List[Body], Callable]] = None,
         keyboard_spawn_objects: Dict[str, Union[List[Body], Callable]] = None,
+        spawn_object_at_mouse_position: Optional[bool] = True,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
+        """Initialize the BodySpawnController.
+
+        If no spawn objects are provided, it defaults to spawning a box on left-click
+        and a circle on right-click.
+
+        Args:
+            world (World): The physics world where bodies will be added.
+            camera (Camera): The camera for converting screen to world coordinates.
+            mouse_spawn_objects (Dict[int, Union[List[Body], Callable]]): A dictionary
+                mapping mouse buttons (1=left, 2=middle, 3=right) to either a list
+                of Body objects to choose from or a callable that returns a new Body.
+            keyboard_spawn_objects (Dict[str, Union[List[Body], Callable]]): A dictionary
+                mapping key names to either a list of Body objects or a callable that
+                returns a new Body.
+            spawn_object_at_mouse_position (Optional[bool]): Whether to spawn the object at the
+                current mouse position. If set the bodies position value will be overridden
+                with the mouse position before the body is added to the world. Defaults to True.
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer.
+        """
         super().__init__(debug_drawer)
 
         self.world = world
         self.camera = camera
 
-        self.default_density = 1  # Default density for spawned bodies
+        self.spawn_object_at_mouse_position = spawn_object_at_mouse_position
 
         if mouse_spawn_objects is None and keyboard_spawn_objects is None:
-            mouse_spawn_objects = {1: self.spawn_box, 3: self.spawn_circle}
+            raise ValueError("At least one spawn object source must be provided.")
 
         self.mouse_spawn_objects = (
             dict() if mouse_spawn_objects is None else mouse_spawn_objects
@@ -543,7 +690,11 @@ class BodySpawnController(AbstractController):
 
     @property
     def action_description(self) -> str:
-        """Returns a description of the controller's behavior."""
+        """Return a description of the controller's behavior.
+
+        Returns:
+            (str): A human-readable string describing the configured spawn bindings.
+        """
         descriptions = []
 
         if self.mouse_spawn_objects:
@@ -573,28 +724,19 @@ class BodySpawnController(AbstractController):
 
         return "Spawn bodies at mouse position: " + "; ".join(descriptions)
 
-    def spawn_circle(self) -> Body:
-        """Spawns a circle body at the given position."""
-        circle_shape = CircleShape.create_random_circle()
-        circle_body = Body(
-            shape=circle_shape,
-            position=Vec2(0, 0),  # Placeholder position, will be set by the controller
-            mass=circle_shape.get_area() * self.default_density,
-        )
-        return circle_body
-
-    def spawn_box(self) -> Body:
-        """Spawns a box body at the given position."""
-        box_shape = PolygonShape.create_random_rectangle()
-        box_body = Body(
-            shape=box_shape,
-            position=Vec2(0, 0),  # Placeholder position, will be set by the controller
-            mass=box_shape.get_area() * self.default_density,
-        )
-        return box_body
-
     def get_new_body(self, spawn_option: Union[List[Body], Callable]) -> Body:
-        """Returns a new body based on the spawn option."""
+        """Generate a new body based on the provided spawn option.
+
+        If the option is a callable, it is called to produce a new body.
+        If the option is a list, a random body is chosen from the list and
+        a deep copy is returned.
+
+        Args:
+            spawn_option (Union[List[Body], Callable]): The source for the new body.
+
+        Returns:
+            (Body): The newly generated body instance.
+        """
         if not isinstance(spawn_option, list):
             return spawn_option()
         else:
@@ -602,30 +744,35 @@ class BodySpawnController(AbstractController):
             return deepcopy(random.choice(spawn_option))
 
     def update(self, input_state: InputState, dt: float) -> None:
-        """Handles spawning bodies based on input state."""
+        """Check for spawn triggers and add new bodies to the world.
+
+        Args:
+            input_state (InputState): The current input state for the frame.
+            dt (float): The time step for the frame.
+        """
         # Check for button presses
+        bodies_to_spawn = []
         for button, spawn_option in self.mouse_spawn_objects.items():
             if button in input_state.mouse_buttons_pressed:
-                new_body = self.get_new_body(spawn_option)
-                new_body.position = self.camera.screen_to_world(
-                    input_state.mouse_position
-                )
-                self.world.add_body(new_body)
+                bodies_to_spawn.append(self.get_new_body(spawn_option))
 
         # Check for key presses
         for key, spawn_option in self.keyboard_spawn_objects.items():
             if key in input_state.keys_pressed:
-                new_body = self.get_new_body(spawn_option)
-                new_body.position = self.camera.screen_to_world(
-                    input_state.mouse_position
-                )
-                self.world.add_body(new_body)
+                bodies_to_spawn.append(self.get_new_body(spawn_option))
+
+        for body in bodies_to_spawn:
+            if self.spawn_object_at_mouse_position:
+                body.position = self.camera.screen_to_world(input_state.mouse_position)
+            self.world.add_body(body)
 
 
 class BodySteeringController(AbstractController):
-    """
-    A reusable controller for moving and rotating a specific body with
-    configurable keys and control modes.
+    """A controller for moving a specific body with keyboard inputs.
+
+    This provides simple kinematic control over a single body's position,
+    allowing it to be moved up, down, left, or right using a configurable
+    set of keys.
     """
 
     def __init__(
@@ -635,6 +782,15 @@ class BodySteeringController(AbstractController):
         keys: Tuple[str, str, str, str] = ("w", "s", "a", "d"),
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
+        """Initialize the BodySteeringController.
+
+        Args:
+            body (Body): The specific body instance to be controlled.
+            move_speed (float): The speed at which the body moves. Defaults to 5.0.
+            keys (Tuple[str, str, str, str]): A tuple of key names for movement, in the
+                order (up, down, left, right). Defaults to ("w", "s", "a", "d").
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer.
+        """
         super().__init__(debug_drawer)
 
         self.body = body
@@ -643,11 +799,21 @@ class BodySteeringController(AbstractController):
 
     @property
     def action_description(self) -> str:
-        """Returns a description of the controller's behavior."""
+        """Return a description of the controller's behavior.
+
+        Returns:
+            (str): A human-readable string describing the movement controls.
+        """
         up, down, left, right = self.keys
         return f"Control body movement with keys: {up}/{down} (up/down), {left}/{right} (left/right) at speed {self.move_speed}"
 
     def update(self, input_state: InputState, dt: float) -> None:
+        """Update the body's position based on keyboard input.
+
+        Args:
+            input_state (InputState): The current input state for the frame.
+            dt (float): The time step for the frame.
+        """
         if self.keys[0] in input_state.keys_held:
             self.body.position.y += self.move_speed * dt
         if self.keys[1] in input_state.keys_held:
@@ -659,7 +825,12 @@ class BodySteeringController(AbstractController):
 
 
 class HoverRotateController(AbstractController):
-    """A controller that rotates a body around its center when the mousewheel is turnd and the mouse is hovering over it."""
+    """Rotates a body when the mouse is hovering over it and the wheel is scrolled.
+
+    This controller identifies the topmost body under the mouse cursor and rotates
+    it around its center if the mouse wheel is used. This provides a quick way
+    to interactively adjust the orientation of bodies in the simulation.
+    """
 
     def __init__(
         self,
@@ -669,6 +840,17 @@ class HoverRotateController(AbstractController):
         allow_static_bodies: bool = True,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
+        """Initialize the HoverRotateController.
+
+        Args:
+            world (World): The physics world containing the bodies.
+            camera (Camera): The camera for converting screen to world coordinates.
+            rotation_speed (float): A multiplier for the rotation amount.
+                Defaults to 3.0.
+            allow_static_bodies (bool): Whether static bodies can be rotated.
+                Defaults to True.
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer.
+        """
         super().__init__(debug_drawer)
 
         self.rotation_speed = rotation_speed
@@ -678,11 +860,21 @@ class HoverRotateController(AbstractController):
 
     @property
     def action_description(self) -> str:
-        """Returns a description of the controller's behavior."""
+        """Return a description of the controller's behavior.
+
+        Returns:
+            (str): A human-readable string describing how to rotate bodies.
+        """
         body_desc = "any body" if self.allow_static_bodies else "dynamic bodies only"
         return f"Rotate {body_desc} with mouse wheel when hovering (speed: {self.rotation_speed})"
 
     def update(self, input_state: InputState, dt: float) -> None:
+        """Check for hover and mouse wheel input, and rotate the body accordingly.
+
+        Args:
+            input_state (InputState): The current input state for the frame.
+            dt (float): The time step for the frame.
+        """
         bodies = self.world.get_bodies_at_point(
             self.camera.screen_to_world(input_state.mouse_position)
         )

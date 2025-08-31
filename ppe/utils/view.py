@@ -286,7 +286,7 @@ class PygameView(AbstractView):
                 for rendered physics bodies. Can be overridden by `user_data` on
                 individual bodies. The following is the default configuration showing all
                 valid keys:
-                    - body_color: The fill color of the body (default: (50, 50, 200))
+                    - color: The fill color of the body (default: (50, 50, 200))
                     - outline_color: The color of the body outline (default: (0, 0, 0))
                     - outline_width: The width of the body outline (default: 1)
                     - is_filled: Whether the body is filled (default: True)
@@ -328,7 +328,7 @@ class PygameView(AbstractView):
         # appearance settings
         self.background_color = background_color
         self.body_style_defaults = {
-            "body_color": (50, 50, 200),
+            "color": (60, 170, 200),
             "outline_color": (0, 0, 0),
             "outline_width": 1,
             "is_filled": True,
@@ -339,8 +339,7 @@ class PygameView(AbstractView):
 
         # info rendering settings
         self.info_section_settings = {
-            # TODO allow for negative valued positions
-            "position": (10, self.camera.screen_height - 100),
+            "position": (10, -100),
             "fontsize": 12,
             "font_style": "Arial",
             "text_color": (0, 0, 0),
@@ -355,7 +354,6 @@ class PygameView(AbstractView):
 
         # profiler settings
         self.profiler_settings = {
-            # TODO allow for negative valued positions
             "position": (10, 10),
             "font_style": "Arial",
             "fontsize": 12,
@@ -363,11 +361,11 @@ class PygameView(AbstractView):
             "smooth": True,
             "colors": TAB10_COLORS,
             "bar_background_color": (200, 200, 200),
-            "bar_height": 10,
             "subsection_keys": [],
             "label_font_style": "Arial",
             "label_font_size": 12,
-            "vertical_bar_offset": 15,
+            "row_height": 15,
+            "row_spacing": 2,
             "horizontal_bar_offset": 70,
         }
         if profiler_settings:
@@ -392,6 +390,15 @@ class PygameView(AbstractView):
             self.text_render_settings["font_style"],
             self.text_render_settings["fontsize"],
         )
+
+    def _resolve_position(self, position: Tuple[int, int]) -> Tuple[int, int]:
+        """Resolves the given position to be within the screen bounds."""
+        x, y = position
+        if x < 0:
+            x = self.camera.screen_width + position[0]
+        if y < 0:
+            y = self.camera.screen_height + position[1]
+        return (x, y)
 
     def render_background(self) -> None:
         """
@@ -424,7 +431,7 @@ class PygameView(AbstractView):
         if style["is_filled"]:
             pygame.draw.polygon(
                 self.screen,
-                style["body_color"],
+                style["color"],
                 [v.to_int_tuple() for v in screen_verts],
                 width=0,
             )
@@ -462,7 +469,7 @@ class PygameView(AbstractView):
         if style["is_filled"]:
             pygame.draw.circle(
                 self.screen,
-                style["body_color"],
+                style["color"],
                 screen_pos.to_int_tuple(),
                 screen_radius,
             )
@@ -562,7 +569,6 @@ class PygameView(AbstractView):
             (position[0], position[1]),
         )
 
-        # TODO center bar vertically
         bar_position = (
             position[0] + self.profiler_settings["horizontal_bar_offset"],
             position[1],
@@ -593,22 +599,26 @@ class PygameView(AbstractView):
                     section_x_position,
                     bar_position[1],
                     width,
-                    self.profiler_settings["bar_height"],
+                    self.profiler_settings["row_height"],
                 ),
                 width=0,
             )
-            label_rect = self.profiler_settings["label_font"].render(label, True, color)
-            if label_rect.get_width() > width:
-                label = f"{label.split(' ')[0][:5]}"
-                label_rect = self.profiler_settings["label_font"].render(
-                    label, True, color
-                )
-            if label_rect.get_width() <= width:
-                # only draw the label if it fits within the section
-                self.screen.blit(
-                    label_rect,
-                    (section_x_position, bar_position[1]),
-                )
+
+            # draw the label with correct width
+            for i in range(len(label)):
+                if self.profiler_settings["label_font"].size(label[:i])[0] > width:
+                    label = label[: i - 1]
+                    break
+            label_rect = self.profiler_settings["label_font"].render(
+                label, True, (0, 0, 0)
+            )
+            self.screen.blit(
+                label_rect,
+                (
+                    section_x_position + (width - label_rect.get_width()) // 2,
+                    bar_position[1],
+                ),
+            )
 
             section_x_position += width
 
@@ -635,27 +645,32 @@ class PygameView(AbstractView):
             frame_time = profiler.total_frame_time
             timings = profiler.timings
 
+        # resolve position
+        position = self._resolve_position(self.profiler_settings["position"])
+
         # render the color bar for the top-level timings
         toplevel_timings = {k: v for k, v in timings.items() if "/" not in k}
         self._render_profiler_bar(
-            position=self.profiler_settings["position"],
+            position=position,
             timings=toplevel_timings,
             # heading=f"{int(frame_time):03d}ms ({int(1000 / frame_time):02d} FPS)",
             heading=f"total ({int(frame_time):03d}ms)",
         )
 
         # render subsection bars below the main bar
-        y_position = self.profiler_settings["position"][1]
+        y_position = position[1]
         for subsection_key in self.profiler_settings["subsection_keys"]:
-            y_position += self.profiler_settings["vertical_bar_offset"]
+            y_position += self.profiler_settings["row_height"] + self.profiler_settings["row_spacing"]
             subsections_timings = {
-                k: v for k, v in timings.items() if k.startswith(f"{subsection_key}/")
+                k.split("/")[1]: v
+                for k, v in timings.items()
+                if k.startswith(f"{subsection_key}/")
             }
             if not subsections_timings:
                 continue
 
             self._render_profiler_bar(
-                position=[self.profiler_settings["position"][0], y_position],
+                position=[position[0], y_position],
                 timings=subsections_timings,
                 heading=f"{subsection_key} ({int(sum(subsections_timings.values())):03d}ms)",
             )
@@ -672,6 +687,9 @@ class PygameView(AbstractView):
         Args:
             info (List[str]): A list of strings to render as information.
         """
+        ## resolve position
+        position = self._resolve_position(self.info_section_settings["position"])
+
         for i, line in enumerate(info):
             text_surface = self.info_section_settings["font"].render(
                 line, True, self.info_section_settings["text_color"]
@@ -679,9 +697,8 @@ class PygameView(AbstractView):
             self.screen.blit(
                 text_surface,
                 (
-                    self.info_section_settings["position"][0],
-                    self.info_section_settings["position"][1]
-                    + i * self.info_section_settings["line_height"],
+                    position[0],
+                    position[1] + i * self.info_section_settings["line_height"],
                 ),
             )
 
@@ -786,8 +803,10 @@ class PygameDebugDrawer(AbstractDebugDrawer):
 
         if arrow:
             direction = (screen_end - screen_start).normalize()
-            arrow_length_screen = min((screen_end - screen_start).length() / 5, 50)
-            arrow_width_screen = arrow_length_screen / 2
+            # arrow_length_screen = min((screen_end - screen_start).length() / 5, 50)
+            # arrow_width_screen = arrow_length_screen / 2
+            arrow_length_screen = 8
+            arrow_width_screen = 6
             triangle_points_screen = [
                 screen_end,
                 screen_end
