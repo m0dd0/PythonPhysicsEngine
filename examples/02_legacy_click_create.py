@@ -1,4 +1,10 @@
-"""_summary_"""
+"""
+Example 02: Legacy Click-to-Create Physics Bodies
+This example demonstrates a simple interactive 2D physics simulation.
+Users can spawn new polygon or circle bodies into the world by clicking with the mouse:
+- Left click creates a random rectangle.
+- Right click creates a random circle.
+"""
 
 from typing import List, Tuple
 import random
@@ -35,11 +41,7 @@ BODY_STYLE_DEFAULTS = {
 CIRCLE_SPAWN_RADIUS_RANGE = (0.1, 0.3)
 POLYGON_SPAWN_SIDE_RANGE = (0.1, 0.5)
 GRAVITY = Vec2(0, -9.81)
-BOUNCINESS = 0.99
-
-BACKGROUND_COLOR = (255, 255, 255)
-
-STEPS_PER_FRAME = 10
+BOUNCINESS = 0.8
 
 
 def setup() -> Tuple[
@@ -147,7 +149,6 @@ def main_loop(
     profiler: Profiler,
     clock: pygame.time.Clock,
 ):
-    ## Main Loop
     running = True
 
     while running:
