@@ -363,11 +363,11 @@ class PygameView(AbstractView):
             "smooth": True,
             "colors": TAB10_COLORS,
             "bar_background_color": (200, 200, 200),
-            "bar_height": 10,
             "subsection_keys": [],
             "label_font_style": "Arial",
             "label_font_size": 12,
-            "vertical_bar_offset": 15,
+            "row_height": 15,
+            "row_spacing": 2,
             "horizontal_bar_offset": 70,
         }
         if profiler_settings:
@@ -562,7 +562,6 @@ class PygameView(AbstractView):
             (position[0], position[1]),
         )
 
-        # TODO center bar vertically
         bar_position = (
             position[0] + self.profiler_settings["horizontal_bar_offset"],
             position[1],
@@ -593,22 +592,26 @@ class PygameView(AbstractView):
                     section_x_position,
                     bar_position[1],
                     width,
-                    self.profiler_settings["bar_height"],
+                    self.profiler_settings["row_height"],
                 ),
                 width=0,
             )
-            label_rect = self.profiler_settings["label_font"].render(label, True, (0,0,0))
-            if label_rect.get_width() > width:
-                label = f"{label.split(' ')[0][:5]}"
-                label_rect = self.profiler_settings["label_font"].render(
-                    label, True, (0,0,0)
-                )
-            if label_rect.get_width() <= width:
-                # only draw the label if it fits within the section
-                self.screen.blit(
-                    label_rect,
-                    (section_x_position, bar_position[1]),
-                )
+
+            # draw the label with correct width
+            for i in range(len(label)):
+                if self.profiler_settings["label_font"].size(label[:i])[0] > width:
+                    label = label[: i - 1]
+                    break
+            label_rect = self.profiler_settings["label_font"].render(
+                label, True, (0, 0, 0)
+            )
+            self.screen.blit(
+                label_rect,
+                (
+                    section_x_position + (width - label_rect.get_width()) // 2,
+                    bar_position[1],
+                ),
+            )
 
             section_x_position += width
 
@@ -647,9 +650,11 @@ class PygameView(AbstractView):
         # render subsection bars below the main bar
         y_position = self.profiler_settings["position"][1]
         for subsection_key in self.profiler_settings["subsection_keys"]:
-            y_position += self.profiler_settings["vertical_bar_offset"]
+            y_position += self.profiler_settings["row_height"] + self.profiler_settings["row_spacing"]
             subsections_timings = {
-                k: v for k, v in timings.items() if k.startswith(f"{subsection_key}/")
+                k.split("/")[1]: v
+                for k, v in timings.items()
+                if k.startswith(f"{subsection_key}/")
             }
             if not subsections_timings:
                 continue
