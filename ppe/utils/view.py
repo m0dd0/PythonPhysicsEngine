@@ -339,8 +339,7 @@ class PygameView(AbstractView):
 
         # info rendering settings
         self.info_section_settings = {
-            # TODO allow for negative valued positions
-            "position": (10, self.camera.screen_height - 100),
+            "position": (10, -100),
             "fontsize": 12,
             "font_style": "Arial",
             "text_color": (0, 0, 0),
@@ -355,7 +354,6 @@ class PygameView(AbstractView):
 
         # profiler settings
         self.profiler_settings = {
-            # TODO allow for negative valued positions
             "position": (10, 10),
             "font_style": "Arial",
             "fontsize": 12,
@@ -392,6 +390,15 @@ class PygameView(AbstractView):
             self.text_render_settings["font_style"],
             self.text_render_settings["fontsize"],
         )
+
+    def _resolve_position(self, position: Tuple[int, int]) -> Tuple[int, int]:
+        """Resolves the given position to be within the screen bounds."""
+        x, y = position
+        if x < 0:
+            x = self.camera.screen_width + position[0]
+        if y < 0:
+            y = self.camera.screen_height + position[1]
+        return (x, y)
 
     def render_background(self) -> None:
         """
@@ -638,17 +645,20 @@ class PygameView(AbstractView):
             frame_time = profiler.total_frame_time
             timings = profiler.timings
 
+        # resolve position
+        position = self._resolve_position(self.profiler_settings["position"])
+
         # render the color bar for the top-level timings
         toplevel_timings = {k: v for k, v in timings.items() if "/" not in k}
         self._render_profiler_bar(
-            position=self.profiler_settings["position"],
+            position=position,
             timings=toplevel_timings,
             # heading=f"{int(frame_time):03d}ms ({int(1000 / frame_time):02d} FPS)",
             heading=f"total ({int(frame_time):03d}ms)",
         )
 
         # render subsection bars below the main bar
-        y_position = self.profiler_settings["position"][1]
+        y_position = position[1]
         for subsection_key in self.profiler_settings["subsection_keys"]:
             y_position += self.profiler_settings["row_height"] + self.profiler_settings["row_spacing"]
             subsections_timings = {
@@ -660,7 +670,7 @@ class PygameView(AbstractView):
                 continue
 
             self._render_profiler_bar(
-                position=[self.profiler_settings["position"][0], y_position],
+                position=[position[0], y_position],
                 timings=subsections_timings,
                 heading=f"{subsection_key} ({int(sum(subsections_timings.values())):03d}ms)",
             )
@@ -677,6 +687,9 @@ class PygameView(AbstractView):
         Args:
             info (List[str]): A list of strings to render as information.
         """
+        ## resolve position
+        position = self._resolve_position(self.info_section_settings["position"])
+
         for i, line in enumerate(info):
             text_surface = self.info_section_settings["font"].render(
                 line, True, self.info_section_settings["text_color"]
@@ -684,9 +697,8 @@ class PygameView(AbstractView):
             self.screen.blit(
                 text_surface,
                 (
-                    self.info_section_settings["position"][0],
-                    self.info_section_settings["position"][1]
-                    + i * self.info_section_settings["line_height"],
+                    position[0],
+                    position[1] + i * self.info_section_settings["line_height"],
                 ),
             )
 
