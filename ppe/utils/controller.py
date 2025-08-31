@@ -1,6 +1,6 @@
 """A collection of controllers for handling user input in a physics simulation.
 
-This module provides a flexible controller system for managing user interactions to actions 
+This module provides a flexible controller system for managing user interactions to actions
 in the simulation. It defines an abstract base class, `AbstractController`,
 and a data class, `InputState`, to create a standardized way of handling input.
 The use of the `InputState` class allows to make the controllers independent of the used
@@ -763,10 +763,9 @@ class BodySpawnController(AbstractController):
 
         for body in bodies_to_spawn:
             if self.spawn_object_at_mouse_position:
-                body.position = self.camera.screen_to_world(
-                    input_state.mouse_position
-                )
+                body.position = self.camera.screen_to_world(input_state.mouse_position)
             self.world.add_body(body)
+
 
 class BodySteeringController(AbstractController):
     """A controller for moving a specific body with keyboard inputs.

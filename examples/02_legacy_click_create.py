@@ -9,7 +9,6 @@ import pygame
 from ppe.engine.common import Body, PolygonShape, Vec2, CircleShape
 from ppe.engine.world import World
 from ppe.engine.force_generators import GlobalForceField
-from ppe.engine.solvers import LegacySolver
 
 # application components
 from ppe.utils.view import PygameView, Camera, PygameDebugDrawer
@@ -93,7 +92,6 @@ def setup() -> Tuple[
         debug_drawer=debug_drawer,
         profiler=profiler,
         force_generators=[GlobalForceField(strength=GRAVITY)],
-        solver=LegacySolver(),
     )
 
     ## Initialize controllers
