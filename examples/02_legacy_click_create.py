@@ -15,6 +15,12 @@ import pygame
 from ppe.engine.common import Body, PolygonShape, Vec2, CircleShape
 from ppe.engine.world import World
 from ppe.engine.force_generators import GlobalForceField
+from ppe.engine.collision_handlers import (
+    CircleVsCircleHandler,
+    CircleVsPolygonHandler,
+    SatPolygonHandler,
+)
+from ppe.engine.collision_narrow import DispatchNarrowPhase
 
 # application components
 from ppe.utils.view import PygameView, Camera, PygameDebugDrawer
@@ -41,7 +47,7 @@ BODY_STYLE_DEFAULTS = {
 CIRCLE_SPAWN_RADIUS_RANGE = (0.1, 0.3)
 POLYGON_SPAWN_SIDE_RANGE = (0.1, 0.5)
 GRAVITY = Vec2(0, -9.81)
-BOUNCINESS = 0.8
+BOUNCINESS = 0.0
 
 
 def setup() -> Tuple[
@@ -94,6 +100,18 @@ def setup() -> Tuple[
         debug_drawer=debug_drawer,
         profiler=profiler,
         force_generators=[GlobalForceField(strength=GRAVITY)],
+        narrow_phase=DispatchNarrowPhase(
+            debug_drawer=debug_drawer,
+            handlers={
+                ("circle", "circle"): CircleVsCircleHandler(debug_drawer=debug_drawer),
+                ("circle", "polygon"): CircleVsPolygonHandler(
+                    debug_drawer=debug_drawer
+                ),
+                ("polygon", "polygon"): SatPolygonHandler(
+                    debug_drawer=debug_drawer, return_most_penetrating_only=True
+                ),
+            },
+        ),
     )
 
     ## Initialize controllers

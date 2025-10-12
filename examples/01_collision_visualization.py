@@ -118,7 +118,9 @@ def setup() -> Tuple[
                 ("circle", "polygon"): CircleVsPolygonHandler(
                     debug_drawer=debug_drawer
                 ),
-                ("polygon", "polygon"): SatPolygonHandler(debug_drawer=debug_drawer),
+                ("polygon", "polygon"): SatPolygonHandler(
+                    debug_drawer=debug_drawer, return_most_penetrating_only=False
+                ),
             },
         ),
         bodies=initial_bodies,

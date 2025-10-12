@@ -70,6 +70,21 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
 class SatPolygonHandler(AbstractCollisionHandler):
     """Generates contacts for two colliding convex polygons using SAT."""
 
+    def __init__(
+        self,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        return_most_penetrating_only: bool = False,
+    ):
+        """
+        Initializes the collision handler.
+
+        Args:
+            debug_drawer: An optional debug drawer for visualizing collisions.
+            return_most_penetrating_only: If True, only the most penetrating contact point is returned.
+        """
+        super().__init__(debug_drawer)
+        self.return_most_penetrating_only = return_most_penetrating_only
+
     def _clip_incident_edge(
         self,
         incident_edge: Tuple[Vec2, Vec2],
@@ -249,6 +264,13 @@ class SatPolygonHandler(AbstractCollisionHandler):
             for p in clipped_points
             if (p - reference_edge[0]).dot(collision_normal) < 0
         ]
+
+        if self.return_most_penetrating_only and clipped_points:
+            most_penetrating_point = min(
+                clipped_points,
+                key=lambda p: (p - reference_edge[0]).dot(collision_normal),
+            )
+            clipped_points = [most_penetrating_point]
 
         # it is assumed that the collision normal always points from collision.body_a to collision.body_b
         # the collision normal we found here points from the reference shape to the incident shape

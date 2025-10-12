@@ -82,15 +82,18 @@ class IterativeImpulseSolver(AbstractSolver):
             r_a = contact_point - body_a.position
             r_b = contact_point - body_b.position
 
-            # 1. Calculate the relative velocity at the contact point
+            # 1. Calculate the point velocity at the contact point. this is the bodies 
+            # velocity and angular velocity at the contact point.
             v_a = body_a.velocity + Vec2(
                 -body_a.angular_velocity * r_a.y, body_a.angular_velocity * r_a.x
             )
             v_b = body_b.velocity + Vec2(
                 -body_b.angular_velocity * r_b.y, body_b.angular_velocity * r_b.x
             )
+            # relative velocity of both bodies at the contact point
             relative_velocity = v_b - v_a
 
+            # component of relative velocity in the direction of the contact normal
             relative_normal_velocity = relative_velocity.dot(normal)
 
             # Do nothing if objects are already moving apart
@@ -105,8 +108,10 @@ class IterativeImpulseSolver(AbstractSolver):
             effective_mass = (
                 body_a.inverse_mass
                 + body_b.inverse_mass
-                + (r_a_perp_n * r_a_perp_n * body_a.inverse_inertia)
-                + (r_b_perp_n * r_b_perp_n * body_b.inverse_inertia)
+                + (r_a.cross(normal))**2 * body_a.inverse_inertia
+                + (r_b.cross(normal))**2 * body_b.inverse_inertia
+                # + (r_a_perp_n * r_a_perp_n * body_a.inverse_inertia)
+                # + (r_b_perp_n * r_b_perp_n * body_b.inverse_inertia)
             )
 
             if effective_mass == 0.0:
@@ -127,21 +132,20 @@ class IterativeImpulseSolver(AbstractSolver):
 
             # --- Positional Correction (Baumgarte Stabilization) ---
             # This applies a small extra impulse to push sinking objects apart.
-            beta = 0.2  # Baumgarte stabilization factor
-            positional_error = contact.penetration_depth
-            bias_impulse_magnitude = (
-                (beta / dt) * max(0.0, positional_error - 0.01) / effective_mass
-            )
-            bias_impulse_magnitude /= len(contact.contact_points)  # Distribute impulse
+            # beta = 0.2  # Baumgarte stabilization factor
+            # positional_error = contact.penetration_depth
+            # bias_impulse_magnitude = (
+            #     (beta / dt) * max(0.0, positional_error - 0.01) / effective_mass
+            # )
+            # bias_impulse_magnitude /= len(contact.contact_points)  # Distribute impulse
 
-            bias_impulse = normal * bias_impulse_magnitude
-            self._apply_impulse(body_a, bias_impulse * -1.0, r_a)
-            self._apply_impulse(body_b, bias_impulse, r_b)
+            # bias_impulse = normal * bias_impulse_magnitude
+            # self._apply_impulse(body_a, bias_impulse * -1.0, r_a)
+            # self._apply_impulse(body_b, bias_impulse, r_b)
 
 
 class LegacySolver(AbstractSolver):
     COMPATIBLE_INTEGRATORS = [SemiImplicitEulerIntegrator]
-
 
     def _solve_contact(self, contact: Contact, dt: float) -> None:
         if contact.body_a.inverse_mass == 0 and contact.body_b.inverse_mass == 0:
@@ -169,13 +173,18 @@ class LegacySolver(AbstractSolver):
 
         # avoid that fixed objects get a velocity value after a collision
         if contact.body_a.inverse_mass != 0:
-            contact.body_a.velocity += impulse / contact.body_a.mass * contact.normal * dt
+            contact.body_a.velocity += (
+                impulse / contact.body_a.mass * contact.normal * dt
+            )
         if contact.body_b.inverse_mass != 0:
-            contact.body_b.velocity -= impulse / contact.body_b.mass * contact.normal * dt
+            contact.body_b.velocity -= (
+                impulse / contact.body_b.mass * contact.normal * dt
+            )
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         for contact in contacts:
             self._solve_contact(contact, dt)
+
 
 class PositionBasedSolver(AbstractSolver):
     # This solver would declare its own compatibility
