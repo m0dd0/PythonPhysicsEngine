@@ -13,7 +13,7 @@ import pygame
 # engine components
 from ppe.engine.common import Body, PolygonShape, Vec2, CircleShape
 from ppe.engine.world import World
-from ppe.engine.solvers import IterativeImpulseSolver
+from ppe.engine.solvers import IterativeImpulseSolver, NoOpSolver
 from ppe.engine.integrators import SemiImplicitEulerIntegrator
 from ppe.engine.collision_broad import AABBBroadPhase
 from ppe.engine.collision_narrow import DispatchNarrowPhase
@@ -105,7 +105,8 @@ def setup() -> Tuple[
     ## Setup the world simulation
     world = World(
         integrator=SemiImplicitEulerIntegrator(),
-        solver=IterativeImpulseSolver(debug_drawer=debug_drawer),
+        # solver=IterativeImpulseSolver(debug_drawer=debug_drawer),
+        solver=NoOpSolver(),
         broad_phase=AABBBroadPhase(debug_drawer=debug_drawer),
         narrow_phase=DispatchNarrowPhase(
             debug_drawer=debug_drawer,
