@@ -92,6 +92,7 @@ A dedicated documentation site might be added in the future.
 
 ## Project Structure
 A quick overview of the project structure:
+```
 .
 ├── ppe
 │   ├── engine # Core engine components
@@ -124,6 +125,7 @@ A quick overview of the project structure:
 ├── LICENSE
 ├── README.md
 └── setup.py
+```
 
 ## Architectural Overview
 The engine is built on a few key software design patterns:
