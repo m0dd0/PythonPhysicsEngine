@@ -6,6 +6,8 @@ The engine intentionally avoids external math or physics libraries to ensure tha
 Note that this project is a work in progress and especially the physics solver is far from being good yet. 
 
 ## Features
+See the Github Issues for planned features and improvements.
+Currently the engines features are limited to the most essential parts needed for a basic 2D rigid body simulation:
 - **2D Rigid Body Dynamics:** Simulates the motion of 2D bodies with position, angle, velocity, and mass.
 - **Modular Architecture:** Uses the Strategy Pattern extensively, allowing for swappable components:
     - Integrators (Semi-Implicit Euler, Position Verlet)
