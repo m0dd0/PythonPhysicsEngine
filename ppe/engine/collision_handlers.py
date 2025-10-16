@@ -159,7 +159,7 @@ class SatPolygonHandler(AbstractCollisionHandler):
         #   would not work in the case of parallel edges (e.g. in a rectangle)
 
         # find overlap, reference edge and collision normal
-        for i, normal_ai in enumerate(normals_a):
+        for i, normal_a_i in enumerate(normals_a):
             # checking fot overlap only ir not enough since in the case of parallel edges (e.g. in a rectangle)
             # the overlap along the normals of parallel edges is the same
             # in this case the opposite edge can be wrongly selected as the reference edge
@@ -168,7 +168,7 @@ class SatPolygonHandler(AbstractCollisionHandler):
             # if this is the case, we save the overlap by computing the distance of the farthest vertex of the other shape
             # to the reference edge along the negative of the outward pointing normal
 
-            distances = self._distances_from_edge(verts_b, verts_a[i], normal_ai)
+            distances = self._distances_from_edge(verts_b, verts_a[i], normal_a_i)
             # check the sign of the distances to know whether they are behind or in front of the edge
             if all(d >= 0 for d in distances):
                 return None  # all vertices are in front of the edge -> no collision, we found a separating axis
@@ -181,13 +181,13 @@ class SatPolygonHandler(AbstractCollisionHandler):
                 overlap = -min(distances)
                 if overlap < min_overlap:
                     min_overlap = overlap
-                    collision_normal = normal_ai
+                    collision_normal = normal_a_i
                     reference_edge = (verts_a[i], verts_a[(i + 1) % len(verts_a)])
                     reference_body_is_a = True
 
         # do the same for the other polygon
-        for i, normal_bi in enumerate(normals_b):
-            distances = self._distances_from_edge(verts_a, verts_b[i], normal_bi)
+        for i, normal_b_i in enumerate(normals_b):
+            distances = self._distances_from_edge(verts_a, verts_b[i], normal_b_i)
             if all(d >= 0 for d in distances):
                 return None
             elif all(d <= 0 for d in distances):
@@ -196,7 +196,7 @@ class SatPolygonHandler(AbstractCollisionHandler):
                 overlap = -min(distances)
                 if overlap < min_overlap:
                     min_overlap = overlap
-                    collision_normal = normal_bi
+                    collision_normal = normal_b_i
                     reference_edge = (verts_b[i], verts_b[(i + 1) % len(verts_b)])
                     reference_body_is_a = False
 
