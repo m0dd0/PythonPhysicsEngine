@@ -1,116 +1,177 @@
 # PythonPhysicsEngine
-A modular 2D physics engine in Python, built from scratch to educate myself (and hopefully others) on the inner workings of physics simulations. 
-Features a highly modular architecture that allows to compare different algorithms for integration, collision detection, and constraint solving.
-<!-- I built this for educational purposes: Do not expect high performance; after all it's a pure Python implementation that does not use any optimized libraries. -->
+A modular 2D physics engine built from scratch in pure Python. 
+Its primary goal is to demystify the algorithms and architectural patterns behind physics simulations by providing a clear, readable implementation from first principles.
+The engine intentionally avoids external math or physics libraries to ensure that no logic is hidden inside a "black box," making it a valuable resource for learning how components like collision detection, impulse solvers, and integrators work together.
 
-## Motivation
-The primary motivation behind this physics engine is to demystify how physics engines generally work by building one from scratch in pure Python without relying on any external physics or math libraries. 
-This project serves as an educational tool for myself and others who want to understand the algorithms and architectural patterns that make physics simulations possible.
-
-**Key goals include:**
-- **Building from Scratch:** Every component, from vector math to the constraint solver, is implemented in pure Python to ensure a deep understanding of the underlying mechanics.
-- **Clarity Over Performance:** Python was chosen for its simplicity. The goal is to write code that is easy to follow and learn from, rather than aiming for the performance of a C++ engine.
-- **No "Black Box" Libraries:** The engine intentionally avoids external physics or math libraries like NumPy to ensure that no logic is hidden. The only major dependency is Pygame for visualization.
-- **Focus on Architecture:** The project emphasizes a clean, modular, and extensible architecture using standard software design patterns.
+Note that this project is a work in progress and especially the physics solver is far from being good yet. 
 
 ## Features
-- 2D Rigid Body Dynamics: Simulates the motion of 2D bodies with position, angle, velocity, and mass.
-- Modular Architecture: Uses the Strategy Pattern extensively, allowing for swappable components:
+- **2D Rigid Body Dynamics:** Simulates the motion of 2D bodies with position, angle, velocity, and mass.
+- **Modular Architecture:** Uses the Strategy Pattern extensively, allowing for swappable components:
     - Integrators (Semi-Implicit Euler, Position Verlet)
     - Solvers (Iterative Impulse, Position-Based)
     - Collision Detection (pluggable Broad and Narrow Phases)
-- Different Collision Detection Algos Implemented:
+- **Implemented Collision Detection Algos:**
     - Broad Phase: AABB checks to quickly eliminate non-colliding pairs.
     - Narrow Phase: A dispatch system that uses specific handlers for different shape pairs (Circle-vs-Circle, Polygon-vs-Polygon, etc.).
     - SAT + Clipping: A full implementation of the Separating Axis Theorem with a clipping algorithm to generate stable, multi-point contacts for polygon collisions.
-- Currently Implemented Solvers:
+- **Implemented Solvers:**
     - Iterative Impulse-based Solver: A realistic physics solver that resolves collisions and stacking by applying impulses iteratively. Includes Baumgarte Stabilization for positional correction.
-- Visualization, Debug and Control Tools: 
+- **Visualization, Debug and Control Tools:**
     - A Pygame-based renderer to visualize bodies, shapes, and collisions.
     - A selection of controllers that ease interaction with the simulation (camera controls, body dragging, spawning shapes).
     - A flexible debug drawing system to visualize AABBs, collision normals, contact points, and other internal states.
 
 ## How to Run an Example
-Clone the repository:
+1. Clone the repository:
 ```
-Bash
-
 git clone https://github.com/m0dd0/pythonphysicsengine.git
-cd 
+cd pythonphysicsengine
 ```
-Set up a virtual environment:
-
-Bash
-
+2. Setup a virtual environment (optional but recommended):
+```
 python -m venv venv
 source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-Install dependencies:
-
-Bash
-
-pip install pygame pytest
-Perform an "Editable Install":
-This crucial step makes your ppe package importable by your examples and tests.
-
-Bash
-
+```
+3. Install the module and its dependencies (using editable install to allow modifications in the source code to be reflected immediately):
+```
 pip install -e .
-Run an example:
-
-Bash
-
-python examples/01_stacking_demo.py
+```
+4. Run an example script:
+```
+python examples/02_legacy_click_create.py
+```
 
 ## Using the Library
-The idea is to provide a set of high-level building blocks that can be composed to create a highly customizable physics loop.
-Checkout one of the examples in the `examples/` folder to see how to set up a simulation.
-The library is thoroughly documented with docstrings and type hints.
-I plan to give a more detailed 
+The philosophy of this library is to provide a set of high-level building blocks that can be composed to create a highly customizable but still easy-to-use physics loop.
+The core of the engine is the `World` class, which is configured by injecting different implementations for handling motion, collision detection, and constraint resolution.
+You can also add initial bodies and shapes to the world at construction time.
+```python
+# Assemble the engine by composing different strategies
+world = World(
+    integrator=SemiImplicitEulerIntegrator(),
+    solver=IterativeImpulseSolver(iterations=10),
+    broad_phase=AABBBroadPhase(),
+    narrow_phase=DispatchNarrowPhase(...),
+    initial_bodies=[PolygonShape.create_box(width=1.0, height=1.0)],
+)
+```
+In most cases, you will want to visualize the simulation and interact with it.
+The library provides a Pygame-based view and several controller implementations to handle user input.
+In this example, the only allowed interaction is panning and zooming the camera.
+```python
+# Set up the view and controller
+view = PygameView(camera=Camera(screen_width=800, screen_height=600, zoom=20.0))
+controllers = [CameraPanController(view.camera), CameraZoomController(view.camera)]
+```
+Finally, we can run the simulation loop, which will repeatedly update the world and render it using the view.
+```python
+# Run the simulation loop
+while True:
+    dt = clock.tick(60) / 1000.0  # Fixed time step of ~16ms
+    
+    input_state = InputState.from_pygame()  # Capture user input
+    for controller in controllers:
+        controller.update(input_state, dt)  # Update controllers with input
+    
+    world.step(dt)
+    
+    view.render_background()
+    view.render_bodies(world.bodies)
+    view.update_display()
+    # alternatively: view.render_all(world.bodies) to render everything in one call
+```
 
+For a full working example, see the examples in the `examples/` folder.
+The examples also showcase more features like debug drawing, profiling tools, and different controllers.
+
+The library is thoroughly documented with docstrings and type hints. 
+A dedicated documentation site might be added in the future.
 
 ## Project Structure
-The project is structured to separate the reusable engine from the application/example code, following modern Python packaging standards.
-
-engine-blocks/
-├── src/
-│   └── ppe/                  <-- The installable physics package (stands for Python Physics Engine)
-│       ├── __init__.py
-│       ├── common.py         # Core data structures (Body, Shape, Vec2)
-│       ├── world.py          # The main World orchestrator
-│       ├── integrators.py
-│       ├── solvers.py
-│       ├── collision_broad.py
-│       ├── collision_narrow.py
-│       ├── collision_handlers.py
-│       └── debug.py          # AbstractDebugDrawer interface
-│
-├── tests/                    <-- Pytest unit tests for the engine
-│   └── test_common.py
-│
-├── examples/                 <-- Runnable demonstration scripts
-│   └── 01_stacking_demo.py
-│
-├── utils/                    <-- Reusable application-level code
-│   ├── __init__.py
-│   ├── view.py             # PygameView and concrete DebugDrawer
-│   └── controllers.py      # CameraController, BodyDragger, etc.
-│
-└── pyproject.toml            <-- Project configuration
+A quick overview of the project structure:
+.
+├── ppe
+│   ├── engine # Core engine components
+│   │   ├── collision_broad.py # Abstract broad phase and implementations
+│   │   ├── collision_handlers.py # Implementations of narrow phase collision handlers
+│   │   ├── collision_narrow.py # Abstract narrow phase and dispatch system for collision handlers
+│   │   ├── common.py # Core data structures (Body, Shape, Contact, etc.)
+│   │   ├── debug.py # Debug drawing utilities
+│   │   ├── force_generators.py # Implementations of force generators (gravity, drag, etc.)
+│   │   ├── integrators.py # Abstract integrator and implementations
+│   │   ├── solvers.py # Abstract solver and implementations
+│   │   └── world.py # The World class that orchestrates the objects and simulation loop
+│   ├── utils
+│   │   ├── colors.py
+│   │   ├── controller.py # Abstract controller and implementations
+│   │   ├── profiler.py # Simple profiling utilities
+│   │   └── view.py # Abstract view and Pygame implementation
+│   └── __init__.py
+├── examples
+│   ├── 01_collision_visualization.py
+│   ├── 02_legacy_click_create.py
+│   └── 03_the_bowl.py
+├── tests
+│   ├── test_collision_broad.py
+│   ├── test_collision_handlers.py
+│   ├── test_common.py
+│   ├── test_performance.py
+│   └── test_solvers.py
+├── .gitignore
+├── LICENSE
+├── README.md
+└── setup.py
 
 ## Architectural Overview
 The engine is built on a few key software design patterns:
+
+**Strategy Pattern & Dependeny Injection:** Nearly every major component is an abstract "strategy" that can be swapped out. 
+This allows for easy experimentation and "horizontal extension" of the engine. 
+The World class is "injected" with the strategies it should use. 
+This makes the system highly decoupled and configurable (for the cost of some overhead and setup complexity).
+
+Key abstract strategies include:
+- `AbstractIntegrator`: Implementations are used to determine the position and velocity updates of bodies each time step.
+- `AbstractSolver`: Implementations are used to resolve collisions and constraints.
+- `AbstractBroadPhase`: Implementations are used to filter potential collision pairs quickly.
+- `AbstractCollisionHandler`: Implementations are used to detect whether two shapes are colliding and generate contact data if they are.
 
 **Model-View-Controller (MVC):** The architecture facilitates the use of an MVC pattern. All examples are structured this way.
   - Model: The `World` class that contauns all the core engine components. It is completely independent of any visualization.
   - View: The `PygameView` class, responsible for all rendering.
   - Controller: The `Controller` classes, responsible for handling user input.
 
-Strategy Pattern & Dependeny Injection: Nearly every major component is an abstract "strategy" that can be swapped out. This allows for easy experimentation and "horizontal extension" of the engine. Instead of creating its own components, the World class is "injected" with the strategies it should use. This makes the system highly decoupled and configurable.
-Key abstract strategies include:
-- AbstractIntegrator: Implementations are used to determine the position and velocity updates of bodies each time step.
-- AbstractSolver: Implementations are used to resolve collisions and constraints.
-- AbstractBroadPhase: Implementations are used to filter potential collision pairs quickly.
-- AbstractCollisionHandler: Implementations are used to detect whether two shapes are colliding and generate contact data if they are.
+## Concepts
+This section is not necessarily specific to this engine but rather a general overview of some of the key concepts in 2D physics engines.
+There are many other resources out there, that to an excellent job explaining these concepts in more detail.
+For a more in-depth understanding, I can recommend the following resources:
+- TODO: Add links to resources
+
+However, heres my attempt at a brief summary of some of the key concepts used and implemented in this engine.
+
+### Seperating Axis Theorem (SAT)
+TODO
+#### Edge Cases and Clipping
+TODO
+
+### Circle-vs-Polygon Collision
+TODO
+
+### Impulse-based Collision Response
+TODO
+
+#### Baumgarte Stabilization
+TODO 
+
+### Integrators
+TODO
+
+#### Semi-Implicit Euler
+TODO
+
+#### Position Verlet
+TODO
 
 ## License
 This project is licensed under the MIT License.
