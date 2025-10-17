@@ -193,24 +193,24 @@ class AbstractView(ABC):
         """
         pass
 
-    @abstractmethod
-    def render_text(
-        self, text: str, position: Tuple[int, int], color: Tuple[int, int, int]
-    ) -> None:
-        """
-        Renders a string of text at a specified screen position.
+    # @abstractmethod
+    # def render_text(
+    #     self, text: str, position: Tuple[int, int], color: Tuple[int, int, int]
+    # ) -> None:
+    #     """
+    #     Renders a string of text at a specified screen position.
 
-        This method is used for drawing UI elements, scores, or other textual
-        information directly onto the screen. The position is typically in
-        pixel coordinates.
+    #     This method is used for drawing UI elements, scores, or other textual
+    #     information directly onto the screen. The position is typically in
+    #     pixel coordinates.
 
-        Args:
-            text (str): The text string to render.
-            position (Tuple[int, int]): The (x, y) coordinates on the screen where
-                the text should be drawn.
-            color (Tuple[int, int, int]): The RGB color of the text.
-        """
-        pass
+    #     Args:
+    #         text (str): The text string to render.
+    #         position (Tuple[int, int]): The (x, y) coordinates on the screen where
+    #             the text should be drawn.
+    #         color (Tuple[int, int, int]): The RGB color of the text.
+    #     """
+    #     pass
 
     @abstractmethod
     def update_display(self) -> None:
@@ -251,6 +251,33 @@ class AbstractView(ABC):
             info (List[str]): A list of strings to be rendered on the screen.
         """
         pass
+
+    def render_all(
+        self, bodies: List[Body], profiler: Profiler = None, info: List[str] = None
+    ) -> None:
+        """
+        A convenience method to render the entire frame, including background,
+        bodies, profiler, and info section.
+
+        This method encapsulates the full rendering process for a single frame.
+        It calls the necessary sub-methods in the correct order to produce a
+        complete visual output. This is useful for simplifying the main loop
+        when all components need to be rendered together.
+
+        Args:
+            bodies (List[Body]): A list of `Body` objects to be rendered.
+            profiler (Profiler, optional): The `Profiler` instance for rendering
+                performance data. If None, the profiler is not rendered. Defaults to None.
+            info (List[str], optional): A list of informational strings to render.
+                If None, no info section is rendered. Defaults to None.
+        """
+        self.render_background()
+        self.render_bodies(bodies)
+        if profiler:
+            self.render_profiler(profiler)
+        if info:
+            self.render_info(info)
+        self.update_display()
 
 
 class PygameView(AbstractView):
@@ -660,7 +687,10 @@ class PygameView(AbstractView):
         # render subsection bars below the main bar
         y_position = position[1]
         for subsection_key in self.profiler_settings["subsection_keys"]:
-            y_position += self.profiler_settings["row_height"] + self.profiler_settings["row_spacing"]
+            y_position += (
+                self.profiler_settings["row_height"]
+                + self.profiler_settings["row_spacing"]
+            )
             subsections_timings = {
                 k.split("/")[1]: v
                 for k, v in timings.items()

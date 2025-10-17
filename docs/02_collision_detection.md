@@ -4,6 +4,8 @@ It is responsible for determining whether two shapes are colliding and generatin
 Only if this contact data is available, the solver can resolve the collision correctly and compute the appropropriate response so that objects behave realistically (i.e. don't pass through each other and change their velocities accordingly).
 For another detailed overview of 2D collision detection and resolution, check out [this extremly well-written blog post](https://timallanwheeler.com/blog/2024/08/01/2d-collision-detection-and-resolution/) by Tim Wheeler.
 
+I also remcommend playing around with the [Interactive Collision Visualization Demo example](../examples/01_collision_visualization.py) to get a better understanding.
+
 ## Broad Phase vs Narrow Phase Collision Detection
 Collision detection is typically divided into two phases: broad phase and narrow phase.
 The broad phase is responsible for quickly filtering out pairs of objects that are definitely not colliding.
@@ -103,9 +105,12 @@ Once we have the closest point, we can compute the collision normal, penetration
 - Penetration Depth: This is calculated as the radius of the circle minus the distance from the center of the circle to the closest point on the polygon. `penetration_depth = circle_radius - distance(circle_center, closest_point)`.
 - Contact Point: The contact point is the point on the circle's surface that is on the line defined by the collision normal. It can be computed by moving from the center of the circle along the negative collision normal by the radius of the circle. `contact_point = circle_center - collision_normal * circle_radius`.
 
-![Circle vs Polygon Collision](assets/circle_polygon_collision.svg)
+<!-- ![Circle vs Polygon Collision](assets/circle_polygon_collision.svg) -->
+![Circle vs Polygon Collision](assets/circle_polygon_collision_1.svg)
+![Circle vs Polygon Collision](assets/circle_polygon_collision_2.svg)
 
-Note that the first two cases in the image will never be checked in this implementation, since the broad phase AABB check will filter them out already.
+Note that the No-Collision cases in the image will never occur in reality, since the broad phase AABB check will filter them out already.
+
 
 The full implementation of the circle-vs-polygon collision handler can be found in [`ppe/engine/collision_handlers.py`](../ppe/engine/collision_handlers.py) in the `CircleVsPolygonHandler` class.
 
@@ -138,8 +143,8 @@ else:
 ```
 
 ### Separating Axis Theorem (SAT)
-The Separating Axis Theorem (SAT) is a fundamental algorithm to detect the collision between two convex shapes.
-The concrete implementation in this engine (`SatPolygonHandler`) can be found in `ppe.engine.collision_handlers.polygon_vs_polygon`.
+The Separating Axis Theorem (SAT) is a fundamental algorithm to detect the collision between two convex polygon shapes.
+The concrete implementation in this engine (`SatPolygonHandler`) can be found in [`ppe/engine/collision_handlers.py`](../ppe/engine/collision_handlers.py) in the `SatPolygonHandler` class.
 I will approach the explanation by starting with the most basic version of the algorithm and then gradually add more details and optimizations.
 
 #### Basic Algorithm
@@ -160,6 +165,8 @@ for each edge in both shapes:
 
 return True  # No separating axis found, shapes are colliding
 ```
+
+![SAT Collision Detection](assets/SAT_basic.svg)
 
 #### Finding Collision Normal and Penetration Depth
 However, this simple version has a key limitation: For correct collision response, we need more information than just whether a collision occurred. 
@@ -199,12 +206,43 @@ for each edge in both shapes:
 #### Finding the Contact Points
 In order to compute the rotation induced by the collision, we also need to find the contact points.
 The contact points are the points on the shapes that are in contact during the collision.
-Since in the simulation, the collision is always a tiny overlap of the shapes, the contact points are the intersection points of the edges of the two shapes.
 Finding these intersection points is easier said than done.
 Before continuing, lets introduce some terminology:
 - Reference Edge: The edge that is being penetrated into. Or more formally, the edge along whose normal the collision normal is aligned (the edge that produced the minimum overlap).
 - Incident Edge: The edge that is penetrating into the reference edge. Formally, we define the incident edge as the edge whose normal is most opposite to the reference edge normal. Note that in an concave polygon, this edge always corresponds to one of the edges adjacent to the vertex that is deepest in the reference edge.
-One option would be to check the for intersections of all edges of the incident shape with the reference edge.
+
+Now, the contact points are alway lying on the incident edge.
+However, the points are not simply the endpoints of the incident edge.
+Instead, we need to "clip" the incident edge against the side planes of the reference edge.
+After clipping, we end up with a shortened segement that lies within the incident edge.
+The endpoints of this clipped segment are the candidates for the contact points.
+However, only the points that are actually penetrating the reference edge are valid contact points.
+Therfore, we need to further filter the clipped points by checking their distance to the reference edge.
+This process is probably best understood with the help of the following illustration:
+![SAT Contact Points](assets/clipping_normal.svg)
+
+In most cases, we will end up with one contact point, but in some cases (edge-on-edge collisions), we end up with two contact points:
+![SAT Contact Points Edge-on-Edge](assets/clipping_edge_on_edge.svg)
+
+To actually compute the clipped version of the incident edge, we can use the Sutherland-Hodgman clipping algorithm.
+
+
+The following pseudocode demonstrates how to find the contact points. 
+It assumes that we have already determined the reference edge via the minimum overlap axis.
+```
+# finding the incident edge
+reference_normal = collision_normal
+min_dot = infinity
+incident_edge = None
+for each edge in incident_shape:
+    edge_normal = perpendicular_vector(edge)
+    dot_product = dot(edge_normal, reference_normal)
+    if dot_product < min_dot:
+        min_dot = dot_product
+        incident_edge = edge
+
+# clipping the incident edge against the side planes of the reference edge
+
 
 #### Computational Optimizations
 Checking for overlapping projections can be simplified computationally:
