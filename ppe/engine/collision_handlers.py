@@ -42,14 +42,14 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
         assert body_a.shape.get_type() == "circle"
         assert body_b.shape.get_type() == "circle"
 
-        shape_a: CircleShape = body_a.shape
-        shape_b: CircleShape = body_b.shape
+        shape_ref: CircleShape = body_a.shape
+        shape_inc: CircleShape = body_b.shape
 
-        a_to_b = body_b.position - body_a.position
-        sum_radii = shape_a.radius + shape_b.radius
+        ref_to_inc = body_b.position - body_a.position
+        sum_radii = shape_ref.radius + shape_inc.radius
 
-        dist_sq = a_to_b.length_squared()
-
+        # using the squared distance to avoid a sqrt call for performance
+        dist_sq = ref_to_inc.length_squared()
         # if self.debug_drawer:
         #     # draw line from body_a to body_b in blue
         #     self.debug_drawer.draw_line(
@@ -61,8 +61,8 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
 
         dist = math.sqrt(dist_sq)
         penetration = sum_radii - dist
-        normal = a_to_b.normalize()
-        contact_point = body_b.position - normal * shape_b.radius
+        normal = ref_to_inc.normalize()
+        contact_point = body_b.position - normal * shape_inc.radius # body_b = incident shape
 
         return Contact(body_a, body_b, normal, penetration, [contact_point])
 

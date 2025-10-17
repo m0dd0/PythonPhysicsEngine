@@ -152,11 +152,17 @@ Key abstract strategies include:
   - View: The `PygameView` class, responsible for all rendering.
   - Controller: The `Controller` classes, responsible for handling user input.
 
+A more detailed discussion of the architecture and design patterns is available [here](docs/00_architecture_overview.md).
+
 ## Concepts
-I tried to document the key concepts and algorithms used in the engine in the `docs/` folder.
-This holds my attempt at explaining some of the core ideas behind (2D) physics engines and how they are implemented in this engine.
+I tried to document the key concepts and algorithms used in the engine.
 Others already did a great job in explaining these concepts in more detail, but I wanted to have my own write-up to solidify my understanding.
 Maybe my write-ups can also help others to get a quick overview of these concepts.
+The following topics are planned to be covered (as of now, there are just highly incomplete drafts):
+- [Basic Physics Loop`](docs/01_basic_physics_loop.md): High-level overview on how physics simulations work.
+- [Collision Detection](docs/02_collision_detection.md): Explanation on how collision detection is implemented, including broad phase implementations and narrow phase with SAT.
+- [Integrators](docs/03_integration.md): Overview of different numerical integration methods for updating body positions and velocities.
+- [Constraint Solvers](docs/04_constraint_solvers.md): Explanation of impulse-based solvers and position-based solvers for resolving collisions and constraints.
 
 ## License
 This project is licensed under the MIT License.
