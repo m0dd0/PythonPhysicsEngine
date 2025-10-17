@@ -55,7 +55,13 @@ world = World(
     solver=IterativeImpulseSolver(iterations=10),
     broad_phase=AABBBroadPhase(),
     narrow_phase=DispatchNarrowPhase(...),
-    initial_bodies=[PolygonShape.create_box(width=1.0, height=1.0)],
+    initial_bodies=[
+        Body(
+            shape=PolygonShape.create_box(width=1.0, height=1.0), 
+            position=Vec2(0, 5), 
+            mass=1.0
+        ),
+    ],
 )
 ```
 In most cases, you will want to visualize the simulation and interact with it.
@@ -147,35 +153,10 @@ Key abstract strategies include:
   - Controller: The `Controller` classes, responsible for handling user input.
 
 ## Concepts
-This section is not necessarily specific to this engine but rather a general overview of some of the key concepts in 2D physics engines.
-There are many other resources out there, that to an excellent job explaining these concepts in more detail.
-For a more in-depth understanding, I can recommend the following resources:
-- TODO: Add links to resources
-
-However, heres my attempt at a brief summary of some of the key concepts used and implemented in this engine.
-
-### Seperating Axis Theorem (SAT)
-TODO
-#### Edge Cases and Clipping
-TODO
-
-### Circle-vs-Polygon Collision
-TODO
-
-### Impulse-based Collision Response
-TODO
-
-#### Baumgarte Stabilization
-TODO 
-
-### Integrators
-TODO
-
-#### Semi-Implicit Euler
-TODO
-
-#### Position Verlet
-TODO
+I tried to document the key concepts and algorithms used in the engine in the `docs/` folder.
+This holds my attempt at explaining some of the core ideas behind (2D) physics engines and how they are implemented in this engine.
+Others already did a great job in explaining these concepts in more detail, but I wanted to have my own write-up to solidify my understanding.
+Maybe my write-ups can also help others to get a quick overview of these concepts.
 
 ## License
 This project is licensed under the MIT License.
