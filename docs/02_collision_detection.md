@@ -107,19 +107,18 @@ Once we have the closest point, we can compute the collision normal, penetration
 
 <!-- ![Circle vs Polygon Collision](assets/circle_polygon_collision.svg) -->
 ![Circle vs Polygon Collision](assets/circle_polygon_collision_1.svg)
-![Circle vs Polygon Collision](assets/circle_polygon_collision_2.svg)
-
 Note that the No-Collision cases in the image will never occur in reality, since the broad phase AABB check will filter them out already.
 
+![Circle vs Polygon Collision](assets/circle_polygon_collision_2.svg)
 
 The full implementation of the circle-vs-polygon collision handler can be found in [`ppe/engine/collision_handlers.py`](../ppe/engine/collision_handlers.py) in the `CircleVsPolygonHandler` class.
 
 A pseudocode implementation of the algorithm is as follows:
-```
+```python
 min_distance = infinity
 closest_projected_point = None
 
-for each edge in polygon:
+for edge in polygon.edges:
     edge_vector = edge.end_vertex - edge.start_vertex
     to_circle_vector = circle.center - edge.start_vertex
     
@@ -153,8 +152,8 @@ Conversely, if no such axis exists, the shapes are colliding.
 Instead of checking all possible axes (which would be computationally impossible ;)), it's sufficient to check all the axes that are perpendicular to the edges of the shapes.
 This results in the following pseudocode for the basic version of the SAT algorithm:
 
-```
-for each edge in both shapes:
+```python
+for edge in shape1.edges:
     axis = perpendicular_vector(edge)
     
     projection_values_1 = project_shape_onto_axis(shape1.vertices, axis)
@@ -175,8 +174,8 @@ If theres a collision, the projections usually overlap on multiple axes.
 We define the collision normal as the axis with the smallest overlap, and the penetration depth as the amount of that overlap.
 To find the collision normal and penetration depth, we can keep track of the axis with the smallest overlap:
 
-```
-func project_shape_onto_axis(shape, axis):
+```python
+def project_shape_onto_axis(shape, axis):
     min_proj = infinity
     max_proj = -infinity
     for vertex in shape.vertices:
@@ -188,19 +187,20 @@ func project_shape_onto_axis(shape, axis):
 min_overlap = infinity
 collision_normal = None
 
-for each edge in both shapes:
-    axis = perpendicular_vector(edge)
+for shape in (shape1, shape2):
+    for edge in shape.edges:
+        axis = perpendicular_vector(edge)
+
+        projection1 = project_shape_onto_axis(shape1, axis)
+        projection2 = project_shape_onto_axis(shape2, axis)
     
-    projection1 = project_shape_onto_axis(shape1, axis)
-    projection2 = project_shape_onto_axis(shape2, axis)
-    
-    if not projections_overlap(projection1, projection2):
-        return False  # Found a separating axis, no collision
-    
-    overlap = calculate_overlap(projection1, projection2)
-    if overlap < min_overlap:
-        min_overlap = overlap
-        collision_normal = axis
+        if not projections_overlap(projection1, projection2):
+            return False  # Found a separating axis, no collision
+        
+        overlap = calculate_overlap(projection1, projection2)
+        if overlap < min_overlap:
+            min_overlap = overlap
+            collision_normal = axis
 ```
 
 #### Finding the Contact Points
@@ -225,24 +225,70 @@ In most cases, we will end up with one contact point, but in some cases (edge-on
 ![SAT Contact Points Edge-on-Edge](assets/clipping_edge_on_edge.svg)
 
 To actually compute the clipped version of the incident edge, we can use the Sutherland-Hodgman clipping algorithm.
+To start with we need to mathematically define the side planes of the reference edge.
+A plane in 2D can be defined by a normal vector `n` and the perpendicular (=smallest) distance from the origin to the plane `d`.
+The distance `d` can be computed as `d = dot(n, p)` where `p` is any point on the plane (i.e. one of the vertices of the reference edge).
+For defining the side planes of the reference edge, we can compute their normals simply by computing the vector from start to endpoint of the reference edge.
+We start by clipping the incident edge against one side plane, and then clip the resulting segment against the other side plane.
+To clip a line segment against a plane, we can use the following approach:
+1. Compute the distances of both endpoints of the incident edge to the side plane using: `d1 = dot(n, v1_incident) - d` and `d2 = dot(n, v2_incident) - d`.
+2. Based on the signs of the distances, we can determine whether the endpoints are inside or outside the plane. If the distance is positive, the point is outside the plane; if negative, it is inside.
+3. If a point is inside, we keep it. If it is outside, we need to compute the clipping intersection point between the incident edge and the side plane. Computing this intersection point can be done using linear interpolation based on the distances of the endpoints to the plane: `v1' = v1 + (v2 - v1) * (d - d1) / (d2 - d1)`. Again, its probabaly best to understand this with the help of the illustration below.
 
+After clipping against the first side plane, we repeat the process for the second side plane using the resulting segment from the first clipping operation.
 
-The following pseudocode demonstrates how to find the contact points. 
-It assumes that we have already determined the reference edge via the minimum overlap axis.
-```
+![Clipping Computation](assets/clipping_calculation.svg)
+
+Finally we need to filter the resulting clipped points to only keep those that are actually penetrating the reference edge.
+This can be simply done by checking whether the dot product between the reference edge normal and the vector from a point on the reference edge to the clipped point is less than zero.
+
+The following pseudocode combines all these steps:
+```python
 # finding the incident edge
 reference_normal = collision_normal
 min_dot = infinity
 incident_edge = None
-for each edge in incident_shape:
+for edge in incident_shape:
     edge_normal = perpendicular_vector(edge)
     dot_product = dot(edge_normal, reference_normal)
     if dot_product < min_dot:
         min_dot = dot_product
         incident_edge = edge
 
-# clipping the incident edge against the side planes of the reference edge
+# defining the clipping planes
+clip_plane_1_normal = reference_edge_vector
+clip_plane_2_normal = -reference_edge_vector
+clip_plane_1_d = dot(clip_plane_1_normal, reference_edge.start_vertex)
+clip_plane_2_d = dot(clip_plane_2_normal, reference_edge.end_vertex)
 
+# clipping the incident edge against the side planes of the reference edge
+def clip(v1, v2, plane_normal, plane_d):
+    d1 = dot(plane_normal, v1) - plane_d
+    d2 = dot(plane_normal, v2) - plane_d
+    
+    clipped_points = []
+    
+    if d1 <= 0:
+        clipped_points.append(v1)
+    if d2 <= 0:
+        clipped_points.append(v2)
+    
+    if d1 * d2 < 0:  # edge crosses the plane
+        intersection_point = v1 + (v2 - v1) * (d1 / (d1 - d2))
+        clipped_points.append(intersection_point)
+
+    return clipped_points
+
+# performing the clipping
+clipped_points = clip(incident_edge.start_vertex, incident_edge.end_vertex, clip_plane_1_normal, clip_plane_1_d)
+clipped_points = clip(clipped_points[0], clipped_points[1], clip_plane_2_normal, clip_plane_2_d)
+
+# filtering the clipped points to only keep those penetrating the reference edge
+contact_points = []
+for point in clipped_points:
+    if dot(reference_normal, point - reference_edge.start_vertex) < 0:
+        contact_points.append(point)
+```
 
 #### Computational Optimizations
 Checking for overlapping projections can be simplified computationally:
@@ -254,10 +300,10 @@ Note that to allow the assumption that all normals point outwards, we need to en
 
 Assuming our polygons have N and M edges respectively, the new version of the SAT algorithm has a time complexity of O(N + M) instead of O(N * M) in the naive version.
 <!-- While in theory, this is a significant improvement, in practice, the difference is often negligible since the number of edges in typical polygons used in physics simulations is usually quite small. -->
-```
+``` python
 min_overlap = infinity
 collision_normal = None
-for each edge in shape_1:
+for edge in shape_1.edges:
     axis = perpendicular_vector(edge) # assume outward pointing normals
     
     distances_to_edge = [dot(axis, vertex - edge.start_vertex) for vertex in shape2.vertices]
@@ -265,17 +311,12 @@ for each edge in shape_1:
     if all(distance > 0 for distance in distances_to_edge):
         return False  # Found a separating axis, no collision
 
-    overlap = abs(min(distances_to_edge))
-
-for each edge in shape_2:
-    axis = perpendicular_vector(edge) # assume outward pointing normals
-    
-    distances_to_edge = [dot(axis, vertex - edge.start_vertex) for vertex in shape1.vertices]
-
-    if all(distance > 0 for distance in distances_to_edge):
-        return False  # Found a separating axis, no collision
+    if all(distance < 0 for distance in distances_to_edge):
+        continue # the opposite edge is responsible for detecting the collision
 
     overlap = abs(min(distances_to_edge))
+
+# repeat the same process for each edge in shape_2
+for edge in shape_2:
+    ...
 ```
-
-This version will not work correctly 
