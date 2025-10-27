@@ -47,7 +47,7 @@ BODY_STYLE_DEFAULTS = {
 CIRCLE_SPAWN_RADIUS_RANGE = (0.1, 0.3)
 POLYGON_SPAWN_SIDE_RANGE = (0.1, 0.5)
 GRAVITY = Vec2(0, -9.81)
-BOUNCINESS = 0.0
+BOUNCINESS = 0.5
 
 
 def setup() -> Tuple[
@@ -108,7 +108,7 @@ def setup() -> Tuple[
                     debug_drawer=debug_drawer
                 ),
                 ("polygon", "polygon"): SatPolygonHandler(
-                    debug_drawer=debug_drawer, return_most_penetrating_only=True
+                    debug_drawer=debug_drawer
                 ),
             },
         ),

@@ -73,28 +73,29 @@ class IterativeImpulseSolver(AbstractSolver):
 
     def _solve_contact(self, contact: Contact, dt: float):
         """Calculates and applies the impulse for a single contact manifold."""
-        body_a = contact.body_a
-        body_b = contact.body_b
+        body_ref = contact.body_a # reference body
+        body_inc = contact.body_b # incident body
         normal = contact.normal
 
         # Process each contact point in the manifold
         for contact_point in contact.contact_points:
-            r_a = contact_point - body_a.position
-            r_b = contact_point - body_b.position
+            r_a = contact_point - body_ref.position
+            r_b = contact_point - body_inc.position
 
             # 1. Calculate the point velocity at the contact point. this is the bodies 
             # velocity and angular velocity at the contact point.
-            v_a = body_a.velocity + Vec2(
-                -body_a.angular_velocity * r_a.y, body_a.angular_velocity * r_a.x
+            v_a = body_ref.velocity + Vec2(
+                -body_ref.angular_velocity * r_a.y, body_ref.angular_velocity * r_a.x
             )
-            v_b = body_b.velocity + Vec2(
-                -body_b.angular_velocity * r_b.y, body_b.angular_velocity * r_b.x
+            v_b = body_inc.velocity + Vec2(
+                -body_inc.angular_velocity * r_b.y, body_inc.angular_velocity * r_b.x
             )
             # relative velocity of both bodies at the contact point
             relative_velocity = v_b - v_a
 
             # component of relative velocity in the direction of the contact normal
             relative_normal_velocity = relative_velocity.dot(normal)
+            print(f"relative_normal_velocity: {relative_normal_velocity}")
 
             # Do nothing if objects are already moving apart
             if relative_normal_velocity > 0:
@@ -106,19 +107,19 @@ class IterativeImpulseSolver(AbstractSolver):
             r_b_perp_n = r_b.dot(normal)
 
             effective_mass = (
-                body_a.inverse_mass
-                + body_b.inverse_mass
-                + (r_a.cross(normal))**2 * body_a.inverse_inertia
-                + (r_b.cross(normal))**2 * body_b.inverse_inertia
-                # + (r_a_perp_n * r_a_perp_n * body_a.inverse_inertia)
-                # + (r_b_perp_n * r_b_perp_n * body_b.inverse_inertia)
+                body_ref.inverse_mass
+                + body_inc.inverse_mass
+                + (r_a.cross(normal))**2 * body_ref.inverse_inertia
+                + (r_b.cross(normal))**2 * body_inc.inverse_inertia
+                + (r_a_perp_n * r_a_perp_n * body_ref.inverse_inertia)
+                + (r_b_perp_n * r_b_perp_n * body_inc.inverse_inertia)
             )
 
             if effective_mass == 0.0:
                 continue
 
             # 3. Calculate the impulse magnitude (j)
-            e = min(body_a.restitution, body_b.restitution)
+            e = min(body_ref.restitution, body_inc.restitution)
             j = -(1.0 + e) * relative_normal_velocity
             j /= effective_mass
             j /= len(
@@ -127,21 +128,21 @@ class IterativeImpulseSolver(AbstractSolver):
 
             # 4. Apply the impulse
             impulse = normal * j
-            self._apply_impulse(body_a, impulse * -1.0, r_a)
-            self._apply_impulse(body_b, impulse, r_b)
+            self._apply_impulse(body_ref, impulse * -1.0, r_a)
+            self._apply_impulse(body_inc, impulse, r_b)
 
             # --- Positional Correction (Baumgarte Stabilization) ---
             # This applies a small extra impulse to push sinking objects apart.
-            # beta = 0.2  # Baumgarte stabilization factor
-            # positional_error = contact.penetration_depth
-            # bias_impulse_magnitude = (
-            #     (beta / dt) * max(0.0, positional_error - 0.01) / effective_mass
-            # )
-            # bias_impulse_magnitude /= len(contact.contact_points)  # Distribute impulse
+            beta = 0.8  # Baumgarte stabilization factor
+            positional_error = contact.penetration_depth
+            bias_impulse_magnitude = (
+                (beta / dt) * max(0.0, positional_error - 0.01) / effective_mass
+            )
+            bias_impulse_magnitude /= len(contact.contact_points)  # Distribute impulse
 
-            # bias_impulse = normal * bias_impulse_magnitude
-            # self._apply_impulse(body_a, bias_impulse * -1.0, r_a)
-            # self._apply_impulse(body_b, bias_impulse, r_b)
+            bias_impulse = normal * bias_impulse_magnitude
+            self._apply_impulse(body_ref, bias_impulse * -1.0, r_a)
+            self._apply_impulse(body_ref, bias_impulse, r_b)
 
 
 class LegacySolver(AbstractSolver):
