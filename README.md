@@ -3,6 +3,14 @@ A modular 2D physics engine built from scratch in pure Python.
 Its primary goal is to demystify the algorithms and architectural patterns behind physics simulations by providing a clear, readable implementation from first principles.
 The engine intentionally avoids external math or physics libraries to ensure that no logic is hidden inside a "black box," making it a valuable resource for learning how components like collision detection, impulse solvers, and integrators work together.
 
+Aming at being an educational resource, this projects also contains multiple write-ups on the key concepts and algorithms used in the engine.
+The writeups are kept concise but contain all the relevant information and are linked to the corresponding sections in the codebase.
+The following topics are covered by the writeups:
+- [Basic Physics Loop](docs/01_basic_physics_loop.md): High-level overview on how physics simulations work.
+- [Collision Detection](docs/02_collision_detection.md): Explains the broad and narrow phase collision detection algorithms.
+- [Impulse Solvers](docs/03_impulse_solvers.md): Describes the different impulse solvers available in the engine.
+- [Integrators](docs/04_integrators.md): Explains the different integrators available in the engine.
+
 Note that this project is a work in progress and especially the physics solver is far from being good yet. 
 
 ## Features
@@ -90,11 +98,11 @@ while True:
     # alternatively: view.render_all(world.bodies) to render everything in one call
 ```
 
-For a full working example, see the examples in the `examples/` folder.
+For a full working example, see the examples in the [`examples/`](examples) folder.
 The examples also showcase more features like debug drawing, profiling tools, and different controllers.
 
 The library is thoroughly documented with docstrings and type hints. 
-A dedicated documentation site might be added in the future.
+A dedicated documentation website might be added in the future.
 
 ## Project Structure
 A quick overview of the project structure:
@@ -154,7 +162,7 @@ Key abstract strategies include:
 
 A more detailed discussion of the architecture and design patterns is available [here](docs/00_architecture_overview.md).
 
-## Concepts
+<!-- ## Concepts
 I tried to document the key concepts and algorithms used in the engine.
 Others already did a great job in explaining these concepts in more detail, but I wanted to have my own write-up to solidify my understanding.
 Maybe my write-ups can also help others to get a quick overview of these concepts.
@@ -162,7 +170,7 @@ The following topics are planned to be covered (as of now, there are just highly
 - [Basic Physics Loop`](docs/01_basic_physics_loop.md): High-level overview on how physics simulations work.
 - [Collision Detection](docs/02_collision_detection.md): Explanation on how collision detection is implemented, including broad phase implementations and narrow phase with SAT.
 - [Integrators](docs/03_integration.md): Overview of different numerical integration methods for updating body positions and velocities.
-- [Constraint Solvers](docs/04_constraint_solvers.md): Explanation of impulse-based solvers and position-based solvers for resolving collisions and constraints.
+- [Constraint Solvers](docs/04_constraint_solvers.md): Explanation of impulse-based solvers and position-based solvers for resolving collisions and constraints. -->
 
 ## License
 This project is licensed under the MIT License.

@@ -611,24 +611,24 @@ class PolygonShape(Shape):
 #     def get_aabb(self, position, angle) -> Tuple[Vec2, Vec2]:
 #         raise NotImplementedError("CompoundShape is not implemented yet.")
 
-
+# TODO use datackass
 class Contact:
     """Holds information about a collision between two bodies."""
 
     def __init__(
         self,
-        body_a: Body,
+        body_a: Body, # TODO rename to reference and incident body
         body_b: Body,
         normal: Vec2,
         penetration_depth: float,
         contact_points: List[Vec2],
     ):
-        self.body_a = body_a
-        self.body_b = body_b
+        self.body_a = body_a # reference body
+        self.body_b = body_b # incident body
         # normal is assumed to always point from body_a to body_b
         self.normal = normal
         self.penetration_depth = penetration_depth
-        # contact_points are assumed to be located on body_b
+        # contact_points are assumed to be located on body_b (incident body)
         self.contact_points = contact_points
 
 
