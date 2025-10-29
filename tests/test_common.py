@@ -423,8 +423,8 @@ class TestContact:
         b2 = Body(shape, Vec2(0, 0), 10)
 
         contact = Contact(b1, b2, Vec2(1, 0), 5.0, [Vec2(0, 0)])
-        assert contact.body_a == b1
-        assert contact.body_b == b2
+        assert contact.reference_body == b1
+        assert contact.incident_body == b2
         assert contact.normal.x == 1
         assert contact.penetration_depth == 5.0
         assert len(contact.contact_points) == 1

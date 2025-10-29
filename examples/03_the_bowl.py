@@ -1,4 +1,5 @@
 """
+Example 03: "The Bowl"
 An example demonstrating a "bowl" made of static walls.
 Bodies can be spawned by clicking on the screen.
 This examples poses a stress test on the solver as there are many simultaneous collisions

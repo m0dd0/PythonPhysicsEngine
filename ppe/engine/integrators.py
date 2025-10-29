@@ -1,3 +1,19 @@
+"""
+Module containing classes for motion integration strategies.
+
+This module defines an abstract base class, `AbstractIntegrator`,
+and several concrete implementations for different motion integration strategies.
+The available integrators are:
+
+- `SemiImplicitEulerIntegrator`: A semi-implicit Euler integrator.
+- `PositionVerletIntegrator`: A position Verlet integrator.
+- `NoOpIntegrator`: A dummy integrator that does not update the simulation state.
+
+These integrators are designed to be modular and configurable, allowing for
+easy customization of the motion integration strategy in different simulation
+scenarios.
+However, note that not all solvers can be used with all integrators and vice versa.
+"""
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -13,8 +29,8 @@ class AbstractIntegrator(ABC):
         Updates body velocities based on accumulated forces.
 
         Args:
-            bodies: The list of all bodies in the simulation.
-            dt: The time step for the frame.
+            bodies (List[Body]): The list of all bodies in the simulation.
+            dt (float): The time step for the frame.
         """
         raise NotImplementedError
 
@@ -24,8 +40,8 @@ class AbstractIntegrator(ABC):
         Updates body positions based on their current velocities.
 
         Args:
-            bodies: The list of all bodies in the simulation.
-            dt: The time step for the frame.
+            bodies (List[Body]): The list of all bodies in the simulation.
+            dt (float): The time step for the frame.
         """
         raise NotImplementedError
 
@@ -34,11 +50,21 @@ class NoOpIntegrator(AbstractIntegrator):
     """An integrator that performs no action, for debugging or simple kinematics."""
 
     def integrate_velocities(self, bodies: List[Body], dt: float) -> None:
-        """Does nothing."""
+        """Does nothing.
+
+        Args:
+            bodies (List[Body]): The list of all bodies in the simulation.
+            dt (float): The time step for the frame.
+        """
         pass
 
     def integrate_positions(self, bodies: List[Body], dt: float) -> None:
-        """Does nothing."""
+        """Does nothing.
+
+        Args:
+            bodies (List[Body]): The list of all bodies in the simulation.
+            dt (float): The time step for the frame.
+        """
         pass
 
 
@@ -50,7 +76,12 @@ class SemiImplicitEulerIntegrator(AbstractIntegrator):
         pass
 
     def integrate_velocities(self, bodies: List[Body], dt: float) -> None:
-        """Updates body velocities based on accumulated forces."""
+        """Updates body velocities based on accumulated forces.
+        
+        Args:
+            bodies (List[Body]): The list of all bodies in the simulation.
+            dt (float): The time step for the frame.
+        """
         for body in bodies:
             if body.inverse_mass == 0.0:
                 continue
@@ -64,7 +95,12 @@ class SemiImplicitEulerIntegrator(AbstractIntegrator):
             body.angular_velocity += angular_acceleration * dt
 
     def integrate_positions(self, bodies: List[Body], dt: float) -> None:
-        """Updates body positions based on their current velocities."""
+        """Updates body positions based on their current velocities.
+        
+        Args:
+            bodies (List[Body]): The list of all bodies in the simulation.
+            dt (float): The time step for the frame.
+        """
         for body in bodies:
             if body.inverse_mass == 0.0:
                 continue
@@ -93,6 +129,10 @@ class PositionVerletIntegrator(AbstractIntegrator):
         """
         Performs the first step of Verlet integration, predicting a new
         provisional position for each body.
+
+        Args:
+            bodies (List[Body]): The list of all bodies in the simulation.
+            dt (float): The time step for the frame.
         """
         for body in bodies:
             if body.inverse_mass == 0.0:
@@ -123,6 +163,10 @@ class PositionVerletIntegrator(AbstractIntegrator):
         Performs the second step of Verlet integration, deriving the final
         velocity from the change in position.
         This should be called *after* the position-based solver has run.
+
+        Args:
+            bodies (List[Body]): The list of all bodies in the simulation.
+            dt (float): The time step for the frame.
         """
         for body in bodies:
             if body.inverse_mass == 0.0:

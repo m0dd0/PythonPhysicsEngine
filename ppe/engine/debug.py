@@ -23,6 +23,7 @@ class AbstractDebugDrawer(ABC):
         When one of the public methods is called the corresponding drawing command gets
         added to the internal drawing queue. This queue gets executed ones the implementation
         specific render_all method gets called.
+        The queue mechanism allows us to control when the debug drawing gets executed.
 
         Args:
             enabled (bool): If True, debug drawing is enabled; otherwise, it is disabled.

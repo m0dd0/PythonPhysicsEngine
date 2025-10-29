@@ -1,3 +1,18 @@
+"""
+Module containing abstract base classes for broad-phase collision detection strategies.
+
+The broad-phase collision detection is the first step in the collision detection process.
+It is responsible for finding all pairs of bodies that might be colliding with each other.
+The found pairs are then passed to the narrow-phase collision detection for further processing.
+
+This module contains the following classes:
+
+- `AbstractBroadPhase`: An abstract base class for all broad-phase collision detection strategies.
+- `BruteForceBroadPhase`: A dummy broad phase that will return all possible pairs of bodies as potential collision pairs.
+- `AABBBroadPhase`: An efficient broad-phase using Axis-Aligned Bounding Boxes (AABB).
+"""
+
+
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional
 
@@ -65,7 +80,18 @@ class AABBBroadPhase(AbstractBroadPhase):
     def _aabbs_overlap(
         self, min_a: Vec2, max_a: Vec2, min_b: Vec2, max_b: Vec2
     ) -> bool:
-        """Checks if two AABBs, defined by their min/max points, overlap."""
+        """
+        Checks if two AABBs, defined by their min/max points, overlap.
+
+        Args:
+            min_a (Vec2): The minimum point of the first AABB.
+            max_a (Vec2): The maximum point of the first AABB.
+            min_b (Vec2): The minimum point of the second AABB.
+            max_b (Vec2): The maximum point of the second AABB.
+
+        Returns:
+            bool: True if the two AABBs overlap, False otherwise.
+        """
         if max_a.x < min_b.x or min_a.x > max_b.x:
             return False
         if max_a.y < min_b.y or min_a.y > max_b.y:
@@ -78,10 +104,10 @@ class AABBBroadPhase(AbstractBroadPhase):
         bounding boxes overlap.
 
         Args:
-            bodies: A list of all Body objects in the simulation.
+            bodies (List[Body]): A list of all Body objects in the simulation.
 
         Returns:
-            A list of tuples, where each tuple contains a pair of bodies
+            List[Tuple[Body, Body]]: A list of tuples, where each tuple contains a pair of bodies
             that might be colliding.
         """
         # getting the AABBs of all bodies first prevents recalculating them multiple times

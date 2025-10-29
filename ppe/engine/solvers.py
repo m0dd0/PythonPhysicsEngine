@@ -1,3 +1,13 @@
+"""
+Module containing classes for solving physics constraints in a simulation.
+
+This module defines an abstract base class for all solvers, as well as concrete implementations
+for different types of solvers. The available solvers are:
+
+- `IterativeImpulseSolver`: An iterative impulse-based solver for solving physics constraints.
+- `PositionBasedSolver`: A position-based solver for solving physics constraints.
+"""
+
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
@@ -11,15 +21,33 @@ from ppe.engine.debug import AbstractDebugDrawer
 
 
 class AbstractSolver(ABC):
-    """An abstract base class for all constraint solver strategies."""
+    """An abstract base class for all constraint solver strategies.
+    A solver takes a list of contacts and a list of joints and resolves them by updating
+    the bodies posision and velocity.
+    Each solver must define a list of integrator classes that it is compatible with.
+    """
 
     COMPATIBLE_INTEGRATORS = []
 
     def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None) -> None:
+        """
+        Initializes the solver with an optional debug drawer.
+
+        Args:
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for visualizing the simulation.
+        """
         self.debug_drawer = debug_drawer
 
     @abstractmethod
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
+        """
+        Solves the given list of contacts and joints by updating the bodies' position and velocity.
+
+        Args:
+            contacts (List[Contact]): A list of contacts to solve.
+            joints (List[Joint]): A list of joints to solve.
+            dt (float): The time step for the solver.
+        """
         pass
 
 
@@ -48,23 +76,16 @@ class IterativeImpulseSolver(AbstractSolver):
     def __init__(
         self, iterations: int = 30, debug_drawer: Optional[AbstractDebugDrawer] = None
     ):
-        """Initializes the iterative solver."""
+        """
+        Initializes the solver with the given number of iterations and an optional debug drawer.
+
+        Args:
+            iterations (int, optional): The number of iterations to perform when solving the constraints.
+                Defaults to 30.
+            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for visualizing the simulation.
+        """
         super().__init__(debug_drawer)
         self.iterations = iterations
-
-    def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
-        """Resolves collision contacts by applying impulses iteratively."""
-        if len(joints) > 0:
-            raise NotImplementedError("Joint solving is not implemented yet.")
-
-        # The main loop that iterates multiple times to allow impulses to propagate
-        for i in range(self.iterations):
-            for contact in contacts:
-                self._solve_contact(contact, dt)
-
-        # Joint solving would go here in a similar loop
-        # for joint in joints:
-        #     self._solve_joint(joint, dt)
 
     def _apply_impulse(self, body: Body, impulse: Vec2, contact_vector: Vec2):
         """Applies both linear and angular impulse to a body."""
@@ -72,9 +93,14 @@ class IterativeImpulseSolver(AbstractSolver):
         body.angular_velocity += contact_vector.cross(impulse) * body.inverse_inertia
 
     def _solve_contact(self, contact: Contact, dt: float):
-        """Calculates and applies the impulse for a single contact manifold."""
-        body_ref = contact.body_a # reference body
-        body_inc = contact.body_b # incident body
+        """Calculates and applies the impulse for a single contact manifold.
+        
+        Args:
+            contact (Contact): The contact manifold to solve.
+            dt (float): The time step for the solver.
+        """
+        body_ref = contact.reference_body  # reference body
+        body_inc = contact.incident_body  # incident body
         normal = contact.normal
 
         # Process each contact point in the manifold
@@ -82,7 +108,7 @@ class IterativeImpulseSolver(AbstractSolver):
             r_a = contact_point - body_ref.position
             r_b = contact_point - body_inc.position
 
-            # 1. Calculate the point velocity at the contact point. this is the bodies 
+            # 1. Calculate the point velocity at the contact point. this is the bodies
             # velocity and angular velocity at the contact point.
             v_a = body_ref.velocity + Vec2(
                 -body_ref.angular_velocity * r_a.y, body_ref.angular_velocity * r_a.x
@@ -109,8 +135,8 @@ class IterativeImpulseSolver(AbstractSolver):
             effective_mass = (
                 body_ref.inverse_mass
                 + body_inc.inverse_mass
-                + (r_a.cross(normal))**2 * body_ref.inverse_inertia
-                + (r_b.cross(normal))**2 * body_inc.inverse_inertia
+                + (r_a.cross(normal)) ** 2 * body_ref.inverse_inertia
+                + (r_b.cross(normal)) ** 2 * body_inc.inverse_inertia
                 + (r_a_perp_n * r_a_perp_n * body_ref.inverse_inertia)
                 + (r_b_perp_n * r_b_perp_n * body_inc.inverse_inertia)
             )
@@ -144,51 +170,32 @@ class IterativeImpulseSolver(AbstractSolver):
             self._apply_impulse(body_ref, bias_impulse * -1.0, r_a)
             self._apply_impulse(body_ref, bias_impulse, r_b)
 
-
-class LegacySolver(AbstractSolver):
-    COMPATIBLE_INTEGRATORS = [SemiImplicitEulerIntegrator]
-
-    def _solve_contact(self, contact: Contact, dt: float) -> None:
-        if contact.body_a.inverse_mass == 0 and contact.body_b.inverse_mass == 0:
-            return
-
-        # move objects so that they don't overlap anymore
-        if contact.body_a.inverse_mass != 0 and contact.body_b.inverse_mass != 0:
-            contact.body_a.position -= contact.normal * (contact.penetration_depth / 2)
-            contact.body_b.position += contact.normal * (contact.penetration_depth / 2)
-        elif contact.body_a.inverse_mass == 0:
-            contact.body_b.position += contact.normal * contact.penetration_depth
-        else:
-            contact.body_a.position -= contact.normal * contact.penetration_depth
-
-        # change velocities
-        # https://en.wikipedia.org/wiki/Collision_response
-        # https://www.chrishecker.com/images/e/e7/Gdmphys3.pdf
-        # not sure if min or average of bouncieness models reality better
-        e = (contact.body_a.restitution + contact.body_b.restitution) / 2
-        impulse = (
-            -(1 + e)
-            * (contact.body_a.velocity - contact.body_b.velocity).dot(contact.normal)
-            / (contact.body_a.inverse_mass + contact.body_b.inverse_mass)
-        )
-
-        # avoid that fixed objects get a velocity value after a collision
-        if contact.body_a.inverse_mass != 0:
-            contact.body_a.velocity += (
-                impulse / contact.body_a.mass * contact.normal * dt
-            )
-        if contact.body_b.inverse_mass != 0:
-            contact.body_b.velocity -= (
-                impulse / contact.body_b.mass * contact.normal * dt
-            )
-
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
-        for contact in contacts:
-            self._solve_contact(contact, dt)
+        """
+        Solves the given list of contacts and joints by updating the bodies' position and velocity.
+
+        Notes:
+            Joint solving is not implemented yet.
+
+        Args:
+            contacts (List[Contact]): A list of contacts to solve.
+            joints (List[Joint]): A list of joints to solve.
+            dt (float): The time step for the solver.
+        """
+        if len(joints) > 0:
+            raise NotImplementedError("Joint solving is not implemented yet.")
+
+        # The main loop that iterates multiple times to allow impulses to propagate
+        for i in range(self.iterations):
+            for contact in contacts:
+                self._solve_contact(contact, dt)
+
+        # Joint solving would go here in a similar loop
+        # for joint in joints:
+        #     self._solve_joint(joint, dt)
 
 
 class PositionBasedSolver(AbstractSolver):
-    # This solver would declare its own compatibility
     COMPATIBLE_INTEGRATORS = [PositionVerletIntegrator]
 
     def __init__(
@@ -200,3 +207,58 @@ class PositionBasedSolver(AbstractSolver):
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         # TODO implement
         raise NotImplementedError("PositionBasedSolver is not implemented yet.")
+
+# class LegacySolver(AbstractSolver):
+#     COMPATIBLE_INTEGRATORS = [SemiImplicitEulerIntegrator]
+
+#     def _solve_contact(self, contact: Contact, dt: float) -> None:
+#         if (
+#             contact.reference_body.inverse_mass == 0
+#             and contact.incident_body.inverse_mass == 0
+#         ):
+#             return
+
+#         # move objects so that they don't overlap anymore
+#         if (
+#             contact.reference_body.inverse_mass != 0
+#             and contact.incident_body.inverse_mass != 0
+#         ):
+#             contact.reference_body.position -= contact.normal * (
+#                 contact.penetration_depth / 2
+#             )
+#             contact.incident_body.position += contact.normal * (
+#                 contact.penetration_depth / 2
+#             )
+#         elif contact.reference_body.inverse_mass == 0:
+#             contact.incident_body.position += contact.normal * contact.penetration_depth
+#         else:
+#             contact.reference_body.position -= (
+#                 contact.normal * contact.penetration_depth
+#             )
+
+#         # change velocities
+#         # https://en.wikipedia.org/wiki/Collision_response
+#         # https://www.chrishecker.com/images/e/e7/Gdmphys3.pdf
+#         # not sure if min or average of bouncieness models reality better
+#         e = (contact.reference_body.restitution + contact.incident_body.restitution) / 2
+#         impulse = (
+#             -(1 + e)
+#             * (contact.reference_body.velocity - contact.incident_body.velocity).dot(
+#                 contact.normal
+#             )
+#             / (contact.reference_body.inverse_mass + contact.incident_body.inverse_mass)
+#         )
+
+#         # avoid that fixed objects get a velocity value after a collision
+#         if contact.reference_body.inverse_mass != 0:
+#             contact.reference_body.velocity += (
+#                 impulse / contact.reference_body.mass * contact.normal * dt
+#             )
+#         if contact.incident_body.inverse_mass != 0:
+#             contact.incident_body.velocity -= (
+#                 impulse / contact.incident_body.mass * contact.normal * dt
+#             )
+
+#     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
+#         for contact in contacts:
+#             self._solve_contact(contact, dt)

@@ -1,3 +1,13 @@
+"""
+This module defines the `World` class, which represents a physics simulation world.
+The `World` class manages the bodies in the simulation and orchestrates the execution of
+collision checking strategies, integration, and constraint solving.
+All substeps are executed via injected strategies so the actual physics update can be
+customized in a pluggable manner.
+Bedsides euting the physics steps, the world class contains a set of methods to manage the
+bodies in the simulation.
+"""
+
 from typing import List, Optional
 
 from ppe.engine.common import Body, Joint, Vec2
@@ -102,7 +112,7 @@ class World:
         Advances the simulation by one time step.
 
         Args:
-            dt: The time step duration (delta time).
+            dt (float): The time step duration (delta time).
         """
         ## Update world-space vertex data for all polygons before any checks
         # for body in self.bodies:
@@ -139,7 +149,7 @@ class World:
         Adds a body to the world.
 
         Args:
-            body: The Body object to add.
+            body (Body): The Body object to add.
         """
         self.bodies.append(body)
 
@@ -148,7 +158,7 @@ class World:
         Removes a body from the world.
 
         Args:
-            body: The Body object to remove.
+            body (Body): The Body object to remove.
         """
         if body in self.bodies:
             self.bodies.remove(body)
@@ -158,7 +168,7 @@ class World:
         Adds a joint to the world.
 
         Args:
-            joint: The Joint object to add.
+            joint (Joint): The Joint object to add.
         """
         self.joints.append(joint)
 
@@ -167,7 +177,7 @@ class World:
         Removes a joint from the world.
 
         Args:
-            joint: The Joint object to remove.
+            joint (Joint): The Joint object to remove.
         """
         if joint in self.joints:
             self.joints.remove(joint)
@@ -177,7 +187,7 @@ class World:
         Adds a force generator to the world.
 
         Args:
-            force_generator: The AbstractForceGenerator object to add.
+            force_generator (AbstractForceGenerator): The AbstractForceGenerator object to add.
         """
         self.force_generators.append(force_generator)
 
@@ -186,7 +196,7 @@ class World:
         Removes a force generator from the world.
 
         Args:
-            force_generator: The AbstractForceGenerator object to remove.
+            force_generator (AbstractForceGenerator): The AbstractForceGenerator object to remove.
         """
         if force_generator in self.force_generators:
             self.force_generators.remove(force_generator)
@@ -196,10 +206,10 @@ class World:
         Returns a list of bodies at the given world space point.
 
         Args:
-            point: The world space point to check.
+            point (Vec2): The world space point to check.
 
         Returns:
-            A list of bodies at the specified point.
+            List[Body]: A list of bodies at the specified point.
         """
         # this can probably be optimized by using a spatial partitioning structure
 

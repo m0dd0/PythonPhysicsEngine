@@ -1,3 +1,16 @@
+"""
+This module contains classes for visualizing physics simulations.
+
+The `View` class is an abstract base class for all visualization classes.
+It provides a standardized interface for visualizing physics simulations, including
+methods for drawing bodies, joints, and other simulation elements.
+
+The available visualization classes are:
+- `PygameView`: A visualization class using PyGame.
+
+Besides the `View` class, this module also contains the `Camera` class,
+which is responsible for converting between world coordinates and screen coordinates.
+"""
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Dict, Any
 
