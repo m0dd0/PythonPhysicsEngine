@@ -1,3 +1,11 @@
+"""
+Module containing the narrow-phase collision detection strategy.
+
+The narrow-phase collision detection is the second step in the collision detection process.
+It is responsible for finding the contacts between two bodies that are determined to be colliding by the broad-phase collision detection.
+Currently, we use a dispatcher that dispatches to specific handler objects for each combination of shape types.
+"""
+
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional, Dict
 
@@ -10,6 +18,8 @@ from ppe.engine.collision_handlers import (
 )
 from ppe.engine.debug import AbstractDebugDrawer
 
+# we associate shape types with integer IDs so we can define an order of the types
+# this is important so that the argument order of the collision handlers are consistent
 SHAPE_TYPE_TO_ID = {
     "circle": 0,
     "polygon": 1,
@@ -25,7 +35,7 @@ class AbstractNarrowPhase(ABC):
         Initializes the narrow-phase with an optional debug drawer.
 
         Args:
-            debug_drawer: An optional debug drawer for visualizing collisions.
+            debug_drawer (AbstractDebugDrawer, optional): An optional debug drawer for visualizing collisions.
         """
         self.debug_drawer = debug_drawer
 
@@ -36,6 +46,13 @@ class AbstractNarrowPhase(ABC):
         """
         Takes potential pairs from the broad phase and returns a list of
         confirmed contacts with their collision data.
+
+        Args:
+            potential_pairs (List[Tuple[Body, Body]]): A list of tuples, where each tuple contains a pair of bodies
+            that might be colliding.
+
+        Returns:
+            List[Contact]: A list of Contact objects.
         """
         raise NotImplementedError
 
@@ -53,7 +70,9 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
         concrete handler objects.
 
         Args:
-            handlers: A dictionary mapping an integer key to a handler object.
+            handlers (Dict[Tuple[str, str], AbstractCollisionHandler], optional): A dictionary mapping an integer key to a handler object.
+                Defaults to a default handler map.
+            debug_drawer (AbstractDebugDrawer, optional): An optional debug drawer for visualizing collisions.
         """
         if handlers is None:
             handlers = {
@@ -86,7 +105,16 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
         super().__init__(debug_drawer)
 
     def _dispatch_collision(self, body_a: Body, body_b: Body) -> Optional[Contact]:
-        """Finds and calls the correct handler for a pair of bodies."""
+        """
+        Finds and calls the correct handler for a pair of bodies based on the shape type of each body.
+
+        Args:
+            body_a (Body): The first body.
+            body_b (Body): The second body.
+
+        Returns:
+            Optional[Contact]: The contact information if a collision is detected, otherwise None.
+        """
         id_a = SHAPE_TYPE_TO_ID[body_a.shape.get_type()]
         id_b = SHAPE_TYPE_TO_ID[body_b.shape.get_type()]
 
@@ -108,7 +136,17 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
         self, potential_pairs: List[Tuple[Body, Body]]
     ) -> List[Contact]:
         """
-        Takes potential collision pairs and returns a list of confirmed contacts.
+        Takes a list of potential collision pairs and returns a list of confirmed contacts.
+
+        Each contact represents a collision between two bodies and contains information about the collision,
+        such as the reference body, the incident body, the collision normal, penetration depth, and contact points.
+
+        Args:
+            potential_pairs (List[Tuple[Body, Body]]): A list of tuples, where each tuple contains a pair of bodies
+                that might be colliding.
+
+        Returns:
+            List[Contact]: A list of Contact objects, each representing a confirmed collision.
         """
         contacts = []
         for body_a, body_b in potential_pairs:

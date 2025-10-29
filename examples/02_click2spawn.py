@@ -1,5 +1,5 @@
 """
-Example 02: Legacy Click-to-Create Physics Bodies
+Example 02: Click2Spawn
 This example demonstrates a simple interactive 2D physics simulation.
 Users can spawn new polygon or circle bodies into the world by clicking with the mouse:
 - Left click creates a random rectangle.

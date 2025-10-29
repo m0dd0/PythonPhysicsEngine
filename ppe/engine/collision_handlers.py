@@ -1,3 +1,15 @@
+"""
+Module containing classes for handling collisions between different shapes.
+
+The module contains the following classes:
+
+- `AbstractCollisionHandler`: An abstract base class for all collision handlers.
+- `CircleVsCircleHandler`: Generates contacts for two colliding circles.
+- `CircleVsPolygonHandler`: Generates contacts for a circle and a polygon.
+- `SatPolygonHandler`: Generates contacts for two colliding convex polygons using SAT.
+
+"""
+
 import math
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional
@@ -38,22 +50,34 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
     """Generates contacts for two colliding circles."""
 
     def generate_contact(self, body_a: Body, body_b: Body) -> Optional[Contact]:
-        """Checks for collision between two circles."""
+        """Checks for collision between two circles.
+        
+        Args:
+            body_a: The first body.
+            body_b: The second body.
+
+        Returns:
+            A Contact object if a collision occurred, otherwise None.
+        """
         assert body_a.shape.get_type() == "circle"
         assert body_b.shape.get_type() == "circle"
 
-        shape_ref: CircleShape = body_a.shape
-        shape_inc: CircleShape = body_b.shape
+        # we define body_a to be the reference body and body_b to be the incident body
+        # we rename the variables to make the naming consistent
+        reference_body, incident_body = body_a, body_b
 
-        ref_to_inc = body_b.position - body_a.position
-        sum_radii = shape_ref.radius + shape_inc.radius
+        reference_shape: CircleShape = reference_body.shape
+        incident_shape: CircleShape = incident_body.shape
+
+        ref_to_inc = incident_body.position - reference_body.position
+        sum_radii = reference_shape.radius + incident_shape.radius
 
         # using the squared distance to avoid a sqrt call for performance
         dist_sq = ref_to_inc.length_squared()
         # if self.debug_drawer:
-        #     # draw line from body_a to body_b in blue
+        #     # draw line from reference body to incident body
         #     self.debug_drawer.draw_line(
-        #         body_a.position, body_b.position, color=(0, 0, 255), arrow=True
+        #         reference_body.position, body_b.position, color=(0, 0, 255), arrow=True
         #     )
 
         if dist_sq >= sum_radii * sum_radii:
@@ -62,25 +86,15 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
         dist = math.sqrt(dist_sq)
         penetration = sum_radii - dist
         normal = ref_to_inc.normalize()
-        contact_point = body_b.position - normal * shape_inc.radius # body_b = incident shape
+        contact_point = incident_body.position - normal * incident_shape.radius
 
-        return Contact(body_a, body_b, normal, penetration, [contact_point])
+        return Contact(
+            reference_body, incident_body, normal, penetration, [contact_point]
+        )
 
 
 class SatPolygonHandler(AbstractCollisionHandler):
-    """Generates contacts for two colliding convex polygons using SAT."""
-
-    def __init__(
-        self,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
-    ):
-        """
-        Initializes the collision handler.
-
-        Args:
-            debug_drawer: An optional debug drawer for visualizing collisions.
-        """
-        super().__init__(debug_drawer)
+    """Generates contacts for two (potentially) colliding convex polygons using SAT."""
 
     def _clip_incident_edge(
         self,
@@ -88,6 +102,17 @@ class SatPolygonHandler(AbstractCollisionHandler):
         clip_plane_normal: Vec2,
         clip_plane_offset: float,
     ) -> Tuple[Vec2, Vec2]:
+        """
+        Clip an incident edge against a clipping plane defined by a normal and offset.
+
+        Args:
+            incident_edge (Tuple[Vec2, Vec2]): The edge to clip defined by its two vertices.
+            clip_plane_normal (Vec2): The normal of the clipping plane.
+            clip_plane_offset (float): The offset of the clipping plane.
+
+        Returns:
+            Tuple[Vec2, Vec2]: The clipped edge.
+        """
         v1, v2 = incident_edge
         clipped_points = []
 
@@ -128,36 +153,43 @@ class SatPolygonHandler(AbstractCollisionHandler):
             (test_point - edge_start).dot(edge_normal) for test_point in test_points
         ]
 
-    def generate_contact(self, body_a: Body, body_b: Body) -> Optional[Contact]:
-        """Checks for collision using the Separating Axis Theorem."""
-        assert body_a.shape.get_type() == "polygon"
-        assert body_b.shape.get_type() == "polygon"
+    def _find_overlap(
+        self,
+        own_normals: List[Vec2],
+        own_vertices: List[Vec2],
+        other_vertices: List[Vec2],
+    ) -> Tuple[bool, float, Vec2, Tuple[Vec2, Vec2]]:
+        """
+        Checks whether there is a a given normal along which the projected vertices 
+        of the other polygon are in front and behind the corresponding edge.
+        If this is the case there might be an overlap along this normal of the two polygons.
 
-        shape_a: PolygonShape = body_a.shape
-        shape_b: PolygonShape = body_b.shape
+        Args:
+            own_normals (List[Vec2]): The normals of the edges of the polygon.
+            own_vertices (List[Vec2]): The vertices of the polygon.
+            other_vertices (List[Vec2]): The vertices of the other polygon.
 
-        verts_a = shape_a.get_world_space_vertices(body_a.position, body_a.angle)
-        verts_b = shape_b.get_world_space_vertices(body_b.position, body_b.angle)
-
-        normals_a = shape_a.get_normals(body_a.position, body_a.angle)
-        normals_b = shape_b.get_normals(body_b.position, body_b.angle)
-
+        Returns:
+            Tuple[bool, float, Vec2, Vec2]: A tuple containing information about the overlap:
+                - bool: Whether the two polygons overlap along any of the given normals.
+                - float: The overlap (the distance along the collision normal between the closest points of the two polygons).
+                - Vec2: The collision normal (the normal of the edge that is being penetrated).
+                - Tuple[Vec2, Vec2]: The reference edge (the edge of the first polygon that is being penetrated).
+        """
         min_overlap = float("inf")
         collision_normal = None
         reference_edge = None
-        reference_body_is_a = None
         # the shape whose normal has the smallest overlap "owns" the collision normal
-        # this corresponding edge of this normal is called "reference edge" and is defined
-        #   as the edge that is being hit/penetrated
-        # contrary the edge that penetrates the other shape is called "incident edge"
-        #   and is defined as the edge on the other shape whose normal is most aligned
-        #   (but pointing in the opposite direction) with the collision normal
-        #   note that a definition using the most penetrating point would not work as it
-        #   would not work in the case of parallel edges (e.g. in a rectangle)
+        # this corresponding edge of this normal is the reference edge (getting penetrated)
+        # contrary the incident edge (penetrating one) is defined as the edge on the incident 
+        # shape whose normal is most aligned (but pointing in the opposite direction) with 
+        # the collision normal
+        # note that a definition using the most penetrating point would not work as it
+        # would not work in the case of parallel edges (e.g. in a rectangle)
 
         # find overlap, reference edge and collision normal
-        for i, normal_a_i in enumerate(normals_a):
-            # checking fot overlap only ir not enough since in the case of parallel edges (e.g. in a rectangle)
+        for i, normal_a_i in enumerate(own_normals):
+            # checking onyl for overlap is not enough since in the case of parallel edges (e.g. in a rectangle)
             # the overlap along the normals of parallel edges is the same
             # in this case the opposite edge can be wrongly selected as the reference edge
             # thus we use another criterion: we check whether the vertices of the other shape are on different sides
@@ -165,10 +197,10 @@ class SatPolygonHandler(AbstractCollisionHandler):
             # if this is the case, we save the overlap by computing the distance of the farthest vertex of the other shape
             # to the reference edge along the negative of the outward pointing normal
 
-            distances = self._distances_from_edge(verts_b, verts_a[i], normal_a_i)
+            distances = self._distances_from_edge(other_vertices, own_vertices[i], normal_a_i)
             # check the sign of the distances to know whether they are behind or in front of the edge
             if all(d >= 0 for d in distances):
-                return None  # all vertices are in front of the edge -> no collision, we found a separating axis
+                return False, None, None, None  # all vertices are in front of the edge -> no collision, we found a separating axis
             elif all(d <= 0 for d in distances):
                 continue  # all points are "behind" the edge -> the opposite edge is "responible" for detecting potential collisions
             else:
@@ -179,31 +211,68 @@ class SatPolygonHandler(AbstractCollisionHandler):
                 if overlap < min_overlap:
                     min_overlap = overlap
                     collision_normal = normal_a_i
-                    reference_edge = (verts_a[i], verts_a[(i + 1) % len(verts_a)])
-                    reference_body_is_a = True
+                    reference_edge = (
+                        own_vertices[i],
+                        own_vertices[(i + 1) % len(own_vertices)],
+                    )
 
-        # do the same for the other polygon
-        for i, normal_b_i in enumerate(normals_b):
-            distances = self._distances_from_edge(verts_a, verts_b[i], normal_b_i)
-            if all(d >= 0 for d in distances):
-                return None
-            elif all(d <= 0 for d in distances):
-                continue
-            else:
-                overlap = -min(distances)
-                if overlap < min_overlap:
-                    min_overlap = overlap
-                    collision_normal = normal_b_i
-                    reference_edge = (verts_b[i], verts_b[(i + 1) % len(verts_b)])
-                    reference_body_is_a = False
+        return True, min_overlap, collision_normal, reference_edge
 
-        ### find the incident edge: the edge whose normal is most contrary to the collision normal
-        if reference_body_is_a:
+    def generate_contact(self, body_a: Body, body_b: Body) -> Optional[Contact]:
+        """
+        Checks for collision between two polygons using the Separating Axis Theorem (SAT).
+
+        SAT is a method to detect whether two convex shapes are overlapping.
+        It is based on the idea that if two shapes do not overlap, there exists an axis
+        (a line perpendicular to the edge of one of the shapes) on which the projections
+        of the shapes do not overlap.
+
+        If no such axis exists, the shapes are overlapping.
+
+        Args:
+            body_a (Body): The first body.
+            body_b (Body): The second body.
+
+        Returns:
+            Contact: A Contact object if a collision occurred, otherwise None.
+        """
+        assert body_a.shape.get_type() == "polygon"
+        assert body_b.shape.get_type() == "polygon"
+
+        verts_a = body_a.shape.get_world_space_vertices(body_a.position, body_a.angle)
+        verts_b = body_b.shape.get_world_space_vertices(body_b.position, body_b.angle)
+
+        normals_a = body_a.shape.get_normals(body_a.position, body_a.angle)
+        normals_b = body_b.shape.get_normals(body_b.position, body_b.angle)
+
+        is_collision_a, min_overlap_a, collision_normal_a, reference_edge_a = self._find_overlap(
+            normals_a, verts_a, verts_b
+        )
+        if not is_collision_a:
+            return None
+        
+        is_collision_b, min_overlap_b, collision_normal_b, reference_edge_b = self._find_overlap(
+            normals_b, verts_b, verts_a
+        )
+        if not is_collision_b:
+            return None
+
+        if min_overlap_a < min_overlap_b:
+            min_overlap = min_overlap_a
+            collision_normal = collision_normal_a
+            reference_edge = reference_edge_a
             incident_shape_normals = normals_b
             incident_shape_verts = verts_b
+            reference_body = body_a
+            incident_body = body_b
         else:
+            min_overlap = min_overlap_b
+            collision_normal = collision_normal_b
+            reference_edge = reference_edge_b
             incident_shape_normals = normals_a
             incident_shape_verts = verts_a
+            reference_body = body_b
+            incident_body = body_a
 
         incident_edge_index = min(
             range(len(incident_shape_normals)),
@@ -241,16 +310,17 @@ class SatPolygonHandler(AbstractCollisionHandler):
             )
 
         ### clip the incident edge against the perpendicular planes at the end of the reference edge
-        # define the clipping plands: each of the planes is defined by a normal and an offset (how far the plane is moved away from the origin along its normal)
+        # define the clipping planes: each of the planes is defined by a normal and an offset (how far the plane is moved away from the origin along its normal)
         clip_plane_1_normal = (reference_edge[1] - reference_edge[0]).normalize()
         clip_plane_2_normal = (reference_edge[0] - reference_edge[1]).normalize()
         clip_plane_1_offset = reference_edge[0].dot(clip_plane_1_normal)
         clip_plane_2_offset = reference_edge[1].dot(clip_plane_2_normal)
 
-        # check wehther the incident edge corners are inside the clipping planes
+        # clip the incident edge corners are against the first plane ...
         clipped_points = self._clip_incident_edge(
             incident_edge, clip_plane_1_normal, clip_plane_1_offset
         )
+        # ... and against the second plane
         clipped_points = self._clip_incident_edge(
             clipped_points, clip_plane_2_normal, clip_plane_2_offset
         )
@@ -262,14 +332,8 @@ class SatPolygonHandler(AbstractCollisionHandler):
             if (p - reference_edge[0]).dot(collision_normal) < 0
         ]
 
-        # it is assumed that the collision normal always points from collision.body_a to collision.body_b
-        # the collision normal we found here points from the reference shape to the incident shape
-        # thus we need to flip it if the reference body is not body_a
-        if not reference_body_is_a:
-            body_a, body_b = body_b, body_a
-
         return Contact(
-            body_a, body_b, collision_normal, min_overlap, list(clipped_points)
+            reference_body, incident_body, collision_normal, min_overlap, clipped_points
         )
 
 
@@ -277,9 +341,24 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
     """Generates contacts for a circle and a polygon."""
 
     def generate_contact(self, body_a: Body, body_b: Body) -> Optional[Contact]:
-        """Checks for collision between a circle and a polygon."""
-        # if isinstance(body_b.shape, CircleShape):
-        #     body_a, body_b = body_b, body_a
+        """
+        Checks for collision between a circle and a polygon.
+
+        This handler generates a single contact if a collision is detected.
+        The contact normal points outwards from the circle and into the polygon.
+        The contact point is the point on the polygon's surface closest to the circle's center.
+        The penetration depth is the distance required to separate the circle and the polygon.
+
+        Args:
+            body_a (Body): The circle body.
+            body_b (Body): The polygon body.
+
+        Returns:
+            Contact: A Contact object if a collision occurred, otherwise None.
+        """
+
+        # the dispatch system ensures that the passed bodies are ordered by their shape type ID
+        # the shape type ID is 0 for circles and 1 for polygons
         circle_body = body_a
         polygon_body = body_b
         assert circle_body.shape.get_type() == "circle"

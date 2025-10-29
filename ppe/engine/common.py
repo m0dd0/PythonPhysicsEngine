@@ -1,7 +1,14 @@
+"""
+This module contains core classes and functions for the physics engine.
+It includes classes for representing vectors, shapes, bodies, joints, and contacts.
+physics-related calculations.
+"""
+
 import math
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Union
 import random
+from dataclasses import dataclass
 
 
 class Vec2:
@@ -57,6 +64,11 @@ class Vec2:
         )
 
     def normalize(self) -> "Vec2":
+        """Normalizes the vector to unit length.
+
+        If the vector is zero length, a zero vector is returned.
+        Otherwise, the vector is divided by its length to produce a unit vector.
+        """
         l = self.length()
         if l == 0:
             return Vec2(0, 0)
@@ -250,9 +262,12 @@ class Shape(ABC):
 
 class CircleShape(Shape):
     def __init__(self, radius: float):
-        self.radius = radius
+        """Initializes a CircleShape with the given radius.
 
-        # TODO check if caching of aabb and interatia improves performance and by how much. try lru cache util and custom caching implemenation where we do not need to hash the inputs
+        Args:
+            radius (float): The radius of the circle.
+        """
+        self.radius = radius
 
     @classmethod
     def create_random_circle(
@@ -278,6 +293,19 @@ class CircleShape(Shape):
         return 0.5 * mass * self.radius * self.radius
 
     def get_aabb(self, position: Vec2, angle: float) -> Tuple[Vec2, Vec2]:
+        """
+        Calculates the Axis-Aligned Bounding Box (AABB) of the circle in world space.
+
+        Args:
+            position (Vec2): The world-space position of the circle's body.
+            angle (float): The world-space angle of the circle's body.
+
+        Returns:
+            A tuple containing the min and max points of the AABB.
+        """
+        # TODO check if caching of aabb and interatia improves performance and by how much.
+        # at the aabb narrow phase the aabbs get accessed for each pair of bodies and currently it is recomputed every time
+        # try lru cache util and custom caching implemenation where we do not need to hash the inputs
         radius = self.radius
         return (
             Vec2(position.x - radius, position.y - radius),
@@ -285,13 +313,22 @@ class CircleShape(Shape):
         )
 
     def is_point_inside(self, point: Vec2, position: Vec2, angle: float) -> bool:
-        """Checks if a point is inside the circle in world space."""
-        # No need to consider angle for circles, as they are symmetric
+        """
+        Checks if a point is inside the circle in world space.
+
+        Args:
+            point (Vec2): The point to check.
+            position (Vec2): The world-space position of the circle's body.
+            angle (float): The world-space angle of the circle's body 
+                (ignored for circles but required for consistency with other shapes).
+
+        Returns:
+            True if the point is inside the circle, False otherwise.
+        """
         distance_squared = (point.x - position.x) ** 2 + (point.y - position.y) ** 2
         return distance_squared <= self.radius**2
 
     def get_area(self) -> float:
-        """Calculates the area of the circle."""
         return math.pi * self.radius**2
 
 
@@ -335,7 +372,20 @@ class PolygonShape(Shape):
         self.vertices = cleaned_vertices
 
     def _remove_colinear(self, vertices: List[Vec2]) -> List[Vec2]:
-        """Removes vertices that are co-linear with their neighbors."""
+        """
+        Removes vertices that are co-linear with their neighbors.
+
+        Two vertices are considered co-linear if the cross product of the two
+        edge vectors is zero. This function iterates over the input vertices,
+        checks for co-linear vertices, and returns a new list with the
+        co-linear vertices removed.
+
+        Args:
+            vertices (List[Vec2]): A list of Vec2 vertices defining the polygon's shape.
+
+        Returns:
+            List[Vec2]: A new list with the co-linear vertices removed.
+        """
         cleaned = []
         for i in range(len(vertices)):  # pylint: disable=consider-using-enumerate
             p_prev = vertices[i - 1]
@@ -354,7 +404,14 @@ class PolygonShape(Shape):
         return cleaned
 
     def _get_signed_area(self, vertices: List[Vec2]) -> float:
-        """Calculates the signed area using the shoelace formula."""
+        """Calculates the signed area using the shoelace formula.
+
+        Args:
+            vertices (List[Vec2]): A list of Vec2 vertices defining the polygon's shape.
+
+        Returns:
+            float: The signed area of the polygon.
+        """
         # we are not reusing the get_area method here since we need the signed area for winding order
         # which doesnt make sense for the get_area method
         area = 0.0
@@ -364,7 +421,14 @@ class PolygonShape(Shape):
         return area / 2.0
 
     def _is_convex(self, vertices: List[Vec2]) -> bool:
-        """Checks if a CCW polygon is convex."""
+        """Checks if a CCW polygon is convex.
+
+        Args:
+            vertices (List[Vec2]): A list of Vec2 vertices defining the polygon's shape.
+
+        Returns:
+            bool: True if the polygon is convex, False otherwise.
+        """
         # A CCW polygon is convex if all turns are to the left (or straight)
         # although the code is very similar to the one in _remove_colinear, we keep it seperate for better modularity
         for i in range(len(vertices)):  # pylint: disable=consider-using-enumerate
@@ -381,9 +445,14 @@ class PolygonShape(Shape):
         return True
 
     def _center_vertices(self, vertices: List[Vec2]) -> List[Vec2]:
-        """
-        Calculates the true geometric centroid and translates the vertices so the
+        """ Calculates the true geometric centroid and translates the vertices so the
         centroid is at the origin (0,0). Assumes a valid, non-degenerate polygon.
+        
+        Args:
+            vertices (List[Vec2]): A list of Vec2 vertices defining the polygon's shape.
+
+        Returns:
+            List[Vec2]: A list of Vec2 vertices defining the polygon's shape with the centroid at the origin.
         """
         # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
         signed_area = self._get_signed_area(vertices)
@@ -449,8 +518,18 @@ class PolygonShape(Shape):
         return "polygon"
 
     def get_world_space_vertices(self, position: Vec2, angle: float) -> List[Vec2]:
-        """Calculates the world-space vertices of the polygon."""
-        # TODO check if caching rotated vertices improves performance
+        """
+        Calculates the world-space vertices of the polygon, taking into account the position and rotation of the shape.
+
+        Args:
+            position (Vec2): The world-space position of the shape.
+            angle (float): The world-space angle of the shape in radians.
+
+        Returns:
+            List[Vec2]: A list of world-space vertices defining the shape.
+        """
+        # TODO check if caching rotated vertices improves performance since the world space vertices 
+        # get accessed multiple times per simulation step wlthough the angle and position do not change
         cos_angle = math.cos(angle)
         sin_angle = math.sin(angle)
         return [
@@ -462,7 +541,17 @@ class PolygonShape(Shape):
         ]
 
     def get_normals(self, position: Vec2, angle: float) -> List[Vec2]:
-        """Calculates the world-space normals of the polygon."""
+        """
+        Calculates the world-space normals of the polygon, taking into account the position and rotation of the shape.
+
+        Args:
+            position (Vec2): The world-space position of the shape.
+            angle (float): The world-space angle of the shape in radians.
+
+        Returns:
+            List[Vec2]: A list of world-space normals defining the shape.
+        """
+        # TODO check if caching normals improves performance since they might get accessed multiple times per simulation step
         world_space_vertices = self.get_world_space_vertices(position, angle)
         normals = []
         for i in range(  # pylint: disable=consider-using-enumerate
@@ -477,7 +566,17 @@ class PolygonShape(Shape):
         return normals
 
     def get_edges(self, position: Vec2, angle: float) -> List[Tuple[Vec2, Vec2]]:
-        """Calculates the world-space edges of the polygon."""
+        """
+        Calculates the world-space edges of the polygon, taking into account the position and rotation of the shape.
+
+        Args:
+            position (Vec2): The world-space position of the shape.
+            angle (float): The world-space angle of the shape in radians.
+
+        Returns:
+            List[Tuple[Vec2, Vec2]]: A list of world-space edges defining the shape, where each edge is represented as a tuple of two vertices.
+        """
+        # TODO check if caching edges improves performance since they might get accessed multiple times per simulation step
         world_space_vertices = self.get_world_space_vertices(position, angle)
         edges = []
         for i in range(  # pylint: disable=consider-using-enumerate
@@ -489,6 +588,18 @@ class PolygonShape(Shape):
         return edges
 
     def calculate_inertia(self, mass: float) -> float:
+        """Calculates the moment of inertia for this shape.
+
+        The moment of inertia is a measure of how much mass is distributed around an axis.
+        For a rectangle, the moment of inertia is I = (1/12) * m * (w^2 + h^2).
+
+        Args:
+            mass (float): The mass of the shape.
+
+        Returns:
+            float: The moment of inertia of the shape.
+        """ 
+        # TODO check if caching inertia improves performance since it gets accessed multiple times per simulation step
         min_x = min(v.x for v in self.vertices)
         max_x = max(v.x for v in self.vertices)
         min_y = min(v.y for v in self.vertices)
@@ -498,7 +609,17 @@ class PolygonShape(Shape):
         return (1.0 / 12.0) * mass * (width**2 + height**2)
 
     def get_aabb(self, position: Vec2, angle: float) -> Tuple[Vec2, Vec2]:
-        """Calculates the AABB of the polygon shape in world space."""
+        """
+        Calculates the Axis-Aligned Bounding Box (AABB) of the shape in world space.
+
+        Args:
+            position (Vec2): The world-space position of the shape's body.
+            angle (float): The world-space angle of the shape's body.
+
+        Returns:
+            A tuple containing the min and max points of the AABB.
+        """
+        # TODO check if caching aabb improves performance since it gets accessed multiple times per simulation step
         world_space_vertices = self.get_world_space_vertices(position, angle)
 
         min_x = min(v.x for v in world_space_vertices)
@@ -599,7 +720,7 @@ class PolygonShape(Shape):
 #             sub_shapes: A list of tuples, each containing a shape, its position relative to the compound shape's origin,
 #                         and its rotation angle.
 #         """
-#         # TODO
+#         # TODO implement
 #         raise NotImplementedError("CompoundShape is not implemented yet.")
 
 #     def get_type(self) -> str:
@@ -611,33 +732,31 @@ class PolygonShape(Shape):
 #     def get_aabb(self, position, angle) -> Tuple[Vec2, Vec2]:
 #         raise NotImplementedError("CompoundShape is not implemented yet.")
 
-# TODO use datackass
+@dataclass
 class Contact:
-    """Holds information about a collision between two bodies."""
-
-    def __init__(
-        self,
-        body_a: Body, # TODO rename to reference and incident body
-        body_b: Body,
-        normal: Vec2,
-        penetration_depth: float,
-        contact_points: List[Vec2],
-    ):
-        self.body_a = body_a # reference body
-        self.body_b = body_b # incident body
-        # normal is assumed to always point from body_a to body_b
-        self.normal = normal
-        self.penetration_depth = penetration_depth
-        # contact_points are assumed to be located on body_b (incident body)
-        self.contact_points = contact_points
+    """Holds information about a collision between two bodies.
+    
+    Holds the following information:
+    reference_body: The reference body (the body that gets penetrated).
+    incident_body: The incident body (the body that is penetrating the reference body).
+    normal: The normal of the contact. Points from reference body to incident body.
+    penetration_depth: The depth of penetration.
+    contact_points: The contact points. Usually one except for side-to-side collisions.
+    """
+    reference_body: Body  # reference body
+    incident_body: Body  # incident body
+    normal: Vec2  # normal is assumed to always point from reference body to incident body
+    penetration_depth: float
+    contact_points: List[Vec2]  # contact_points are assumed to be located on body_b (incident body)
 
 
 class Joint(ABC):
+    """Base class for joints."""
     pass
 
 
 class DistanceJoint(Joint):
-    """A constraint that keeps two bodies at a fixed distance."""
+    """A constraint that keeps two points on two bodies at a fixed distance."""
 
     def __init__(
         self,
@@ -647,6 +766,16 @@ class DistanceJoint(Joint):
         anchor_b: Vec2,
         distance: float,
     ):
+        """
+        Initializes a new DistanceJoint instance.
+
+        Args:
+            body_a (Body): The first body.
+            body_b (Body): The second body.
+            anchor_a (Vec2): The anchor point on the first body.
+            anchor_b (Vec2): The anchor point on the second body.
+            distance (float): The desired distance between the anchor points.
+        """
         self.body_a = body_a
         self.body_b = body_b
         self.anchor_a = anchor_a
