@@ -745,7 +745,7 @@ class Contact:
     """
     reference_body: Body  # reference body
     incident_body: Body  # incident body
-    normal: Vec2  # normal is assumed to always point from reference body to incident body
+    normal: Vec2  # normal is assumed to always point from reference body to incident body and has unit length
     penetration_depth: float
     contact_points: List[Vec2]  # contact_points are assumed to be located on body_b (incident body)
 

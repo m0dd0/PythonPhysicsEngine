@@ -11,7 +11,7 @@ bodies in the simulation.
 from typing import List, Optional
 
 from ppe.engine.common import Body, Joint, Vec2
-from ppe.engine.solvers import AbstractSolver, IterativeImpulseSolver
+from ppe.engine.solvers import AbstractSolver, SimpleIterativeImpulseSolver
 from ppe.engine.collision_broad import AbstractBroadPhase, AABBBroadPhase
 from ppe.engine.collision_narrow import AbstractNarrowPhase, DispatchNarrowPhase
 from ppe.engine.collision_handlers import (
@@ -74,7 +74,7 @@ class World:
             SemiImplicitEulerIntegrator() if integrator is None else integrator
         )
         self.solver = (
-            IterativeImpulseSolver(debug_drawer=debug_drawer)
+            SimpleIterativeImpulseSolver(debug_drawer=debug_drawer)
             if solver is None
             else solver
         )

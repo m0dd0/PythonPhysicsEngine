@@ -21,6 +21,8 @@ from ppe.engine.collision_handlers import (
     SatPolygonHandler,
 )
 from ppe.engine.collision_narrow import DispatchNarrowPhase
+from ppe.engine.solvers import SimpleIterativeImpulseSolver
+from ppe.engine.solvers import SemiImplicitEulerIntegrator
 
 # application components
 from ppe.utils.view import PygameView, Camera, PygameDebugDrawer
@@ -96,6 +98,8 @@ def setup() -> Tuple[
 
     ## Setup the world simulation
     world = World(
+        solver=SimpleIterativeImpulseSolver(iterations=1),
+        integrator=SemiImplicitEulerIntegrator(),
         bodies=initial_bodies,
         debug_drawer=debug_drawer,
         profiler=profiler,

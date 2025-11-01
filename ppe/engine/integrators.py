@@ -134,6 +134,8 @@ class PositionVerletIntegrator(AbstractIntegrator):
             bodies (List[Body]): The list of all bodies in the simulation.
             dt (float): The time step for the frame.
         """
+        # TODO isnt the posison and velocity integration funcation mixed up?
+
         for body in bodies:
             if body.inverse_mass == 0.0:
                 continue

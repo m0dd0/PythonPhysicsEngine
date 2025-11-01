@@ -14,7 +14,7 @@ import pygame
 # engine components
 from ppe.engine.common import Body, PolygonShape, Vec2, CircleShape
 from ppe.engine.world import World
-from ppe.engine.solvers import IterativeImpulseSolver, NoOpSolver
+from ppe.engine.solvers import SimpleIterativeImpulseSolver, NoOpSolver
 from ppe.engine.integrators import SemiImplicitEulerIntegrator
 from ppe.engine.collision_broad import AABBBroadPhase
 from ppe.engine.collision_narrow import DispatchNarrowPhase
