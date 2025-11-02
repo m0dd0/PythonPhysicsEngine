@@ -129,7 +129,7 @@ class IterativeImpulseSolver(AbstractSolver):
         # relative velocity of both bodies at the contact point
         # relative_normal_velocity_factor is a scaling factor for the (unit-length) collision normal vector
         # so relative_normal_velocity_factor * contact.normal is the relative velocity in the collision normal direction
-        relative_collision_point_velocity = v_coll_point_ref - v_coll_point_inc
+        relative_collision_point_velocity = v_coll_point_inc - v_coll_point_ref
         relative_normal_velocity_factor = relative_collision_point_velocity.dot(
             contact.normal
         )
@@ -178,7 +178,7 @@ class IterativeImpulseSolver(AbstractSolver):
         correction_impulse_magnitude /= len(
             contact.contact_points
         )  # Distribute impulse
-        # correction_impulse_magnitude /= self.iterations
+        correction_impulse_magnitude /= self.iterations
 
         correction_impulse = contact.normal * correction_impulse_magnitude
         self._apply_impulse(contact.reference_body, -correction_impulse, r_ref)
