@@ -66,7 +66,13 @@ class NoOpSolver(AbstractSolver):
 
 
 class IterativeImpulseSolver(AbstractSolver):
-    """Resolves constraints by applying impulses iteratively."""
+    """
+    A simple iterative impulse-based solver for solving collisions and constraints.
+    This solver applies impulses iteratively to solve collisions and constraints.
+    The impulses change the velocity of the bodies, so that the bodies position gets integrated
+    to physically valid positions. Therefore, this solver is compatible with integrators
+    that determine the bodies position based on their velocity like the semi-implicit euler integrator.
+    """
 
     COMPATIBLE_INTEGRATORS = [SemiImplicitEulerIntegrator]
 
@@ -78,11 +84,22 @@ class IterativeImpulseSolver(AbstractSolver):
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
         """
+        Initializes the solver with the given number of iterations, Baumgarte stabilization factor and allowance,
+        an optional debug drawer, and a boolean indicating whether to use a hacky positional correction.
+        The solver applies impulses iteratively to solve collisions and constraints.
 
         Args:
             iterations (int, optional): The number of iterations to perform when solving the constraints.
+                This is how often, the impulses are recomputed and applied. Especially helpful for stacking scenarios.
                 Defaults to 30.
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for visualizing the simulation.
+            baumgarte_stabilization_factor (float, optional): The factor for the Baumgarte stabilization.
+                Can be thought of the fraction of the overlap depth that a the baumgarte impulse will correct.
+                Setting this to 1 might seem intuitive but ca result in unstable behavior for complex stacking scenarios.
+                Defaults to 0.2.
+            baumgarte_stabilization_thershold (float, optional): The maximum penetration depth
+                that is tolerated before baumgarte stabilization gets applied.
+                Defaults to 0.0.
+            debug_drawer (Optional[AbstractDebugDrawer], optional): An optional debug drawer for visualizing the simulation.
         """
         super().__init__(debug_drawer)
         self.iterations = iterations
@@ -101,7 +118,13 @@ class IterativeImpulseSolver(AbstractSolver):
         body.velocity += impulse * body.inverse_mass
         body.angular_velocity += contact_vector.cross(impulse) * body.inverse_inertia
 
-    def _solve_contact_point(self, contact_point: Vec2, contact: Contact, dt: float):
+    def _solve_contact_point(
+        self,
+        contact_point: Vec2,
+        contact: Contact,
+        dt: float,
+        effective_inverse_mass: float,
+    ):
         """Applies an impulse (change in velocity) to the bodies in the contact based on
         the given contact point. For resolving a collision with multiple contact points,
         this method needs to be called with all contact points in the contact information.
@@ -110,6 +133,9 @@ class IterativeImpulseSolver(AbstractSolver):
             contact_point (Vec2): The contact point for which to apply the impulse.
             contact (Contact): The contact manifold to solve.
             dt (float): The time step for the solver.
+            effective_inverse_mass (float): The effective inverse mass of the bodies in the contact.
+                This value remains constant for a given contact over the solver iterations.
+                Therefore it is only precomputed once and passed to this method.
         """
         # compute the vectors from the bodies centers of mass to the contact point
         r_ref = contact_point - contact.reference_body.position
@@ -137,28 +163,33 @@ class IterativeImpulseSolver(AbstractSolver):
         ### 2. Calculate the effective mass
         # the effective mass represents how resistant the two bodies are to being pushed apart AND the resistance to change their rotation
         # the derivative for the effective mass cna be found here: https://en.wikipedia.org/wiki/Collision_response
-        inverse_effective_mass = (
-            contact.reference_body.inverse_mass
-            + contact.incident_body.inverse_mass
-            + (
-                r_ref.cross(contact.normal) ** 2
-                * contact.reference_body.inverse_inertia
-            )
-            + (r_inc.cross(contact.normal) ** 2 * contact.incident_body.inverse_inertia)
-        )
+        # the effective inverse mass gets already precomputed since it remains the same over the iteratiosn
+        # inverse_effective_mass = (
+        #     contact.reference_body.inverse_mass
+        #     + contact.incident_body.inverse_mass
+        #     + (
+        #         r_ref.cross(contact.normal) ** 2
+        #         * contact.reference_body.inverse_inertia
+        #     )
+        #     + (r_inc.cross(contact.normal) ** 2 * contact.incident_body.inverse_inertia)
+        # )
 
-        if inverse_effective_mass > 0 and relative_normal_velocity_factor < 0:
-            ### 3. Calculate the impulse magnitude (j)  
+        if effective_inverse_mass > 0 and relative_normal_velocity_factor < 0:
+            ### 3. Calculate the impulse magnitude (j)
             # e is the restitution coefficient, which can take values between 0 and 1
             # the higher it is, the more "bouncier" the objects are
-            e = min(contact.reference_body.restitution, contact.incident_body.restitution)
+            e = min(
+                contact.reference_body.restitution, contact.incident_body.restitution
+            )
 
             # j is the magnitude of the impulse that gets applied in the direction of the contact normal
             # using e=0 results in an impulse that just cancels the relative velocity
             # using e=1 results in an impulse that is equal to the relative velocity but in the opposite direction
             j = -(1.0 + e) * relative_normal_velocity_factor
-            j /= inverse_effective_mass
-            j /= len(contact.contact_points)  # Distribute impulse over all contact points
+            j /= effective_inverse_mass
+            j /= len(
+                contact.contact_points
+            )  # Distribute impulse over all contact points
 
             ### 4. Apply the impulse
             impulse = contact.normal * j
@@ -173,7 +204,7 @@ class IterativeImpulseSolver(AbstractSolver):
         correction_impulse_magnitude = (
             (self.baumgarte_stabilization_factor / dt)
             * position_error_to_fix
-            / inverse_effective_mass
+            / effective_inverse_mass
         )
         correction_impulse_magnitude /= len(
             contact.contact_points
@@ -182,7 +213,38 @@ class IterativeImpulseSolver(AbstractSolver):
 
         correction_impulse = contact.normal * correction_impulse_magnitude
         self._apply_impulse(contact.reference_body, -correction_impulse, r_ref)
-        self._apply_impulse(contact.incident_body, correction_impulse , r_inc)
+        self._apply_impulse(contact.incident_body, correction_impulse, r_inc)
+
+    def _compute_effective_inverse_mass(
+        self, contact: Contact, contact_point: Vec2
+    ) -> float:
+        """
+        Computes the effective inverse mass of two bodies in a contact.
+
+        The effective inverse mass represents how resistant the two bodies are to being pushed apart AND the resistance to change their rotation.
+        It is used in the impulse-based solver to compute the impulse magnitude.
+
+        Args:
+            contact (Contact): The contact for which to compute the effective inverse mass.
+            contact_point (Vec2): The contact point for which to compute the effective inverse mass.
+
+        Returns:
+            float: The effective inverse mass of the two bodies in the contact.
+        """
+        r_ref = contact_point - contact.reference_body.position
+        r_inc = contact_point - contact.incident_body.position
+
+        inverse_effective_mass = (
+            contact.reference_body.inverse_mass
+            + contact.incident_body.inverse_mass
+            + (
+                r_ref.cross(contact.normal) ** 2
+                * contact.reference_body.inverse_inertia
+            )
+            + (r_inc.cross(contact.normal) ** 2 * contact.incident_body.inverse_inertia)
+        )
+
+        return inverse_effective_mass
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         """
@@ -197,11 +259,27 @@ class IterativeImpulseSolver(AbstractSolver):
         if len(joints) > 0:
             raise NotImplementedError("Joint solving is not implemented yet.")
 
+        # the effective inverse mass depends only on the bodies positions, masses and inertias
+        # these values stay constant over the iterations.
+        # therfore we can compute them once and store them in a list to improve performance
+        inverse_effective_masses = [
+            [
+                self._compute_effective_inverse_mass(contact, contact_point)
+                for contact_point in contact.contact_points
+            ]
+            for contact in contacts
+        ]
+
         # The main loop that iterates multiple times to allow impulses to propagate
-        for i in range(self.iterations):
-            for contact in contacts:
-                for contact_point in contact.contact_points:
-                    self._solve_contact_point(contact_point, contact, dt)
+        for i_iteration in range(self.iterations):
+            for i_contact, contact in enumerate(contacts):
+                for i_point, contact_point in enumerate(contact.contact_points):
+                    self._solve_contact_point(
+                        contact_point,
+                        contact,
+                        dt,
+                        inverse_effective_masses[i_contact][i_point],
+                    )
 
             # Joint solving would go here in a similar loop
             # for joint in joints:
@@ -291,7 +369,9 @@ class SimpleIterativeImpulseSolver(AbstractSolver):
         if relative_normal_velocity_factor < 0:
             # e is the restitution coefficient, which can take values between 0 and 1
             # the higher it is, the more "bouncier" the objects are
-            e = min(contact.reference_body.restitution, contact.incident_body.restitution)
+            e = min(
+                contact.reference_body.restitution, contact.incident_body.restitution
+            )
 
             # j is the magnitude of the impulse that gets applied in the direction of the contact normal
             # using e=0 results in an impulse that just cancels the relative velocity
@@ -302,9 +382,13 @@ class SimpleIterativeImpulseSolver(AbstractSolver):
             # apply the impulse along the contact normal
             # note that for static bodies the inverse mass is zero and thus the applied velocity change is zero
             impulse = contact.normal * j
-            
-            contact.reference_body.velocity -= impulse * contact.reference_body.inverse_mass
-            contact.incident_body.velocity += impulse * contact.incident_body.inverse_mass
+
+            contact.reference_body.velocity -= (
+                impulse * contact.reference_body.inverse_mass
+            )
+            contact.incident_body.velocity += (
+                impulse * contact.incident_body.inverse_mass
+            )
 
         ### apply baumgarte stabilization
         # this is for fixing the posistional error (penetration depth) without explicitly updating the bodies position
