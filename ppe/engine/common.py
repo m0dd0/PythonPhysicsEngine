@@ -91,6 +91,9 @@ class Vec2:
     def __repr__(self) -> str:
         return f"Vec2({self.x:.2f}, {self.y:.2f})"
 
+    def __neg__(self) -> "Vec2":
+        """Returns the negation of the vector."""
+        return Vec2(-self.x, -self.y)
 
 class Body:
     """Represents a single physical object in the world."""
@@ -726,9 +729,6 @@ class PolygonShape(Shape):
 #     def get_type(self) -> str:
 #         return "compound"
 
-#     def get_type_id(self) -> int:
-#         return 3
-
 #     def get_aabb(self, position, angle) -> Tuple[Vec2, Vec2]:
 #         raise NotImplementedError("CompoundShape is not implemented yet.")
 
@@ -747,7 +747,7 @@ class Contact:
     incident_body: Body  # incident body
     normal: Vec2  # normal is assumed to always point from reference body to incident body and has unit length
     penetration_depth: float
-    contact_points: List[Vec2]  # contact_points are assumed to be located on body_b (incident body)
+    contact_points: List[Vec2]  # contact_points are assumed to be located on incident body
 
 
 class Joint(ABC):

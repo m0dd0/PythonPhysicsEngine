@@ -21,7 +21,7 @@ from ppe.engine.collision_handlers import (
     SatPolygonHandler,
 )
 from ppe.engine.collision_narrow import DispatchNarrowPhase
-from ppe.engine.solvers import SimpleIterativeImpulseSolver
+from ppe.engine.solvers import SimpleIterativeImpulseSolver, IterativeImpulseSolver
 from ppe.engine.solvers import SemiImplicitEulerIntegrator
 
 # application components
@@ -43,7 +43,7 @@ SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 576
 SCREEN_WIDTH_WORLD = 10.0  # World width in physics units
 BODY_STYLE_DEFAULTS = {
-    "circle_orientation_line": False
+    "circle_orientation_line": True
 }
 
 CIRCLE_SPAWN_RADIUS_RANGE = (0.1, 0.3)
@@ -98,7 +98,7 @@ def setup() -> Tuple[
 
     ## Setup the world simulation
     world = World(
-        solver=SimpleIterativeImpulseSolver(iterations=1),
+        solver=IterativeImpulseSolver(),
         integrator=SemiImplicitEulerIntegrator(),
         bodies=initial_bodies,
         debug_drawer=debug_drawer,

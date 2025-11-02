@@ -135,7 +135,7 @@ class World:
         ## solver adjusts velocities to resolve all contacts and joints
         with self.profiler.time("world/solver"):
             self.solver.solve(contacts, self.joints, dt)
-
+        
         ## Updates positions based on the new, corrected velocities
         with self.profiler.time("world/integrate2"):
             self.integrator.integrate_positions(self.bodies, dt)
