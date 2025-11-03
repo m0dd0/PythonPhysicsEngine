@@ -124,7 +124,7 @@ class World:
 
         ## Updates velocities based on accumulated forces
         with self.profiler.time("world/integrate1"):
-            self.integrator.integrate_velocities(self.bodies, dt)
+            self.integrator.pre_solve_integration(self.bodies, dt)
 
         ## Collision Detection
         with self.profiler.time("world/collision_broad"):
@@ -138,7 +138,7 @@ class World:
         
         ## Updates positions based on the new, corrected velocities
         with self.profiler.time("world/integrate2"):
-            self.integrator.integrate_positions(self.bodies, dt)
+            self.integrator.post_solve_integration(self.bodies, dt)
 
         # Reset all forces for the next frame
         for body in self.bodies:

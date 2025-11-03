@@ -24,7 +24,7 @@ class AbstractIntegrator(ABC):
     """An abstract base class for all motion integration strategies."""
 
     @abstractmethod
-    def integrate_velocities(self, bodies: List[Body], dt: float) -> None:
+    def pre_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """
         Updates body velocities based on accumulated forces.
 
@@ -35,7 +35,7 @@ class AbstractIntegrator(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def integrate_positions(self, bodies: List[Body], dt: float) -> None:
+    def post_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """
         Updates body positions based on their current velocities.
 
@@ -49,7 +49,7 @@ class AbstractIntegrator(ABC):
 class NoOpIntegrator(AbstractIntegrator):
     """An integrator that performs no action, for debugging or simple kinematics."""
 
-    def integrate_velocities(self, bodies: List[Body], dt: float) -> None:
+    def pre_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """Does nothing.
 
         Args:
@@ -58,7 +58,7 @@ class NoOpIntegrator(AbstractIntegrator):
         """
         pass
 
-    def integrate_positions(self, bodies: List[Body], dt: float) -> None:
+    def post_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """Does nothing.
 
         Args:
@@ -75,7 +75,7 @@ class SemiImplicitEulerIntegrator(AbstractIntegrator):
         """Initializes the Semi-Implicit Euler integrator."""
         pass
 
-    def integrate_velocities(self, bodies: List[Body], dt: float) -> None:
+    def pre_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """Updates body velocities based on accumulated forces.
         
         Args:
@@ -94,7 +94,7 @@ class SemiImplicitEulerIntegrator(AbstractIntegrator):
             angular_acceleration = body.torque_accumulator * body.inverse_inertia
             body.angular_velocity += angular_acceleration * dt
 
-    def integrate_positions(self, bodies: List[Body], dt: float) -> None:
+    def post_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """Updates body positions based on their current velocities.
         
         Args:
@@ -115,8 +115,7 @@ class SemiImplicitEulerIntegrator(AbstractIntegrator):
 class PositionVerletIntegrator(AbstractIntegrator):
     """
     Updates motion using the Position Verlet integration method.
-    This integrator is highly stable and designed to be paired with a
-    position-based solver.
+    This integrator is designed to be paired with aposition-based solver.
     This integrator requires that the solver only updates position and
     not velocity.
     """
@@ -125,7 +124,7 @@ class PositionVerletIntegrator(AbstractIntegrator):
         """Initializes the Position Verlet integrator."""
         pass
 
-    def integrate_velocities(self, bodies: List[Body], dt: float) -> None:
+    def pre_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """
         Performs the first step of Verlet integration, predicting a new
         provisional position for each body.
@@ -134,8 +133,6 @@ class PositionVerletIntegrator(AbstractIntegrator):
             bodies (List[Body]): The list of all bodies in the simulation.
             dt (float): The time step for the frame.
         """
-        # TODO isnt the posison and velocity integration funcation mixed up?
-
         for body in bodies:
             if body.inverse_mass == 0.0:
                 continue
@@ -145,9 +142,7 @@ class PositionVerletIntegrator(AbstractIntegrator):
             current_angle = body.angle
 
             # --- Update Linear Position ---
-            # displacement = current_pos - previous_pos
             displacement = body.position - body.previous_position
-            # new_pos = current_pos + displacement + acceleration * dt * dt
             acceleration = body.force_accumulator * body.inverse_mass
             body.position += displacement + acceleration * dt * dt
 
@@ -160,7 +155,7 @@ class PositionVerletIntegrator(AbstractIntegrator):
             body.previous_position = current_position
             body.previous_angle = current_angle
 
-    def integrate_positions(self, bodies: List[Body], dt: float) -> None:
+    def post_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """
         Performs the second step of Verlet integration, deriving the final
         velocity from the change in position.
