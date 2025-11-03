@@ -469,7 +469,7 @@ class SimpleIterativeImpulseSolver(AbstractSolver):
                 self._solve_contact(contact, dt)
 
 
-class PositionBasedSolver(AbstractSolver):
+class IterativePositionBasedSolver(AbstractSolver):
     """
     Resolves constraints by directly modifying object positions.
     This method is very stable and avoids the "jitter" of impulse solvers.
@@ -480,9 +480,9 @@ class PositionBasedSolver(AbstractSolver):
 
     def __init__(
         self,
-        iterations: int = 10,
-        stiffness: float = 0.8,
-        allowed_penetration_threshold: float = 0.01,
+        iterations: int = 30,
+        stiffness: float = 0.2,
+        allowed_penetration_threshold: float = 0.0,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
         """
@@ -501,7 +501,7 @@ class PositionBasedSolver(AbstractSolver):
         self.stiffness = stiffness
         self.allowed_penetration_threshold = allowed_penetration_threshold
 
-    def _solve_contact(
+    def _solve_contact_point(
         self, contact: Contact, contact_point: Vec2, effective_inverse_mass: float
     ) -> None:
         """Calculates and applies a direct positional correction to correct position for the
@@ -509,7 +509,9 @@ class PositionBasedSolver(AbstractSolver):
 
         Args:
             contact (Contact): The contact to correct for.
-            contact_point ()
+            contact_point (Vec2): The contact point to correct for.
+            effective_inverse_mass (float): The effective inverse mass of the bodies in
+                the contact wrt the contact point.
         """
         # 1. Calculate the error to fix
         error_to_fix = max(
@@ -526,7 +528,9 @@ class PositionBasedSolver(AbstractSolver):
         # 3. Calculate the Positional Correction Magnitude
         # This is the magnitude of the "push" needed from this contact point
         # to resolve its share of the error.
-        delta_p_magnitude = correction_per_point / effective_inverse_mass
+        delta_p_magnitude = (
+            correction_per_point / effective_inverse_mass / self.iterations
+        )
         correction_vector = contact.normal * delta_p_magnitude
 
         # 5. Apply the Correction Directly to Position and Angle
@@ -544,13 +548,22 @@ class PositionBasedSolver(AbstractSolver):
         r_ref_cross_n = r_ref.cross(contact.normal)
         r_inc_cross_n = r_inc.cross(contact.normal)
 
-        body_ref.angle -= (r_ref_cross_n * body_a.inverse_inertia) * delta_p_magnitude
-        body_b.angle += (r_inc_cross_n * body_b.inverse_inertia) * delta_p_magnitude
+        contact.reference_body.angle -= (
+            r_ref_cross_n * contact.reference_body.inverse_inertia
+        ) * delta_p_magnitude
+        contact.incident_body.angle += (
+            r_inc_cross_n * contact.incident_body.inverse_inertia
+        ) * delta_p_magnitude
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         """
         Iteratively adjusts body positions to resolve penetrations.
-        The 'dt' parameter is unused here, as corrections are not time-based.
+
+        Args:
+            contacts (List[Contact]): A list of contacts to solve.
+            joints (List[Joint]): A list of joints to solve.
+            dt (float): The time step for the solver. Note that this parameter is not used
+                by this solver. However, it is listed here to adhere to the abstract method signature.
         """
         if len(joints) > 0:
             raise NotImplementedError("Joint solving is not implemented yet.")
@@ -569,7 +582,7 @@ class PositionBasedSolver(AbstractSolver):
         for i_iteration in range(self.iterations):
             for i_contact, contact in enumerate(contacts):
                 for i_point, contact_point in enumerate(contact.contact_points):
-                    self._solve_contact(
+                    self._solve_contact_point(
                         contact,
                         contact_point,
                         inverse_effective_masses[i_contact][i_point],

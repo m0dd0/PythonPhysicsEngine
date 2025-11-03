@@ -763,7 +763,9 @@ class BodySpawnController(AbstractController):
 
         for body in bodies_to_spawn:
             if self.spawn_object_at_mouse_position:
-                body.position = self.camera.screen_to_world(input_state.mouse_position)
+                position = self.camera.screen_to_world(input_state.mouse_position)
+                body.position = position
+                body.previous_position = position
             self.world.add_body(body)
 
 

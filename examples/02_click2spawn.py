@@ -21,8 +21,12 @@ from ppe.engine.collision_handlers import (
     SatPolygonHandler,
 )
 from ppe.engine.collision_narrow import DispatchNarrowPhase
-from ppe.engine.solvers import SimpleIterativeImpulseSolver, IterativeImpulseSolver
-from ppe.engine.solvers import SemiImplicitEulerIntegrator
+from ppe.engine.solvers import (
+    SimpleIterativeImpulseSolver,
+    IterativeImpulseSolver,
+    IterativePositionBasedSolver,
+)
+from ppe.engine.solvers import SemiImplicitEulerIntegrator, PositionVerletIntegrator
 
 # application components
 from ppe.utils.view import PygameView, Camera, PygameDebugDrawer
@@ -42,9 +46,7 @@ from ppe.utils.colors import V1_COLORS
 SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 576
 SCREEN_WIDTH_WORLD = 10.0  # World width in physics units
-BODY_STYLE_DEFAULTS = {
-    "circle_orientation_line": True
-}
+BODY_STYLE_DEFAULTS = {"circle_orientation_line": True}
 
 CIRCLE_SPAWN_RADIUS_RANGE = (0.1, 0.3)
 POLYGON_SPAWN_SIDE_RANGE = (0.1, 0.5)
@@ -98,8 +100,8 @@ def setup() -> Tuple[
 
     ## Setup the world simulation
     world = World(
-        solver=IterativeImpulseSolver(),
-        integrator=SemiImplicitEulerIntegrator(),
+        solver=IterativePositionBasedSolver(),
+        integrator=PositionVerletIntegrator(),
         bodies=initial_bodies,
         debug_drawer=debug_drawer,
         profiler=profiler,
@@ -111,9 +113,7 @@ def setup() -> Tuple[
                 ("circle", "polygon"): CircleVsPolygonHandler(
                     debug_drawer=debug_drawer
                 ),
-                ("polygon", "polygon"): SatPolygonHandler(
-                    debug_drawer=debug_drawer
-                ),
+                ("polygon", "polygon"): SatPolygonHandler(debug_drawer=debug_drawer),
             },
         ),
     )

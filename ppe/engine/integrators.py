@@ -14,6 +14,7 @@ easy customization of the motion integration strategy in different simulation
 scenarios.
 However, note that not all solvers can be used with all integrators and vice versa.
 """
+
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -77,7 +78,7 @@ class SemiImplicitEulerIntegrator(AbstractIntegrator):
 
     def pre_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """Updates body velocities based on accumulated forces.
-        
+
         Args:
             bodies (List[Body]): The list of all bodies in the simulation.
             dt (float): The time step for the frame.
@@ -96,7 +97,7 @@ class SemiImplicitEulerIntegrator(AbstractIntegrator):
 
     def post_solve_integration(self, bodies: List[Body], dt: float) -> None:
         """Updates body positions based on their current velocities.
-        
+
         Args:
             bodies (List[Body]): The list of all bodies in the simulation.
             dt (float): The time step for the frame.
