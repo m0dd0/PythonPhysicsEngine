@@ -38,6 +38,37 @@ class AbstractSolver(ABC):
         """
         self.debug_drawer = debug_drawer
 
+    def _compute_effective_inverse_mass(
+        self, contact: Contact, contact_point: Vec2
+    ) -> float:
+        """
+        Computes the effective inverse mass of two bodies in a contact.
+
+        The effective inverse mass represents how resistant the two bodies are to being pushed apart AND the resistance to change their rotation.
+        It is used in the impulse-based solver to compute the impulse magnitude.
+
+        Args:
+            contact (Contact): The contact for which to compute the effective inverse mass.
+            contact_point (Vec2): The contact point for which to compute the effective inverse mass.
+
+        Returns:
+            float: The effective inverse mass of the two bodies in the contact.
+        """
+        r_ref = contact_point - contact.reference_body.position
+        r_inc = contact_point - contact.incident_body.position
+
+        inverse_effective_mass = (
+            contact.reference_body.inverse_mass
+            + contact.incident_body.inverse_mass
+            + (
+                r_ref.cross(contact.normal) ** 2
+                * contact.reference_body.inverse_inertia
+            )
+            + (r_inc.cross(contact.normal) ** 2 * contact.incident_body.inverse_inertia)
+        )
+
+        return inverse_effective_mass
+
     @abstractmethod
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         """
@@ -214,37 +245,6 @@ class IterativeImpulseSolver(AbstractSolver):
         correction_impulse = contact.normal * correction_impulse_magnitude
         self._apply_impulse(contact.reference_body, -correction_impulse, r_ref)
         self._apply_impulse(contact.incident_body, correction_impulse, r_inc)
-
-    def _compute_effective_inverse_mass(
-        self, contact: Contact, contact_point: Vec2
-    ) -> float:
-        """
-        Computes the effective inverse mass of two bodies in a contact.
-
-        The effective inverse mass represents how resistant the two bodies are to being pushed apart AND the resistance to change their rotation.
-        It is used in the impulse-based solver to compute the impulse magnitude.
-
-        Args:
-            contact (Contact): The contact for which to compute the effective inverse mass.
-            contact_point (Vec2): The contact point for which to compute the effective inverse mass.
-
-        Returns:
-            float: The effective inverse mass of the two bodies in the contact.
-        """
-        r_ref = contact_point - contact.reference_body.position
-        r_inc = contact_point - contact.incident_body.position
-
-        inverse_effective_mass = (
-            contact.reference_body.inverse_mass
-            + contact.incident_body.inverse_mass
-            + (
-                r_ref.cross(contact.normal) ** 2
-                * contact.reference_body.inverse_inertia
-            )
-            + (r_inc.cross(contact.normal) ** 2 * contact.incident_body.inverse_inertia)
-        )
-
-        return inverse_effective_mass
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         """
@@ -470,14 +470,107 @@ class SimpleIterativeImpulseSolver(AbstractSolver):
 
 
 class PositionBasedSolver(AbstractSolver):
+    """
+    Resolves constraints by directly modifying object positions.
+    This method is very stable and avoids the "jitter" of impulse solvers.
+    It must be paired with a PositionVerletIntegrator.
+    """
+
     COMPATIBLE_INTEGRATORS = [PositionVerletIntegrator]
 
     def __init__(
-        self, iterations: int = 10, debug_drawer: Optional[AbstractDebugDrawer] = None
+        self,
+        iterations: int = 10,
+        stiffness: float = 0.8,
+        allowed_penetration_threshold: float = 0.01,
+        debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
+        """
+        Initializes the position-based solver.
+
+        Args:
+            iterations (int): The number of solver iterations. Defaults to 10.
+            stiffness (float): A factor (0 to 1) of how much of the error to
+                correct per iteration. 1.0 can be unstable. Defaults to 0.8.
+            penetration_threshold (float): A small amount of penetration to allow (prevents jitter)
+                and that is ignored by the solver. This can prevent jitter. Defaults to 0.01.
+            debug_drawer (AbstractDebugDrawer, optional):
+        """
         super().__init__(debug_drawer)
         self.iterations = iterations
+        self.stiffness = stiffness
+        self.allowed_penetration_threshold = allowed_penetration_threshold
+
+    def _solve_contact(
+        self, contact: Contact, contact_point: Vec2, effective_inverse_mass: float
+    ) -> None:
+        """Calculates and applies a direct positional correction to correct position for the
+        given contact.
+
+        Args:
+            contact (Contact): The contact to correct for.
+            contact_point ()
+        """
+        # 1. Calculate the error to fix
+        error_to_fix = max(
+            0.0, contact.penetration_depth - self.allowed_penetration_threshold
+        )
+        if error_to_fix == 0.0:
+            return
+
+        # 2. We will apply a fraction of the correction at each contact point
+        correction_per_point = (
+            error_to_fix / len(contact.contact_points)
+        ) * self.stiffness
+
+        # 3. Calculate the Positional Correction Magnitude
+        # This is the magnitude of the "push" needed from this contact point
+        # to resolve its share of the error.
+        delta_p_magnitude = correction_per_point / effective_inverse_mass
+        correction_vector = contact.normal * delta_p_magnitude
+
+        # 5. Apply the Correction Directly to Position and Angle
+        # Apply linear correction (weighted by inverse mass)
+        contact.reference_body.position -= (
+            correction_vector * contact.reference_body.inverse_mass
+        )
+        contact.incident_body.position += (
+            correction_vector * contact.incident_body.inverse_mass
+        )
+
+        # Apply angular correction (weighted by inverse inertia)
+        r_ref = contact_point - contact.reference_body.position
+        r_inc = contact_point - contact.incident_body.position
+        r_ref_cross_n = r_ref.cross(contact.normal)
+        r_inc_cross_n = r_inc.cross(contact.normal)
+
+        body_ref.angle -= (r_ref_cross_n * body_a.inverse_inertia) * delta_p_magnitude
+        body_b.angle += (r_inc_cross_n * body_b.inverse_inertia) * delta_p_magnitude
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
-        # TODO implement
-        raise NotImplementedError("PositionBasedSolver is not implemented yet.")
+        """
+        Iteratively adjusts body positions to resolve penetrations.
+        The 'dt' parameter is unused here, as corrections are not time-based.
+        """
+        if len(joints) > 0:
+            raise NotImplementedError("Joint solving is not implemented yet.")
+
+        # the effective inverse mass depends only on the bodies positions, masses and inertias
+        # these values stay constant over the iterations.
+        # therfore we can compute them once and store them in a list to improve performance
+        inverse_effective_masses = [
+            [
+                self._compute_effective_inverse_mass(contact, contact_point)
+                for contact_point in contact.contact_points
+            ]
+            for contact in contacts
+        ]
+
+        for i_iteration in range(self.iterations):
+            for i_contact, contact in enumerate(contacts):
+                for i_point, contact_point in enumerate(contact.contact_points):
+                    self._solve_contact(
+                        contact,
+                        contact_point,
+                        inverse_effective_masses[i_contact][i_point],
+                    )
