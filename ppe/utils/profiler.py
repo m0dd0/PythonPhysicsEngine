@@ -19,6 +19,7 @@ class Profiler:
     """A simple profiler to time different sections of a game loop."""
 
     def __init__(self, smoothing_frames: int = 30):
+        # TODO allow to print real time factor
         """
         Initializes the Profiler with a specified number of frames for smoothing.
 
