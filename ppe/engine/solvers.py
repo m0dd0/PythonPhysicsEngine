@@ -472,8 +472,10 @@ class SimpleIterativeImpulseSolver(AbstractSolver):
 class IterativePositionBasedSolver(AbstractSolver):
     """
     Resolves constraints by directly modifying object positions.
-    This method is very stable and avoids the "jitter" of impulse solvers.
     It must be paired with a PositionVerletIntegrator.
+    Note that this is only an experimental implementation. A better working version of this
+    solver requires to recompute the contact in each iteration. This is however not possible
+    with the current architecture.
     """
 
     COMPATIBLE_INTEGRATORS = [PositionVerletIntegrator]
@@ -481,8 +483,8 @@ class IterativePositionBasedSolver(AbstractSolver):
     def __init__(
         self,
         iterations: int = 30,
-        stiffness: float = 0.2,
-        allowed_penetration_threshold: float = 0.0,
+        stiffness: float = 0.6,
+        allowed_penetration_threshold: float = 0.01,
         debug_drawer: Optional[AbstractDebugDrawer] = None,
     ):
         """
