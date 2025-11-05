@@ -105,6 +105,7 @@ class Body:
         mass: Union[float, None],
         angle: float = 0.0,
         restitution: float = 0.2,
+        friction_coefficient: float = 0.5,
         initial_velocity: Vec2 = Vec2(0, 0),
         initial_angular_velocity: float = 0.0,
         user_data: dict = None,
@@ -121,6 +122,8 @@ class Body:
                 Defaults to 0.0.
             restitution (float, optional): The restitution (bounciness) of the body. 
                 Defaults to 0.2.
+            friction_coefficient (float, optional): The friction coefficient of the body. 
+                Defaults to 0.5.
             initial_velocity (Vec2, optional): The initial linear velocity of the body.
                 Defaults to (0, 0).
             initial_angular_velocity (float, optional): The initial angular velocity of the body.
@@ -152,6 +155,7 @@ class Body:
 
         self.mass = mass
         self.restitution = restitution
+        self.friction_coefficient = friction_coefficient
 
         if self.mass is None:
             self.inverse_mass: float = 0.0

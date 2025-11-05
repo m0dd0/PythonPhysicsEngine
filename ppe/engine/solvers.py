@@ -173,6 +173,10 @@ class IterativeImpulseSolver(AbstractSolver):
         self.baumgarte_stabilization_factor = baumgarte_stabilization_factor
         self.baumgarte_stabilization_threshold = baumgarte_stabilization_threshold
 
+        # state variables during solving
+        self._accumulated_impulse_normal = 0
+        self._accumulated_impulse_tangent = 0
+
     def _apply_impulse(self, body: Body, impulse: Vec2, contact_vector: Vec2):
         """Applies both linear and angular impulse to a body that updates its velocity and angular velocity.
 
@@ -185,7 +189,25 @@ class IterativeImpulseSolver(AbstractSolver):
         body.velocity += impulse * body.inverse_mass
         body.angular_velocity += contact_vector.cross(impulse) * body.inverse_inertia
 
-    def _solve_contact_point(
+    def _get_collision_point_relative_velocity(
+        self, contact: Contact, r_ref: Vec2, r_inc: Vec2
+    ) -> Vec2:
+        # 1. Calculate relative tangent velocity
+        # We must re-calculate the point velocities as they were changed by the normal impulse
+        v_coll_point_ref = contact.reference_body.velocity + Vec2(
+            -contact.reference_body.angular_velocity * r_ref.y,
+            contact.reference_body.angular_velocity * r_ref.x,
+        )
+        v_coll_point_inc = contact.incident_body.velocity + Vec2(
+            -contact.incident_body.angular_velocity * r_inc.y,
+            contact.incident_body.angular_velocity * r_inc.x,
+        )
+
+        relative_collision_point_velocity = v_coll_point_inc - v_coll_point_ref
+
+        return relative_collision_point_velocity
+
+    def _solve_normal_constraint(
         self,
         contact_point: Vec2,
         contact: Contact,
@@ -208,24 +230,12 @@ class IterativeImpulseSolver(AbstractSolver):
         r_ref = contact_point - contact.reference_body.position
         r_inc = contact_point - contact.incident_body.position
 
-        ### 1. Calculate the velocity at the contact point for each body.
-        # this is the bodies velocity and angular velocity at the contact point.
-        v_coll_point_ref = contact.reference_body.velocity + Vec2(
-            -contact.reference_body.angular_velocity * r_ref.y,
-            contact.reference_body.angular_velocity * r_ref.x,
-        )
-        v_coll_point_inc = contact.incident_body.velocity + Vec2(
-            -contact.incident_body.angular_velocity * r_inc.y,
-            contact.incident_body.angular_velocity * r_inc.x,
-        )
-
-        # relative velocity of both bodies at the contact point
+        # compute relative velocity of both bodies at the contact point
         # relative_normal_velocity_factor is a scaling factor for the (unit-length) collision normal vector
         # so relative_normal_velocity_factor * contact.normal is the relative velocity in the collision normal direction
-        relative_collision_point_velocity = v_coll_point_inc - v_coll_point_ref
-        relative_normal_velocity_factor = relative_collision_point_velocity.dot(
-            contact.normal
-        )
+        relative_normal_velocity_factor = self._get_collision_point_relative_velocity(
+            contact, r_ref, r_inc
+        ).dot(contact.normal)
 
         unscaled_impulse_magnitude = 0
         if effective_inverse_mass > 0 and relative_normal_velocity_factor < 0:
@@ -253,14 +263,86 @@ class IterativeImpulseSolver(AbstractSolver):
         )
 
         # compute and apply the final impulse
-        correction_impulse = (
-            contact.normal
-            * unscaled_impulse_magnitude
+        # we want to make sure that the total applied impulse along the normal gets never negative (no pulling together of the objects)
+        # therefore we keep track of the total impulse magnitude and update it only if it remains positive
+        # note that scaled_impulse_magnitude can become negative due to the baumgarte stabilization
+        # this is okay as long as the total impulse magnitude remains positive
+        # finally, we apply an impulse so that the updated total impulse magnitude is got applied
+        scaled_impulse_magnitude = (
+            unscaled_impulse_magnitude
             / effective_inverse_mass
             / len(contact.contact_points)
         )
+        old_accumulated_impulse = self._accumulated_impulse_normal
+        self._accumulated_impulse_normal = max(
+            0.0, old_accumulated_impulse + scaled_impulse_magnitude
+        )
+
+        correction_impulse = contact.normal * (
+            self._accumulated_impulse_normal - old_accumulated_impulse
+        )
         self._apply_impulse(contact.reference_body, -correction_impulse, r_ref)
         self._apply_impulse(contact.incident_body, correction_impulse, r_inc)
+
+    def _solve_friction_constraint(
+        self,
+        contact: Contact,
+        contact_point: Vec2,
+        effective_inverse_mass_tangent: float,
+    ):
+        if effective_inverse_mass_tangent == 0.0:
+            return
+
+        # compute the vectors from the bodies centers of mass to the contact point
+        r_ref = contact_point - contact.reference_body.position
+        r_inc = contact_point - contact.incident_body.position
+        tangent = contact.normal.right_normal()
+
+        # 1. Calculate relative tangent velocity, i.e. the relative "sliding" velocity
+        relative_tangent_velocity = self._get_collision_point_relative_velocity(
+            contact, r_ref, r_inc
+        ).dot(tangent)
+
+        # 2. Calculate friction impulse. This is the impulse necessary to stop any tangential relative velocity
+        friction_impulse = (
+            -relative_tangent_velocity
+            / effective_inverse_mass_tangent
+            / len(contact.contact_points)
+        )
+
+        # 3. Clamp friction impulse (Coulomb's Law)
+        # The max friction is proportional to the *total* normal impulse applied
+        # note that this should be interpreted as an absolute value (always positive)
+        max_friction = (
+            (
+                contact.reference_body.friction_coefficient
+                + contact.incident_body.friction_coefficient
+            )
+            / 2
+            * self._accumulated_impulse_normal
+        )
+
+        # save the current accumulated friction impulse. we only want to apply the difference
+        # between the new updated total friction impulse and the old one. Thus we need to
+        # keep track of the old accumulated friction impulse
+        old_accumulated_impulse = self._accumulated_impulse_tangent
+
+        # clamp the new accumulated friction impulse
+        # the total tangent impulse must be in [-max_friction, max_friction]
+        # at the same time we want to apply friction_impulse to stop the sliding velocity (at least partially)
+        # min(old_accumulated_impulse + friction_impulse, max_friction) makes sure that we don't exceed max_friction in the positive direction
+        # max(-max_friction, ...) makes sure that we don't exceed max_friction in the negative direction
+        self._accumulated_impulse_tangent = max(
+            -max_friction, min(old_accumulated_impulse + friction_impulse, max_friction)
+        )
+
+        # 4. Apply the friction impulse. the magnitude is the difference between the new
+        # and the old accumulated friction impulse
+        impulse = tangent * (
+            self._accumulated_impulse_tangent - old_accumulated_impulse
+        )
+        self._apply_impulse(contact.reference_body, -impulse, r_ref)
+        self._apply_impulse(contact.incident_body, impulse, r_inc)
 
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         """
@@ -297,12 +379,16 @@ class IterativeImpulseSolver(AbstractSolver):
         for i_iteration in range(self.iterations):
             for i_contact, contact in enumerate(contacts):
                 for i_point, contact_point in enumerate(contact.contact_points):
-                    self._solve_contact_point(
+                    self._solve_normal_constraint(
                         contact_point,
                         contact,
                         dt,
                         inverse_effective_masses[i_contact][i_point],
-                        # inverse_effective_masses_tangent[i_contact][i_point],
+                    )
+                    self._solve_friction_constraint(
+                        contact,
+                        contact_point,
+                        inverse_effective_masses_tangent[i_contact][i_point],
                     )
 
             # Joint solving would go here in a similar loop

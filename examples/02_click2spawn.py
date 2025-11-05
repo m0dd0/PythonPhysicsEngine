@@ -100,8 +100,8 @@ def setup() -> Tuple[
 
     ## Setup the world simulation
     world = World(
-        solver=IterativePositionBasedSolver(),
-        integrator=PositionVerletIntegrator(),
+        solver=IterativeImpulseSolver(),
+        integrator=SemiImplicitEulerIntegrator(),
         bodies=initial_bodies,
         debug_drawer=debug_drawer,
         profiler=profiler,
