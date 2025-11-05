@@ -69,6 +69,42 @@ class AbstractSolver(ABC):
 
         return inverse_effective_mass
 
+    def _compute_effective_inverse_mass_tangent(
+        self, contact: Contact, contact_point: Vec2
+    ) -> float:
+        """
+        Calculates the inverse effective mass along the friction tangent.
+
+        This value represents the total resistance of both bodies (linear and
+        angular) to an impulse applied perpendicular to the collision normal,
+        i.e., along the direction of sliding/friction.
+
+        Args:
+            contact (Contact): The contact manifold.
+            contact_point (Vec2): The specific point of contact.
+
+        Returns:
+            float: The inverse effective mass along the tangent.
+        """
+        r_ref = contact_point - contact.reference_body.position
+        r_inc = contact_point - contact.incident_body.position
+        contact_tangent = contact.normal.right_normal()
+
+        inverse_effective_mass = (
+            contact.reference_body.inverse_mass
+            + contact.incident_body.inverse_mass
+            + (
+                r_ref.cross(contact_tangent) ** 2
+                * contact.reference_body.inverse_inertia
+            )
+            + (
+                r_inc.cross(contact_tangent) ** 2
+                * contact.incident_body.inverse_inertia
+            )
+        )
+
+        return inverse_effective_mass
+
     @abstractmethod
     def solve(self, contacts: List[Contact], joints: List[Joint], dt: float) -> None:
         """
@@ -191,22 +227,9 @@ class IterativeImpulseSolver(AbstractSolver):
             contact.normal
         )
 
-        ### 2. Calculate the effective mass
-        # the effective mass represents how resistant the two bodies are to being pushed apart AND the resistance to change their rotation
-        # the derivative for the effective mass cna be found here: https://en.wikipedia.org/wiki/Collision_response
-        # the effective inverse mass gets already precomputed since it remains the same over the iteratiosn
-        # inverse_effective_mass = (
-        #     contact.reference_body.inverse_mass
-        #     + contact.incident_body.inverse_mass
-        #     + (
-        #         r_ref.cross(contact.normal) ** 2
-        #         * contact.reference_body.inverse_inertia
-        #     )
-        #     + (r_inc.cross(contact.normal) ** 2 * contact.incident_body.inverse_inertia)
-        # )
-
+        unscaled_impulse_magnitude = 0
         if effective_inverse_mass > 0 and relative_normal_velocity_factor < 0:
-            ### 3. Calculate the impulse magnitude (j)
+            ### 3. Calculate the impulse magnitude
             # e is the restitution coefficient, which can take values between 0 and 1
             # the higher it is, the more "bouncier" the objects are
             e = min(
@@ -216,33 +239,26 @@ class IterativeImpulseSolver(AbstractSolver):
             # j is the magnitude of the impulse that gets applied in the direction of the contact normal
             # using e=0 results in an impulse that just cancels the relative velocity
             # using e=1 results in an impulse that is equal to the relative velocity but in the opposite direction
-            j = -(1.0 + e) * relative_normal_velocity_factor
-            j /= effective_inverse_mass
-            j /= len(
-                contact.contact_points
-            )  # Distribute impulse over all contact points
-
-            ### 4. Apply the impulse
-            impulse = contact.normal * j
-            self._apply_impulse(contact.reference_body, -impulse, r_ref)
-            self._apply_impulse(contact.incident_body, impulse, r_inc)
+            unscaled_impulse_magnitude += -(1.0 + e) * relative_normal_velocity_factor
 
         ### 5. Positional Correction with Baumgarte Stabilization
         # This applies a small extra impulse to push sinking objects apart.
         position_error_to_fix = max(
             0.0, contact.penetration_depth - self.baumgarte_stabilization_threshold
         )
-        correction_impulse_magnitude = (
+        unscaled_impulse_magnitude += (
             (self.baumgarte_stabilization_factor / dt)
             * position_error_to_fix
-            / effective_inverse_mass
+            / self.iterations
         )
-        correction_impulse_magnitude /= len(
-            contact.contact_points
-        )  # Distribute impulse
-        correction_impulse_magnitude /= self.iterations
 
-        correction_impulse = contact.normal * correction_impulse_magnitude
+        # compute and apply the final impulse
+        correction_impulse = (
+            contact.normal
+            * unscaled_impulse_magnitude
+            / effective_inverse_mass
+            / len(contact.contact_points)
+        )
         self._apply_impulse(contact.reference_body, -correction_impulse, r_ref)
         self._apply_impulse(contact.incident_body, correction_impulse, r_inc)
 
@@ -269,6 +285,13 @@ class IterativeImpulseSolver(AbstractSolver):
             ]
             for contact in contacts
         ]
+        inverse_effective_masses_tangent = [
+            [
+                self._compute_effective_inverse_mass_tangent(contact, contact_point)
+                for contact_point in contact.contact_points
+            ]
+            for contact in contacts
+        ]
 
         # The main loop that iterates multiple times to allow impulses to propagate
         for i_iteration in range(self.iterations):
@@ -279,6 +302,7 @@ class IterativeImpulseSolver(AbstractSolver):
                         contact,
                         dt,
                         inverse_effective_masses[i_contact][i_point],
+                        # inverse_effective_masses_tangent[i_contact][i_point],
                     )
 
             # Joint solving would go here in a similar loop
