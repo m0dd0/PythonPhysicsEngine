@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 
+# TODO move to pyproject.toml
 setup(
     name="ppe",
     version="0.0.1",
@@ -8,7 +9,7 @@ setup(
     description="Description of your package",
     packages=find_packages(),
     install_requires=["pygame"],
-    additional_requires={"dev": ["pytest", "black"]},
+    extras_require={"dev": ["pytest", "black"]},
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",

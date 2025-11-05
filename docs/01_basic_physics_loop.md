@@ -1,0 +1,2 @@
+## The Physics Simulation Loop
+- reactive vs preventive solvers -> here we only focsu on reactive solvers but be aware that there are also preventive solvers thet do not operate on the prociples of "fixing" an collision that has occured and instead rather try to prevent the collision from happening in the first place
