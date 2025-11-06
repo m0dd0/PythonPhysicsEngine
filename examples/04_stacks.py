@@ -131,7 +131,9 @@ def setup() -> Tuple[
     controllers: List[AbstractController] = [
         app_controller,
         DebugController(
-            controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
+            controlled_debug_drawer=debug_drawer,
+            debug_drawer=debug_drawer,
+            initial_debug_mode=False,
         ),
         CameraZoomController(view.camera),
     ]
@@ -147,9 +149,11 @@ def main():
         controllers,
         app_controller,
         profiler,
-        target_dt=1 / 1000,
-        force_dt=True,
-        wait_for_dt=True,
+        target_fps=100,
+        use_fixed_timestep=True,
+        cap_fps=False,
+        substeps=3,
+        max_iterations=1000,
     )
 
 

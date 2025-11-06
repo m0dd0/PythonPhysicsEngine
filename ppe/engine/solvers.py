@@ -135,7 +135,7 @@ class NoOpSolver(AbstractSolver):
 
 @dataclass
 class ContactPointData:
-    """A helper class to store all pre-computed data for a single contact point."""
+    """A helper class to store all necessary and pre-computed data for solving single contact point."""
 
     # Bodies
     reference_body: Body
@@ -167,7 +167,7 @@ class ContactPointData:
 
 class IterativeImpulseSolver(AbstractSolver):
     """
-    A simple iterative impulse-based solver for solving collisions and constraints.
+    An iterative impulse-based solver for solving collisions and constraints.
     This solver applies impulses iteratively to solve collisions and constraints.
     The impulses change the velocity of the bodies, so that the bodies position gets integrated
     to physically valid positions. Therefore, this solver is compatible with integrators
@@ -221,6 +221,17 @@ class IterativeImpulseSolver(AbstractSolver):
     def _get_collision_point_relative_velocity(
         self, contact_point_data: ContactPointData
     ) -> Vec2:
+        """
+        Computes the relative velocity of two bodies at a given contact point.
+        This is done by calculating the point velocities of both bodies at the contact point and then subtracting them.
+
+        Args:
+            contact_point_data (ContactPointData): The contact point data containing information 
+                about the two bodies in contact.
+
+        Returns:
+            Vec2: The relative velocity of the two bodies at the contact point.
+        """
         # 1. Calculate relative tangent velocity
         # We must re-calculate the point velocities as they were changed by the normal impulse
         v_coll_point_ref = contact_point_data.reference_body.velocity + Vec2(
@@ -249,12 +260,8 @@ class IterativeImpulseSolver(AbstractSolver):
         this method needs to be called with all contact points in the contact information.
 
         Args:
-            contact_point (Vec2): The contact point for which to apply the impulse.
-            contact (Contact): The contact manifold to solve.
-            dt (float): The time step for the solver.
-            effective_inverse_mass (float): The effective inverse mass of the bodies in the contact.
-                This value remains constant for a given contact over the solver iterations.
-                Therefore it is only precomputed once and passed to this method.
+            contact_point_data (ContactPointData): The contact point data containing information 
+                about the two bodies in contact and relevant pre-computed values like effective inverse mass.
         """
         # compute relative velocity of both bodies at the contact point
         # relative_normal_velocity_factor is a scaling factor for the (unit-length) collision normal vector
@@ -313,10 +320,28 @@ class IterativeImpulseSolver(AbstractSolver):
     def _solve_friction_constraint(
         self,
         contact_point_data: ContactPointData,
-        # contact: Contact,
-        # contact_point: Vec2,
-        # effective_inverse_mass_tangent: float,
     ):
+        """
+        Calculates and applies the tangential (friction) impulse for a single contact point.
+
+        This method opposes the relative "sliding" velocity (tangent to the
+        collision normal). It uses Coulomb's Law, meaning the maximum
+        friction impulse is clamped by the total accumulated normal impulse
+        (which is read from the contact_state).
+
+        This function is called within the solver's iteration loop and
+        updates the body velocities directly.
+
+        Args:
+            contact (Contact): The high-level contact manifold containing body information 
+                and the contact normal.
+            contact_point (Vec2): The specific world-space point of this contact.
+            effective_inverse_mass_tangent (float): The pre-computed inverse effective mass 
+                along the tangent.
+            contact_state (ContactState): The state object holding the accumulated impulses 
+                for this point. This method reads accumulated_impulse_normal and updates 
+                accumulated_impulse_tangent.
+        """
         if contact_point_data.effective_inverse_mass_tangent == 0.0:
             return
 

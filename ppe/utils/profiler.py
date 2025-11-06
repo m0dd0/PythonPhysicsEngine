@@ -46,7 +46,8 @@ class Profiler:
     def start_frame(self):
         """Marks the beginning of a new frame. All timing entries will be reset."""
         self.frame_start_time = time.perf_counter()
-        self.timings.clear()
+        # self.timings.clear() # we cannot use .clear() as this would clear the entries in the deque
+        self.timings = {}
 
     def end_frame(self):
         """Marks the end of a frame and calculates total time. All timing entries will be reset."""
@@ -62,7 +63,6 @@ class Profiler:
             )
 
         self.timing_deque.append(self.timings)
-        self.timings = {}
         if len(self.timing_deque) > 0:
             self.smoothed_timings = {
                 name: sum(timing.get(name, 0) for timing in self.timing_deque)

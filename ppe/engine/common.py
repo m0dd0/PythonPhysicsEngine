@@ -521,6 +521,8 @@ class PolygonShape(Shape):
         height = random.uniform(min_size, max_size)
         return cls.create_rectangle(width, height)
 
+    # TODO create random polygon
+
     def get_type(self) -> str:
         return "polygon"
 
