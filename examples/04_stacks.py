@@ -18,15 +18,11 @@ from ppe.engine.collision_handlers import (
     SatPolygonHandler,
 )
 from ppe.engine.collision_narrow import DispatchNarrowPhase
-from ppe.engine.solvers import (
-    SimpleIterativeImpulseSolver,
-    IterativeImpulseSolver,
-    IterativePositionBasedSolver,
-)
-from ppe.engine.solvers import SemiImplicitEulerIntegrator, PositionVerletIntegrator
+from ppe.engine.solvers import IterativeImpulseSolver
+from ppe.engine.solvers import SemiImplicitEulerIntegrator
 
 # application components
-from ppe.utils.view import PygameView, Camera, PygameDebugDrawer
+from ppe.utils.view import PygameView, Camera
 from ppe.utils.controller import (
     InputState,
     ApplicationController,
@@ -37,6 +33,7 @@ from ppe.utils.controller import (
 from ppe.utils.profiler import Profiler
 from ppe.utils.colors import V1_COLORS
 from ppe.utils.loops import main_loop
+from ppe.utils.debug import DebugRecorder
 
 
 ## Constants
@@ -101,9 +98,9 @@ def setup() -> Tuple[
         profiler_settings={"subsection_keys": ["world"]},
         body_style_defaults=BODY_STYLE_DEFAULTS,
     )
-    debug_drawer = PygameDebugDrawer(camera=view.camera, surface=view.screen)
 
-    ## Initialize the profiler
+    # initialize debug_recorder and profiler
+    debug_recorder = DebugRecorder()
     profiler = Profiler()
 
     ## Setup the world simulation
@@ -111,28 +108,32 @@ def setup() -> Tuple[
         solver=IterativeImpulseSolver(),
         integrator=SemiImplicitEulerIntegrator(),
         bodies=[GROUND_BODY, *BODIES_STACK],
-        debug_drawer=debug_drawer,
+        debug_recorder=debug_recorder,
         profiler=profiler,
         force_generators=[GlobalForceField(strength=GRAVITY)],
         narrow_phase=DispatchNarrowPhase(
-            debug_drawer=debug_drawer,
+            debug_recorder=debug_recorder,
             handlers={
-                ("circle", "circle"): CircleVsCircleHandler(debug_drawer=debug_drawer),
-                ("circle", "polygon"): CircleVsPolygonHandler(
-                    debug_drawer=debug_drawer
+                ("circle", "circle"): CircleVsCircleHandler(
+                    debug_recorder=debug_recorder
                 ),
-                ("polygon", "polygon"): SatPolygonHandler(debug_drawer=debug_drawer),
+                ("circle", "polygon"): CircleVsPolygonHandler(
+                    debug_recorder=debug_recorder
+                ),
+                ("polygon", "polygon"): SatPolygonHandler(
+                    debug_recorder=debug_recorder
+                ),
             },
         ),
     )
 
     ## Initialize controllers
-    app_controller = ApplicationController(debug_drawer=debug_drawer)
+    app_controller = ApplicationController(debug_recorder=debug_recorder)
     controllers: List[AbstractController] = [
         app_controller,
         DebugController(
-            controlled_debug_drawer=debug_drawer,
-            debug_drawer=debug_drawer,
+            controlled_debug_recorder=debug_recorder,
+            debug_recorder=debug_recorder,
             initial_debug_mode=False,
         ),
         CameraZoomController(view.camera),

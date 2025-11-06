@@ -21,7 +21,7 @@ from ppe.engine.collision_handlers import (
 )
 from ppe.engine.integrators import AbstractIntegrator, SemiImplicitEulerIntegrator
 from ppe.engine.force_generators import AbstractForceGenerator
-from ppe.engine.debug import AbstractDebugDrawer
+from ppe.utils.debug import DebugRecorder
 from ppe.utils.profiler import Profiler
 
 
@@ -40,7 +40,7 @@ class World:
         bodies: Optional[List[Body]] = None,
         joints: Optional[List[Joint]] = None,
         force_generators: Optional[List[AbstractForceGenerator]] = None,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
         profiler: Optional[Profiler] = None,
     ):
         """
@@ -61,7 +61,7 @@ class World:
             joints (Optional[List[Joint]]): A list of joints to add to the world initially. Defaults to None.
             force_generators (Optional[List[AbstractForceGenerator]]): A list of force generators to add
                 to the world initially. Defaults to None.
-            debug_drawer (Optional[AbstractDebugDrawer]): A debug drawer for visualizing the simulation.
+            debug_recorder (Optional[DebugRecorder]): A debug drawer for visualizing the simulation.
                 Defaults to None.
             profiler (Optional[Profiler]): A profiler for measuring performance. Defaults to None.
         """
@@ -74,7 +74,7 @@ class World:
             SemiImplicitEulerIntegrator() if integrator is None else integrator
         )
         self.solver = (
-            SimpleIterativeImpulseSolver(debug_drawer=debug_drawer)
+            SimpleIterativeImpulseSolver(debug_recorder=debug_recorder)
             if solver is None
             else solver
         )
@@ -83,13 +83,13 @@ class World:
             DispatchNarrowPhase(
                 handlers={
                     ("circle", "circle"): CircleVsCircleHandler(
-                        debug_drawer=debug_drawer
+                        debug_recorder=debug_recorder
                     ),
                     ("circle", "polygon"): CircleVsPolygonHandler(
-                        debug_drawer=debug_drawer
+                        debug_recorder=debug_recorder
                     ),
                     ("polygon", "polygon"): SatPolygonHandler(
-                        debug_drawer=debug_drawer
+                        debug_recorder=debug_recorder
                     ),
                 }
             )
@@ -97,7 +97,7 @@ class World:
             else narrow_phase
         )
 
-        self.debug_drawer = debug_drawer
+        self.debug_recorder = debug_recorder
         self.profiler = Profiler() if profiler is None else profiler
 
         if type(self.integrator) not in self.solver.COMPATIBLE_INTEGRATORS:

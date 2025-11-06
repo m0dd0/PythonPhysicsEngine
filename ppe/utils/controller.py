@@ -32,7 +32,7 @@ import pygame
 
 from ppe.engine.common import Body, Vec2, PolygonShape, CircleShape
 from ppe.engine.world import World
-from ppe.engine.debug import AbstractDebugDrawer
+from ppe.utils.debug import DebugRecorder
 from ppe.utils.view import Camera
 
 
@@ -124,14 +124,14 @@ class InputState:
 class AbstractController(ABC):
     """An abstract base class for all controller strategies."""
 
-    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None):
+    def __init__(self, debug_recorder: Optional[DebugRecorder] = None):
         """
         Initializes the controller with an optional debug drawer.
 
         Args:
-            debug_drawer: An optional debug drawer for visualizing controller actions.
+            debug_recorder: An optional debug drawer for visualizing controller actions.
         """
-        self.debug_drawer = debug_drawer
+        self.debug_recorder = debug_recorder
 
     @property
     @abstractmethod
@@ -168,7 +168,7 @@ class ApplicationController(AbstractController):
     def __init__(
         self,
         quit_keys: Set[str] = None,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """Initialize the ApplicationController.
 
@@ -176,10 +176,10 @@ class ApplicationController(AbstractController):
             quit_keys (Set[str]): A set of key names that will trigger the application
                 to quit. Defaults to {"quit", "escape"}. The "quit" key corresponds
                 to the window's close button.
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+            debug_recorder (Optional[DebugRecorder]): An optional debug drawer for
                 visualizing controller actions.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
 
         self.quit_keys = {"quit", "escape"} if quit_keys is None else quit_keys
 
@@ -219,29 +219,29 @@ class DebugController(AbstractController):
 
     def __init__(
         self,
-        controlled_debug_drawer: AbstractDebugDrawer,
+        controlled_debug_recorder: DebugRecorder,
         toggle_key: str = "d",
         initial_debug_mode: bool = True,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """Initialize the DebugController.
 
         Args:
-            controlled_debug_drawer (AbstractDebugDrawer): The debug drawer instance
+            controlled_debug_recorder (DebugRecorder): The debug drawer instance
                 to be controlled (e.g., enabled or disabled).
             toggle_key (str): The key used to toggle the debug mode. Defaults to "d".
             initial_debug_mode (bool): The initial state of the debug mode.
                 Defaults to True (enabled).
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+            debug_recorder (Optional[DebugRecorder]): An optional debug drawer for
                 visualizing this controller's own actions.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
 
-        self.controlled_debug_drawer = controlled_debug_drawer
+        self.controlled_debug_recorder = controlled_debug_recorder
         self.toggle_key = toggle_key
         self.debug_mode = initial_debug_mode
 
-        self.controlled_debug_drawer.enabled = self.debug_mode
+        self.controlled_debug_recorder.enabled = self.debug_mode
 
     @property
     def action_description(self) -> str:
@@ -262,7 +262,7 @@ class DebugController(AbstractController):
         """
         if self.toggle_key in input_state.keys_pressed:
             self.debug_mode = not self.debug_mode
-            self.controlled_debug_drawer.enabled = self.debug_mode
+            self.controlled_debug_recorder.enabled = self.debug_mode
 
 
 class CameraPanController(AbstractController):
@@ -283,7 +283,7 @@ class CameraPanController(AbstractController):
         mouse_button: int = 2,
         speed: float = 5.0,
         trackpad_sensitivity: float = 1.0,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """Initialize the CameraPanController.
 
@@ -298,10 +298,10 @@ class CameraPanController(AbstractController):
             speed (float): The speed of keyboard-based panning. Defaults to 5.0.
             trackpad_sensitivity (float): The sensitivity multiplier for trackpad scroll
                 panning. Defaults to 1.0.
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+            debug_recorder (Optional[DebugRecorder]): An optional debug drawer for
                 visualizing controller actions.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
         if mode not in ["keyboard", "mouse", "trackpad"]:
             raise ValueError("mode must be either 'keyboard', 'mouse', or 'trackpad'")
         if len(keys) != 4:
@@ -404,7 +404,7 @@ class CameraZoomController(AbstractController):
         mode: Literal["mousewheel", "keyboard"] = "mousewheel",
         keys: Tuple[str, str] = ("+", "-"),
         speed: float = 0.5,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """Initialize the CameraZoomController.
 
@@ -415,10 +415,10 @@ class CameraZoomController(AbstractController):
             keys (Tuple[str, str]): A tuple of key names for zooming, in the order
                 [zoom_in, zoom_out]. Defaults to ("+", "-").
             speed (float): The sensitivity or speed of zooming. Defaults to 0.5.
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+            debug_recorder (Optional[DebugRecorder]): An optional debug drawer for
                 visualizing controller actions.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
         if mode not in ["mousewheel", "keyboard"]:
             raise ValueError("mode must be either 'mousewheel' or 'keyboard'")
         if len(keys) != 2:
@@ -489,7 +489,7 @@ class BodyDragController(AbstractController):
         stiffness: float = 5000.0,
         dragable_bodies: Optional[List[Body]] = None,
         allow_static_bodies: bool = True,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """Initialize the BodyDragController.
 
@@ -505,10 +505,10 @@ class BodyDragController(AbstractController):
                 be dragged. If None, any body in the world is draggable. Defaults to None.
             allow_static_bodies (bool): Whether static bodies (mass=0) can be dragged.
                 Defaults to True.
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for
+            debug_recorder (Optional[DebugRecorder]): An optional debug drawer for
                 visualizing the drag force.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
         self.world = world
         self.camera = camera
         self.stiffness = stiffness
@@ -619,16 +619,16 @@ class BodyDragController(AbstractController):
                 torque = world_offset.x * force.y - world_offset.y * force.x
                 self.dragged_body.torque_accumulator += torque
 
-                if self.debug_drawer is not None:
+                if self.debug_recorder is not None:
                     # Draw debug visualization
-                    self.debug_drawer.add_line(
+                    self.debug_recorder.add_line(
                         start=world_grab_point,
                         end=mouse_world_pos,
                         color=(0, 255, 0),
                         arrow=True,
                     )
                     # Draw the grab point
-                    self.debug_drawer.add_marker(
+                    self.debug_recorder.add_marker(
                         position=world_grab_point, color=(0, 255, 0)
                     )
 
@@ -650,7 +650,7 @@ class BodySpawnController(AbstractController):
         mouse_spawn_objects: Dict[int, Union[List[Body], Callable]] = None,
         keyboard_spawn_objects: Dict[str, Union[List[Body], Callable]] = None,
         spawn_object_at_mouse_position: Optional[bool] = True,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """Initialize the BodySpawnController.
 
@@ -669,9 +669,9 @@ class BodySpawnController(AbstractController):
             spawn_object_at_mouse_position (Optional[bool]): Whether to spawn the object at the
                 current mouse position. If set the bodies position value will be overridden
                 with the mouse position before the body is added to the world. Defaults to True.
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer.
+            debug_recorder (Optional[DebugRecorder]): An optional debug drawer.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
 
         self.world = world
         self.camera = camera
@@ -782,7 +782,7 @@ class BodySteeringController(AbstractController):
         body: Body,
         move_speed: float = 5.0,
         keys: Tuple[str, str, str, str] = ("w", "s", "a", "d"),
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """Initialize the BodySteeringController.
 
@@ -791,9 +791,9 @@ class BodySteeringController(AbstractController):
             move_speed (float): The speed at which the body moves. Defaults to 5.0.
             keys (Tuple[str, str, str, str]): A tuple of key names for movement, in the
                 order (up, down, left, right). Defaults to ("w", "s", "a", "d").
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer.
+            debug_recorder (Optional[DebugRecorder]): An optional debug drawer.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
 
         self.body = body
         self.move_speed = move_speed
@@ -840,7 +840,7 @@ class HoverRotateController(AbstractController):
         camera: Camera,
         rotation_speed: float = 3.0,
         allow_static_bodies: bool = True,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """Initialize the HoverRotateController.
 
@@ -851,9 +851,9 @@ class HoverRotateController(AbstractController):
                 Defaults to 3.0.
             allow_static_bodies (bool): Whether static bodies can be rotated.
                 Defaults to True.
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer.
+            debug_recorder (Optional[DebugRecorder]): An optional debug drawer.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
 
         self.rotation_speed = rotation_speed
         self.world = world

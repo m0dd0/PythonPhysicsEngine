@@ -100,7 +100,7 @@ def main_loop(
         with profiler.time("render"):
             view.render_background()
             view.render_bodies(world.bodies)
-            world.debug_drawer.render_all()
+            view.render_debug_recorder(world.debug_recorder)
             view.render_info([c.action_description for c in controllers])
 
         # Render profiler after frame timing is complete

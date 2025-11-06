@@ -17,20 +17,20 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional
 
 from ppe.engine.common import Body, Vec2
-from ppe.engine.debug import AbstractDebugDrawer
+from ppe.utils.debug import DebugRecorder
 
 
 class AbstractBroadPhase(ABC):
     """An abstract base class for all broad-phase collision detection strategies."""
 
-    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None) -> None:
+    def __init__(self, debug_recorder: Optional[DebugRecorder] = None) -> None:
         """
         Initializes the broad-phase collision detection strategy.
 
         Args:
-            debug_drawer: An optional debug drawer for visualizing the broad-phase.
+            debug_recorder: An optional debug drawer for visualizing the broad-phase.
         """
-        self.debug_drawer = debug_drawer
+        self.debug_recorder = debug_recorder
 
     @abstractmethod
     def find_potential_pairs(self, bodies: List[Body]) -> List[Tuple[Body, Body]]:
@@ -115,9 +115,9 @@ class AABBBroadPhase(AbstractBroadPhase):
         body_aabbs = [body.get_aabb() for body in bodies]
 
         # draw the AABBs for debugging purposes
-        # if self.debug_drawer is not None:
+        # if self.debug_recorder is not None:
         #     for body, (min_a, max_a) in zip(bodies, body_aabbs):
-        #         self.debug_drawer.add_polygon(
+        #         self.debug_recorder.add_polygon(
         #             [min_a, Vec2(max_a.x, min_a.y), max_a, Vec2(min_a.x, max_a.y)],
         #             color=(0, 0, 255),
         #         )
@@ -133,8 +133,8 @@ class AABBBroadPhase(AbstractBroadPhase):
                     potential_pairs.append((body_a, body_b))
 
                     # draw the overlapping AABBs for debugging purposes
-                    if self.debug_drawer is not None:
-                        self.debug_drawer.add_polygon(
+                    if self.debug_recorder is not None:
+                        self.debug_recorder.add_polygon(
                             [
                                 min_a,
                                 Vec2(max_a.x, min_a.y),
@@ -143,7 +143,7 @@ class AABBBroadPhase(AbstractBroadPhase):
                             ],
                             color=(255, 0, 0),
                         )
-                        self.debug_drawer.add_polygon(
+                        self.debug_recorder.add_polygon(
                             [
                                 min_b,
                                 Vec2(max_b.x, min_b.y),
@@ -171,8 +171,8 @@ class AABBBroadPhase(AbstractBroadPhase):
 class SpatialHashBroadPhase(AbstractBroadPhase):
     """A broad-phase using spatial hashing for efficient collision detection."""
 
-    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None) -> None:
-        super().__init__(debug_drawer)
+    def __init__(self, debug_recorder: Optional[DebugRecorder] = None) -> None:
+        super().__init__(debug_recorder)
         raise NotImplementedError("SpatialHashBroadPhase is not yet implemented.")
 
     def find_potential_pairs(self, bodies: List[Body]) -> List[Tuple[Body, Body]]:

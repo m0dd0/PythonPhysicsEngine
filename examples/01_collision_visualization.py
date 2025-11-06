@@ -36,7 +36,7 @@ from ppe.engine.collision_handlers import (
 )
 
 # application components
-from ppe.utils.view import PygameView, Camera, PygameDebugDrawer
+from ppe.utils.view import PygameView, Camera
 from ppe.utils.controller import (
     CameraPanController,
     CameraZoomController,
@@ -48,6 +48,7 @@ from ppe.utils.controller import (
     HoverRotateController,
 )
 from ppe.utils.profiler import Profiler
+from ppe.utils.debug import DebugRecorder
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)
@@ -77,7 +78,7 @@ def setup() -> Tuple[
         profiler_settings={"subsection_keys": ["world"]},
         body_style_defaults=BODY_STYLE,
     )
-    debug_drawer = PygameDebugDrawer(camera=view.camera, surface=view.screen)
+    debug_recorder = DebugRecorder()
 
     ## Initialize the profiler
     profiler = Profiler()
@@ -110,28 +111,28 @@ def setup() -> Tuple[
     world = World(
         integrator=NoOpIntegrator(),
         solver=NoOpSolver(),
-        broad_phase=AABBBroadPhase(debug_drawer=debug_drawer),
+        broad_phase=AABBBroadPhase(debug_recorder=debug_recorder),
         narrow_phase=DispatchNarrowPhase(
-            debug_drawer=debug_drawer,
+            debug_recorder=debug_recorder,
             handlers={
-                ("circle", "circle"): CircleVsCircleHandler(debug_drawer=debug_drawer),
+                ("circle", "circle"): CircleVsCircleHandler(debug_recorder=debug_recorder),
                 ("circle", "polygon"): CircleVsPolygonHandler(
-                    debug_drawer=debug_drawer
+                    debug_recorder=debug_recorder
                 ),
-                ("polygon", "polygon"): SatPolygonHandler(debug_drawer=debug_drawer),
+                ("polygon", "polygon"): SatPolygonHandler(debug_recorder=debug_recorder),
             },
         ),
         bodies=initial_bodies,
-        debug_drawer=debug_drawer,
+        debug_recorder=debug_recorder,
         profiler=profiler,
     )
 
     ## Initialize controllers
-    app_controller = ApplicationController(debug_drawer=debug_drawer)
+    app_controller = ApplicationController(debug_recorder=debug_recorder)
     controllers: List[AbstractController] = [
         app_controller,
         DebugController(
-            controlled_debug_drawer=debug_drawer, debug_drawer=debug_drawer
+            controlled_debug_recorder=debug_recorder, debug_recorder=debug_recorder
         ),
         CameraZoomController(view.camera, mode="keyboard"),
         CameraPanController(view.camera, mode="keyboard"),
@@ -191,7 +192,7 @@ def main_loop(
         with profiler.time("render"):
             view.render_background()
             view.render_bodies(world.bodies)
-            world.debug_drawer.render_all()
+            world.debug_recorder.render_all()
             view.render_info([c.action_description for c in controllers])
 
         # Render profiler after timing is complete

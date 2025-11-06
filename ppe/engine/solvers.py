@@ -18,7 +18,7 @@ from ppe.engine.integrators import (
     PositionVerletIntegrator,
     NoOpIntegrator,
 )
-from ppe.engine.debug import AbstractDebugDrawer
+from ppe.utils.debug import DebugRecorder
 
 
 class AbstractSolver(ABC):
@@ -30,14 +30,14 @@ class AbstractSolver(ABC):
 
     COMPATIBLE_INTEGRATORS = []
 
-    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None) -> None:
+    def __init__(self, debug_recorder: Optional[DebugRecorder] = None) -> None:
         """
         Initializes the solver with an optional debug drawer.
 
         Args:
-            debug_drawer (Optional[AbstractDebugDrawer]): An optional debug drawer for visualizing the simulation.
+            debug_recorder (Optional[DebugRecorder]): An optional debug drawer for visualizing the simulation.
         """
-        self.debug_drawer = debug_drawer
+        self.debug_recorder = debug_recorder
 
     def _compute_effective_inverse_mass(
         self, contact: Contact, contact_point: Vec2
@@ -181,7 +181,7 @@ class IterativeImpulseSolver(AbstractSolver):
         iterations: int = 50,
         baumgarte_stabilization_factor: float = 0.4,
         baumgarte_stabilization_threshold: float = 0.0,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """
         Initializes the solver with the given number of iterations, Baumgarte stabilization factor and allowance,
@@ -199,9 +199,9 @@ class IterativeImpulseSolver(AbstractSolver):
             baumgarte_stabilization_thershold (float, optional): The maximum penetration depth
                 that is tolerated before baumgarte stabilization gets applied.
                 Defaults to 0.0.
-            debug_drawer (Optional[AbstractDebugDrawer], optional): An optional debug drawer for visualizing the simulation.
+            debug_recorder (Optional[DebugRecorder], optional): An optional debug drawer for visualizing the simulation.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
         self.iterations = iterations
         self.baumgarte_stabilization_factor = baumgarte_stabilization_factor
         self.baumgarte_stabilization_threshold = baumgarte_stabilization_threshold
@@ -485,7 +485,7 @@ class SimpleIterativeImpulseSolver(AbstractSolver):
         iterations: int = 30,
         baumgarte_stabilization_factor: float = 0.2,
         baumgarte_stabilization_threshold: float = 0.01,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
         teleport_positional_correction: bool = False,
     ):
         """
@@ -505,14 +505,14 @@ class SimpleIterativeImpulseSolver(AbstractSolver):
             baumgarte_stabilization_thershold (float, optional): The maximum penetration depth
                 that is tolerated before baumgarte stabilization gets applied.
                 Defaults to 0.0.
-            debug_drawer (Optional[AbstractDebugDrawer], optional): An optional debug drawer for visualizing the simulation.
+            debug_recorder (Optional[DebugRecorder], optional): An optional debug drawer for visualizing the simulation.
             teleport_positional_correction (bool, optional): A boolean indicating whether to use a hacky positional correction.
                 In contrast to baumgarte stabilization, this method solves the overlap by manually updating the bodies position.
                 This works for simple scnearios, but results in physically incorrect and unstable behavior for more complex scenarios.
                 It is kept here to show the different effects of both methods.
                 Defaults to False.
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
         self.baumgarte_stabilization_factor = baumgarte_stabilization_factor
         self.baumgarte_stabilization_threshold = baumgarte_stabilization_threshold
         self.iterations = iterations
@@ -667,7 +667,7 @@ class IterativePositionBasedSolver(AbstractSolver):
         iterations: int = 30,
         stiffness: float = 0.6,
         allowed_penetration_threshold: float = 0.01,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """
         Initializes the position-based solver.
@@ -678,9 +678,9 @@ class IterativePositionBasedSolver(AbstractSolver):
                 correct per iteration. 1.0 can be unstable. Defaults to 0.8.
             penetration_threshold (float): A small amount of penetration to allow (prevents jitter)
                 and that is ignored by the solver. This can prevent jitter. Defaults to 0.01.
-            debug_drawer (AbstractDebugDrawer, optional):
+            debug_recorder (DebugRecorder, optional):
         """
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
         self.iterations = iterations
         self.stiffness = stiffness
         self.allowed_penetration_threshold = allowed_penetration_threshold

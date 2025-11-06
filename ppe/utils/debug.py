@@ -1,35 +1,26 @@
 """
-This module defines the abstract interface for debug drawing.
-
-Architectural Note:
-The `AbstractDebugDrawer` class is intentionally placed within the `engine` package rather
-than the `utils` or `view` packages. This is a critical design choice to enforce the
-Dependency Inversion Principle and maintain a clean architecture. The model should be completely
-independent of everything contained in the view. Since we still want to keep the debug drawing
-directly in the code of the model for simplicity we consequently must keep also the
-`AbstractDebugDrawer` class within the engine. This design ensures a clear separation of concerns
-and decouples engine code completely from the view layer. Furthermore it prevents circular dependencies.
+This module defines tools for graphical debugging.
 """
-from abc import ABC, abstractmethod
 from typing import Tuple, List, Any
 
 from ppe.engine.common import Vec2
 
 
-class AbstractDebugDrawer(ABC):
+class DebugRecorder:
     def __init__(self, enabled: bool = True):
         """
         Initializes the debug drawer.
         When one of the public methods is called the corresponding drawing command gets
-        added to the internal drawing queue. This queue gets executed ones the implementation
-        specific render_all method gets called.
+        added to the internal drawing queue. This queue can be read by a view mplementation
+        and visualized on the screen.
         The queue mechanism allows us to control when the debug drawing gets executed.
+        I.e. the debug visuals are not overlapped with the game visuals.
 
         Args:
             enabled (bool): If True, debug drawing is enabled; otherwise, it is disabled.
         """
         self.enabled = enabled
-        self.queue: List[Tuple[str, Tuple[Any]]] = []
+        self.command_queue: List[Tuple[str, Tuple[Any]]] = []
 
     def add_line(
         self,
@@ -55,7 +46,7 @@ class AbstractDebugDrawer(ABC):
         """
         if not self.enabled:
             return
-        self.queue.append(("line", (start, end, color, arrow)))
+        self.command_queue.append(("line", (start, end, color, arrow)))
 
     def add_circle(
         self,
@@ -80,7 +71,7 @@ class AbstractDebugDrawer(ABC):
         """
         if not self.enabled:
             return
-        self.queue.append(("circle", center, radius, color, filled))
+        self.command_queue.append(("circle", center, radius, color, filled))
 
     def add_polygon(
         self,
@@ -104,7 +95,7 @@ class AbstractDebugDrawer(ABC):
         """
         if not self.enabled:
             return
-        self.queue.append(("polygon", (vertices, color, filled)))
+        self.command_queue.append(("polygon", (vertices, color, filled)))
 
     def add_marker(
         self,
@@ -124,7 +115,7 @@ class AbstractDebugDrawer(ABC):
         """
         if not self.enabled:
             return
-        self.queue.append(("marker", (position, color)))
+        self.command_queue.append(("marker", (position, color)))
 
     def add_marker_line(
         self,
@@ -150,7 +141,7 @@ class AbstractDebugDrawer(ABC):
         """
         if not self.enabled:
             return
-        self.queue.append(("marker_line", (start, direction, color, arrow)))
+        self.command_queue.append(("marker_line", (start, direction, color, arrow)))
 
     def add_text_world(
         self,
@@ -175,7 +166,7 @@ class AbstractDebugDrawer(ABC):
         """
         if not self.enabled:
             return
-        self.queue.append(("text_world", (position, text, color, size)))
+        self.command_queue.append(("text_world", (position, text, color, size)))
 
     def add_text_screen(
         self,
@@ -200,7 +191,7 @@ class AbstractDebugDrawer(ABC):
         """
         if not self.enabled:
             return
-        self.queue.append(("text_screen", (position, text, color, size)))
+        self.command_queue.append(("text_screen", (position, text, color, size)))
 
     def add_rectangle(
         self,
@@ -237,16 +228,3 @@ class AbstractDebugDrawer(ABC):
             color=color,
             filled=filled,
         )
-    
-    @abstractmethod
-    def render_all(self) -> None:
-        """
-        Triggers the rendering of all scheduled debug graphics for the current frame.
-        The implementation must make sure that the queued graphics are rendered and that
-        the queue is cleared after rendering.
-
-        This method should be called once per frame, after all `add_*` methods have
-        been called. It will execute the backend-specific rendering implementation.
-        If `enabled` is False, this method does nothing.
-        """
-        pass

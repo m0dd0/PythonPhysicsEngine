@@ -16,7 +16,7 @@ from ppe.engine.collision_handlers import (
     SatPolygonHandler,
     CircleVsPolygonHandler,
 )
-from ppe.engine.debug import AbstractDebugDrawer
+from ppe.utils.debug import DebugRecorder
 
 # we associate shape types with integer IDs so we can define an order of the types
 # this is important so that the argument order of the collision handlers are consistent
@@ -30,14 +30,14 @@ SHAPE_TYPE_TO_ID = {
 class AbstractNarrowPhase(ABC):
     """An abstract base class for narrow-phase collision detection strategies."""
 
-    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None):
+    def __init__(self, debug_recorder: Optional[DebugRecorder] = None):
         """
         Initializes the narrow-phase with an optional debug drawer.
 
         Args:
-            debug_drawer (AbstractDebugDrawer, optional): An optional debug drawer for visualizing collisions.
+            debug_recorder (DebugRecorder, optional): An optional debug drawer for visualizing collisions.
         """
-        self.debug_drawer = debug_drawer
+        self.debug_recorder = debug_recorder
 
     @abstractmethod
     def generate_contacts(
@@ -63,7 +63,7 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
     def __init__(
         self,
         handlers: Dict[Tuple[str, str], AbstractCollisionHandler] = None,
-        debug_drawer: Optional[AbstractDebugDrawer] = None,
+        debug_recorder: Optional[DebugRecorder] = None,
     ):
         """
         Initializes the dispatcher with a map of shape-type pair keys to
@@ -72,7 +72,7 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
         Args:
             handlers (Dict[Tuple[str, str], AbstractCollisionHandler], optional): A dictionary mapping an integer key to a handler object.
                 Defaults to a default handler map.
-            debug_drawer (AbstractDebugDrawer, optional): An optional debug drawer for visualizing collisions.
+            debug_recorder (DebugRecorder, optional): An optional debug drawer for visualizing collisions.
         """
         if handlers is None:
             handlers = {
@@ -102,7 +102,7 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
         }
 
         # must be set after the _collision_handlers attribute is initialized
-        super().__init__(debug_drawer)
+        super().__init__(debug_recorder)
 
     def _dispatch_collision(self, body_a: Body, body_b: Body) -> Optional[Contact]:
         """
@@ -155,10 +155,10 @@ class DispatchNarrowPhase(AbstractNarrowPhase):
                 contacts.append(contact_info)
 
                 # draw the contact points
-                if self.debug_drawer is not None:
+                if self.debug_recorder is not None:
                     for point in contact_info.contact_points:
-                        self.debug_drawer.add_marker(point, color=(255, 0, 0))
-                        self.debug_drawer.add_marker_line(
+                        self.debug_recorder.add_marker(point, color=(255, 0, 0))
+                        self.debug_recorder.add_marker_line(
                             point,
                             contact_info.normal,
                             color=(255, 0, 0),

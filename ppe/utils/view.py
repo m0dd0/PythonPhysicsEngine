@@ -11,15 +11,16 @@ The available visualization classes are:
 Besides the `View` class, this module also contains the `Camera` class,
 which is responsible for converting between world coordinates and screen coordinates.
 """
+
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Dict, Any
 
 import pygame
 
 from ppe.engine.common import Body, PolygonShape, CircleShape, Vec2
-from ppe.engine.debug import AbstractDebugDrawer
 from ppe.utils.profiler import Profiler
 from ppe.utils.colors import TAB10_COLORS
+from ppe.utils.debug import DebugRecorder
 
 
 class Camera:
@@ -265,6 +266,10 @@ class AbstractView(ABC):
         """
         pass
 
+    @abstractmethod
+    def render_debug_recorder(self, debug_recorder: DebugRecorder) -> None:
+        pass
+
     def render_all(
         self, bodies: List[Body], profiler: Profiler = None, info: List[str] = None
     ) -> None:
@@ -311,6 +316,7 @@ class PygameView(AbstractView):
         body_style_defaults: Optional[Dict[str, Any]] = None,
         profiler_settings: Optional[Dict[str, Any]] = None,
         info_section_settings: Optional[Dict[str, Any]] = None,
+        debug_graphics_settings: Optional[Dict[str, Any]] = None,
         window_caption: str = "Modular Physics Engine",
         text_render_settings: Optional[Dict[str, Any]] = None,
     ):
@@ -349,6 +355,14 @@ class PygameView(AbstractView):
                     - fontsize: The font size for the info text (default: 12)
                     - text_color: The color of the info text (default: (0, 0, 0))
                     - line_height: The line height for the info text (default: 15)
+            debug_graphics_settings (Optional[Dict[str, Any]], optional): Configuration on how
+                the debug graphics get rendered. The following is the default configuration showing all
+                valid keys:
+                    - marker_size: The size of the markers in pixels. Defaults to 4.
+                    - line_width: The width of lines and outlines in pixels. Defaults to 1.
+                    - marker_line_length: The length of marker lines in pixels. Defaults to 40.
+                    - world_coordinate_frame_size: The size of the world coordinate frame
+                        in world units. If None, the frame is not drawn. Defaults to 1.0.
             window_caption (str, optional): The caption for the Pygame window.
                 Defaults to "Modular Physics Engine".
             text_render_settings (Optional[Dict[str, Any]], optional): Default
@@ -431,6 +445,16 @@ class PygameView(AbstractView):
             self.text_render_settings["fontsize"],
         )
 
+        # debug graphics settings
+        self.debug_graphics_settings = {
+            "marker_size": 4,
+            "line_width": 1,
+            "marker_line_length": 40,
+            "world_coordinate_frame_size": 1.0,
+        }
+        if debug_graphics_settings is not None:
+            self.debug_graphics_settings.update(debug_graphics_settings)
+
     def _resolve_position(self, position: Tuple[int, int]) -> Tuple[int, int]:
         """Resolves the given position to be within the screen bounds."""
         x, y = position
@@ -440,17 +464,176 @@ class PygameView(AbstractView):
             y = self.camera.screen_height + position[1]
         return (x, y)
 
-    def render_background(self) -> None:
+    def _render_line(
+        self,
+        start: Vec2,
+        end: Vec2,
+        color: Tuple[int, int, int],
+        line_width: int,
+        arrow: bool = False,
+    ):
         """
-        Clears the screen and fills it with the configured background color.
+        Renders a line segment from a start to an end point.
 
-        This method is an implementation of the corresponding abstract method in
-        `AbstractView`. It should be called at the start of each frame's rendering
-        cycle to ensure a clean canvas.
+        The line is drawn in world coordinates and converted to screen coordinates
+        using the camera. An optional arrowhead can be drawn at the end point.
+
+        Args:
+            start (Vec2): The starting point of the line in world coordinates.
+            end (Vec2): The ending point of the line in world coordinates.
+            color (Tuple[int, int, int]): The RGB color of the line.
+            arrow (bool, optional): If True, an arrowhead is drawn at the end.
+                Defaults to False.
+            line_width (int, optional): The width of the line.
         """
-        self.screen.fill(self.background_color)
+        screen_start = self.camera.world_to_screen(start)
+        screen_end = self.camera.world_to_screen(end)
+        pygame.draw.line(
+            self.screen,
+            color,
+            screen_start.to_int_tuple(),
+            screen_end.to_int_tuple(),
+            width=line_width,
+        )
 
-    def _render_polygon(self, body: Body) -> None:
+        if arrow:
+            direction = (screen_end - screen_start).normalize()
+            # arrow_length_screen = min((screen_end - screen_start).length() / 5, 50)
+            # arrow_width_screen = arrow_length_screen / 2
+            arrow_length_screen = 8
+            arrow_width_screen = 6
+            triangle_points_screen = [
+                screen_end,
+                screen_end
+                - direction * arrow_length_screen
+                + Vec2(-direction.y, direction.x) * 0.5 * arrow_width_screen,
+                screen_end
+                - direction * arrow_length_screen
+                + Vec2(direction.y, -direction.x) * 0.5 * arrow_width_screen,
+            ]
+            pygame.draw.polygon(
+                self.screen,
+                color,
+                [p.to_int_tuple() for p in triangle_points_screen],
+                width=0,  # filled triangle
+            )
+
+    def _render_marker(
+        self, position: Vec2, color: Tuple[int, int, int], marker_size: int
+    ):
+        """
+        Renders a fixed-size marker at a world position.
+
+        The marker's size is constant in screen space, making it useful for
+        highlighting points regardless of camera zoom.
+
+        Args:
+            position (Vec2): The position of the marker in world coordinates.
+            color (Tuple[int, int, int]): The RGB color of the marker.
+            marker_size (int): The size of the marker in pixels.
+        """
+        screen_pos = self.camera.world_to_screen(position)
+        pygame.draw.circle(
+            self.screen,
+            color,
+            screen_pos.to_int_tuple(),
+            marker_size,
+            width=0,  # filled circle
+        )
+
+    def _render_marker_line(
+        self,
+        start: Vec2,
+        direction: Vec2,
+        color: Tuple[int, int, int],
+        line_length: int,
+        arrow: bool = False,
+    ):
+        """
+        Renders a fixed-length line from a point in a given direction.
+
+        The line's length is constant in screen space, making it suitable for
+        visualizing vectors like forces or normals without scaling with zoom.
+
+        Args:
+            start (Vec2): The starting position of the line in world coordinates.
+            direction (Vec2): The direction vector of the line.
+            color (Tuple[int, int, int]): The RGB color of the line.
+            line_length (int): The length of the line in pixels.
+            arrow (bool, optional): If True, an arrowhead is drawn at the end.
+                Defaults to False.
+        """
+        # in order to use the _render_line method, we need to calculate the end point in
+        # world coordinates
+        screen_start = self.camera.world_to_screen(start)
+        screen_end = self.camera.world_to_screen(start + direction)
+        screen_direction = screen_end - screen_start
+        screen_end = screen_start + (screen_direction.normalize() * line_length)
+        world_end = self.camera.screen_to_world(screen_end)
+        self._render_line(start, world_end, color, arrow)
+
+    def _render_polygon(
+        self,
+        vertices: List[Vec2],
+        color: Tuple[int, int, int],
+        filled: bool,
+        line_width: int,
+    ):
+        """
+        Renders a polygon defined by a list of vertices.
+
+        The vertices are in world coordinates and are converted to screen
+        coordinates for rendering.
+
+        Args:
+            vertices (List[Vec2]): A list of `Vec2` points defining the
+                polygon's vertices in world coordinates.
+            color (Tuple[int, int, int]): The RGB color of the polygon.
+            filled (bool): If True, the polygon is filled; otherwise, it is
+                drawn as an outline.
+            line_width (int): The width of the polygon's outline.
+        """
+        screen_verts = [self.camera.world_to_screen(v).to_int_tuple() for v in vertices]
+        pygame.draw.polygon(
+            self.screen,
+            color,
+            screen_verts,
+            width=0 if filled else line_width,
+        )
+
+    def _render_circle(
+        self,
+        center: Vec2,
+        radius: float,
+        color: Tuple[int, int, int],
+        filled: bool,
+        line_width: int,
+    ):
+        """
+        Renders a circle at a given center with a specified radius.
+
+        The circle's position and radius are in world coordinates and are
+        converted to screen coordinates for rendering.
+
+        Args:
+            center (Vec2): The center of the circle in world coordinates.
+            radius (float): The radius of the circle in world units.
+            color (Tuple[int, int, int]): The RGB color of the circle.
+            filled (bool): If True, the circle is filled; otherwise, it is
+                drawn as an outline.
+        """
+        screen_center = self.camera.world_to_screen(center)
+        screen_radius = int(radius * self.camera.scale)
+        if screen_radius > 0:
+            pygame.draw.circle(
+                self.screen,
+                color,
+                screen_center.to_int_tuple(),
+                screen_radius,
+                width=0 if filled else line_width,
+            )
+
+    def _render_polygon_body(self, body: Body) -> None:
         """
         Renders a single polygon-shaped body.
 
@@ -483,7 +666,7 @@ class PygameView(AbstractView):
                 width=style["outline_width"],
             )
 
-    def _render_circle(self, body: Body) -> None:
+    def _render_circle_body(self, body: Body) -> None:
         """
         Renders a single circle-shaped body.
 
@@ -533,60 +716,6 @@ class PygameView(AbstractView):
                 end_pos.to_int_tuple(),
                 width=style["outline_width"],
             )
-
-    def render_bodies(self, bodies: List[Body]) -> None:
-        """
-        Renders a list of physics bodies to the screen.
-
-        This method iterates through a list of `Body` objects and calls the
-        appropriate private rendering method (`_render_polygon` or `_render_circle`)
-        based on the body's shape type.
-
-        The appearance of each body can be customized via its `user_data` dictionary.
-        The following keys are recognized:
-        - `color`: The fill color of the body.
-        - `outline_color`: The color of the body's outline.
-        - `outline_width`: The width of the outline in pixels.
-        - `is_filled`: A boolean indicating whether to fill the shape.
-        - `circle_orientation_line`: For circles, a boolean to draw a line
-          indicating orientation.
-
-        If a style key is not present in `user_data`, the default value from
-        `body_style_defaults` is used.
-
-        Args:
-            bodies (List[Body]): The list of `Body` objects to render.
-
-        Raises:
-            ValueError: If a body with an unsupported shape type is encountered.
-        """
-        for body in bodies:
-            if isinstance(body.shape, PolygonShape):
-                self._render_polygon(body)
-
-            elif isinstance(body.shape, CircleShape):
-                self._render_circle(body)
-            else:
-                raise ValueError(f"Unsupported shape type: {type(body.shape).__name__}")
-
-    def render_text(
-        self, text: str, position: Tuple[int, int], color: Tuple[int, int, int]
-    ) -> None:
-        """
-        Renders a string of text at a specified screen position.
-
-        This method uses the font settings defined in `text_render_settings` to
-        draw the text. It is an implementation of the corresponding abstract method
-        in `AbstractView`.
-
-        Args:
-            text (str): The text string to render.
-            position (Tuple[int, int]): The (x, y) pixel coordinates for the top-left
-                corner of the text.
-            color (Tuple[int, int, int]): The RGB color of the text.
-        """
-        text_surface = self.text_render_settings["font"].render(text, True, color)
-        self.screen.blit(text_surface, position)
 
     def _render_profiler_bar(
         self,
@@ -661,6 +790,149 @@ class PygameView(AbstractView):
             )
 
             section_x_position += width
+
+    def _render_coordinate_frame(
+        self,
+        coordinate_frame_size: float,
+        position: Vec2,
+        line_width: int,
+        rotation: float = 0.0,
+    ):
+        """
+        Renders a coordinate frame at the world origin.
+
+        The X-axis is drawn in red, and the Y-axis is drawn in green.
+        This provides a visual reference for the world's coordinate system.
+
+        Args:
+            coordinate_frame_size (float): The length of the coordinate frame's axes in world units.
+            position (Vec2): The position of the coordinate frame in world coordinates.
+            line_width (int): The width of the coordinate frame's lines in pixels.
+            rotation (float): The rotation of the coordinate frame in radians.
+        """
+        self._render_line(
+            position,
+            position + Vec2(coordinate_frame_size, 0).rotate(rotation),
+            color=(255, 0, 0),
+            arrow=True,
+            line_width=line_width,
+        )
+        self._render_line(
+            position,
+            position + Vec2(0, coordinate_frame_size).rotate(rotation),
+            color=(0, 255, 0),
+            arrow=True,
+            line_width=line_width,
+        )
+
+    def _render_text_world(
+        self, position: Vec2, text: str, color: Tuple[int, int, int], size: float
+    ):
+        """
+        Renders text at a specific world position.
+
+        The text is anchored at the given world coordinates and will move and
+        scale with the camera.
+
+        Args:
+            position (Vec2): The anchor position of the text in world coordinates.
+            text (str): The string to be rendered.
+            color (Tuple[int, int, int]): The RGB color of the text.
+            size (float): The desired font size.
+        """
+        # Create a font for the specific size
+        font = pygame.font.SysFont("Arial", int(size))
+        text_surface = font.render(text, True, color)
+
+        # Convert world position to screen coordinates
+        screen_pos = self.camera.world_to_screen(position)
+        self.screen.blit(text_surface, screen_pos.to_int_tuple())
+
+    def _render_text_screen(
+        self, position: Vec2, text: str, color: Tuple[int, int, int], size: float
+    ):
+        """
+        Renders text at a fixed screen position.
+
+        The text is anchored at the given screen coordinates (in pixels) and will
+        not move or scale with the camera. This is useful for UI overlays.
+
+        Args:
+            position (Vec2): The anchor position of the text in screen coordinates.
+            text (str): The string to be rendered.
+            color (Tuple[int, int, int]): The RGB color of the text.
+            size (float): The font size in pixels.
+        """
+        # Create a font for the specific size
+        font = pygame.font.SysFont("Arial", int(size))
+        text_surface = font.render(text, True, color)
+
+        # Use screen position directly
+        self.screen.blit(text_surface, position.to_int_tuple())
+
+    def render_background(self) -> None:
+        """
+        Clears the screen and fills it with the configured background color.
+
+        This method is an implementation of the corresponding abstract method in
+        `AbstractView`. It should be called at the start of each frame's rendering
+        cycle to ensure a clean canvas.
+        """
+        self.screen.fill(self.background_color)
+
+    def render_bodies(self, bodies: List[Body]) -> None:
+        """
+        Renders a list of physics bodies to the screen.
+
+        This method iterates through a list of `Body` objects and calls the
+        appropriate private rendering method (`_render_polygon` or `_render_circle`)
+        based on the body's shape type.
+
+        The appearance of each body can be customized via its `user_data` dictionary.
+        The following keys are recognized:
+        - `color`: The fill color of the body.
+        - `outline_color`: The color of the body's outline.
+        - `outline_width`: The width of the outline in pixels.
+        - `is_filled`: A boolean indicating whether to fill the shape.
+        - `circle_orientation_line`: For circles, a boolean to draw a line
+          indicating orientation.
+
+        If a style key is not present in `user_data`, the default value from
+        `body_style_defaults` is used.
+
+        Args:
+            bodies (List[Body]): The list of `Body` objects to render.
+
+        Raises:
+            ValueError: If a body with an unsupported shape type is encountered.
+        """
+        for body in bodies:
+            if isinstance(body.shape, PolygonShape):
+                self._render_polygon_body(body)
+
+            elif isinstance(body.shape, CircleShape):
+                self._render_circle_body(body)
+            else:
+                raise ValueError(f"Unsupported shape type: {type(body.shape).__name__}")
+
+    def render_text(
+        self, text: str, position: Tuple[int, int], color: Tuple[int, int, int]
+    ) -> None:
+        """
+        Renders a string of text at a specified screen position.
+
+        This method uses the font settings defined in `text_render_settings` to
+        draw the text. It is an implementation of the corresponding abstract method
+        in `AbstractView`.
+
+        Args:
+            text (str): The text string to render.
+            position (Tuple[int, int]): The (x, y) pixel coordinates for the top-left
+                corner of the text.
+            color (Tuple[int, int, int]): The RGB color of the text.
+        """
+        text_surface = self.text_render_settings["font"].render(text, True, color)
+        self.screen.blit(text_surface, position)
 
     def render_profiler(self, profiler: Profiler) -> None:
         """
@@ -745,297 +1017,40 @@ class PygameView(AbstractView):
                 ),
             )
 
-    def update_display(self) -> None:
+    def render_debug_recorder(self, debug_recorder: DebugRecorder):
         """
-        Updates the full display surface to the screen.
-
-        This method should be called once per frame, after all rendering is
-        complete. It takes the contents of the current drawing surface and makes
-        them visible to the user.
-        """
-        pygame.display.flip()
-
-
-class PygameDebugDrawer(AbstractDebugDrawer):
-    """
-    A concrete implementation of the debug drawer for Pygame.
-
-    This class provides a concrete implementation of the `AbstractDebugDrawer`
-    interface, using Pygame for rendering. It handles the drawing of the various
-    debug shapes, markers, and text onto a Pygame surface.
-    """
-
-    def __init__(
-        self,
-        surface: pygame.Surface,
-        camera: Camera,
-        marker_size: int = 4,
-        line_width: int = 1,
-        marker_line_length: int = 40,
-        world_coordinate_frame_size: Optional[float] = 1.0,
-    ):
-        """
-        Initializes the PygameDebugDrawer.
-
-        Args:
-            surface (pygame.Surface): The Pygame surface to draw on.
-            camera (Camera): The camera instance for coordinate transformations.
-            marker_size (int, optional): The size of the markers in pixels.
-                Defaults to 4.
-            line_width (int, optional): The width of lines and outlines in pixels.
-                Defaults to 1.
-            marker_line_length (int, optional): The length of marker lines in pixels.
-                Defaults to 40.
-            world_coordinate_frame_size (Optional[float], optional): The size of the
-                world coordinate frame in world units. If None, the frame is not drawn.
-                Defaults to 1.0.
-        """
-        super().__init__()  # Initialize the enabled flag
-        self.surface = surface
-        self.camera = camera
-        self.marker_size = marker_size
-        self.line_width = line_width
-        self.marker_line_length = marker_line_length
-        self.world_coordinate_frame_size = world_coordinate_frame_size
-
-    def _render_coordinate_frame(self):
-        """
-        Renders a coordinate frame at the world origin.
-
-        The X-axis is drawn in red, and the Y-axis is drawn in green.
-        This provides a visual reference for the world's coordinate system.
-        """
-        self._render_line(
-            Vec2(0, 0),
-            Vec2(self.world_coordinate_frame_size, 0),
-            color=(255, 0, 0),
-            arrow=True,
-        )
-        self._render_line(
-            Vec2(0, 0),
-            Vec2(0, self.world_coordinate_frame_size),
-            color=(0, 255, 0),
-            arrow=True,
-        )
-
-    def _render_line(
-        self, start: Vec2, end: Vec2, color: Tuple[int, int, int], arrow: bool = False
-    ):
-        """
-        Renders a line segment from a start to an end point.
-
-        The line is drawn in world coordinates and converted to screen coordinates
-        using the camera. An optional arrowhead can be drawn at the end point.
-
-        Args:
-            start (Vec2): The starting point of the line in world coordinates.
-            end (Vec2): The ending point of the line in world coordinates.
-            color (Tuple[int, int, int]): The RGB color of the line.
-            arrow (bool, optional): If True, an arrowhead is drawn at the end.
-                Defaults to False.
-        """
-        screen_start = self.camera.world_to_screen(start)
-        screen_end = self.camera.world_to_screen(end)
-        pygame.draw.line(
-            self.surface,
-            color,
-            screen_start.to_int_tuple(),
-            screen_end.to_int_tuple(),
-            width=self.line_width,
-        )
-
-        if arrow:
-            direction = (screen_end - screen_start).normalize()
-            # arrow_length_screen = min((screen_end - screen_start).length() / 5, 50)
-            # arrow_width_screen = arrow_length_screen / 2
-            arrow_length_screen = 8
-            arrow_width_screen = 6
-            triangle_points_screen = [
-                screen_end,
-                screen_end
-                - direction * arrow_length_screen
-                + Vec2(-direction.y, direction.x) * 0.5 * arrow_width_screen,
-                screen_end
-                - direction * arrow_length_screen
-                + Vec2(direction.y, -direction.x) * 0.5 * arrow_width_screen,
-            ]
-            pygame.draw.polygon(
-                self.surface,
-                color,
-                [p.to_int_tuple() for p in triangle_points_screen],
-                width=0,  # filled triangle
-            )
-
-    def _render_circle(
-        self, center: Vec2, radius: float, color: Tuple[int, int, int], filled: bool
-    ):
-        """
-        Renders a circle at a given center with a specified radius.
-
-        The circle's position and radius are in world coordinates and are
-        converted to screen coordinates for rendering.
-
-        Args:
-            center (Vec2): The center of the circle in world coordinates.
-            radius (float): The radius of the circle in world units.
-            color (Tuple[int, int, int]): The RGB color of the circle.
-            filled (bool): If True, the circle is filled; otherwise, it is
-                drawn as an outline.
-        """
-        screen_center = self.camera.world_to_screen(center)
-        screen_radius = int(radius * self.camera.scale)
-        if screen_radius > 0:
-            pygame.draw.circle(
-                self.surface,
-                color,
-                screen_center.to_int_tuple(),
-                screen_radius,
-                width=0 if filled else self.line_width,
-            )
-
-    def _render_polygon(
-        self, vertices: List[Vec2], color: Tuple[int, int, int], filled: bool
-    ):
-        """
-        Renders a polygon defined by a list of vertices.
-
-        The vertices are in world coordinates and are converted to screen
-        coordinates for rendering.
-
-        Args:
-            vertices (List[Vec2]): A list of `Vec2` points defining the
-                polygon's vertices in world coordinates.
-            color (Tuple[int, int, int]): The RGB color of the polygon.
-            filled (bool): If True, the polygon is filled; otherwise, it is
-                drawn as an outline.
-        """
-        screen_verts = [self.camera.world_to_screen(v).to_int_tuple() for v in vertices]
-        pygame.draw.polygon(
-            self.surface,
-            color,
-            screen_verts,
-            width=0 if filled else self.line_width,
-        )
-
-    def _render_marker(self, position: Vec2, color: Tuple[int, int, int]):
-        """
-        Renders a fixed-size marker at a world position.
-
-        The marker's size is constant in screen space, making it useful for
-        highlighting points regardless of camera zoom.
-
-        Args:
-            position (Vec2): The position of the marker in world coordinates.
-            color (Tuple[int, int, int]): The RGB color of the marker.
-        """
-        screen_pos = self.camera.world_to_screen(position)
-        pygame.draw.circle(
-            self.surface,
-            color,
-            screen_pos.to_int_tuple(),
-            self.marker_size,
-            width=0,  # filled circle
-        )
-
-    def _render_marker_line(
-        self,
-        start: Vec2,
-        direction: Vec2,
-        color: Tuple[int, int, int],
-        arrow: bool = False,
-    ):
-        """
-        Renders a fixed-length line from a point in a given direction.
-
-        The line's length is constant in screen space, making it suitable for
-        visualizing vectors like forces or normals without scaling with zoom.
-
-        Args:
-            start (Vec2): The starting position of the line in world coordinates.
-            direction (Vec2): The direction vector of the line.
-            color (Tuple[int, int, int]): The RGB color of the line.
-            arrow (bool, optional): If True, an arrowhead is drawn at the end.
-                Defaults to False.
-        """
-        # in order to use the _render_line method, we need to calculate the end point in
-        # world coordinates
-        screen_start = self.camera.world_to_screen(start)
-        screen_end = self.camera.world_to_screen(start + direction)
-        screen_direction = screen_end - screen_start
-        screen_end = screen_start + (
-            screen_direction.normalize() * self.marker_line_length
-        )
-        world_end = self.camera.screen_to_world(screen_end)
-        self._render_line(start, world_end, color, arrow)
-
-    def _render_text_world(
-        self, position: Vec2, text: str, color: Tuple[int, int, int], size: float
-    ):
-        """
-        Renders text at a specific world position.
-
-        The text is anchored at the given world coordinates and will move and
-        scale with the camera.
-
-        Args:
-            position (Vec2): The anchor position of the text in world coordinates.
-            text (str): The string to be rendered.
-            color (Tuple[int, int, int]): The RGB color of the text.
-            size (float): The desired font size.
-        """
-        # Create a font for the specific size
-        font = pygame.font.SysFont("Arial", int(size))
-        text_surface = font.render(text, True, color)
-
-        # Convert world position to screen coordinates
-        screen_pos = self.camera.world_to_screen(position)
-        self.surface.blit(text_surface, screen_pos.to_int_tuple())
-
-    def _render_text_screen(
-        self, position: Vec2, text: str, color: Tuple[int, int, int], size: float
-    ):
-        """
-        Renders text at a fixed screen position.
-
-        The text is anchored at the given screen coordinates (in pixels) and will
-        not move or scale with the camera. This is useful for UI overlays.
-
-        Args:
-            position (Vec2): The anchor position of the text in screen coordinates.
-            text (str): The string to be rendered.
-            color (Tuple[int, int, int]): The RGB color of the text.
-            size (float): The font size in pixels.
-        """
-        # Create a font for the specific size
-        font = pygame.font.SysFont("Arial", int(size))
-        text_surface = font.render(text, True, color)
-
-        # Use screen position directly
-        self.surface.blit(text_surface, position.to_int_tuple())
-
-    def render_all(self):
-        """
-        Triggers the rendering of all scheduled debug graphics for the current frame.
+        Triggers the rendering of all scheduled debug graphics.
 
         This method iterates through the queue of drawing commands scheduled via
         the `add_*` methods and renders them to the Pygame surface. The queue is
-        cleared after rendering. This should be called once per frame. If debug
-        drawing is disabled, this method does nothing.
+        cleared after rendering. This should be called once per frame.
         """
-        if not self.enabled:
-            return
+        if (
+            self.debug_graphics_settings["world_coordinate_frame_size"] is not None
+            and debug_recorder.enabled
+        ):
+            self._render_coordinate_frame(
+                position=Vec2(0, 0),
+                coordinate_frame_size=self.debug_graphics_settings[
+                    "world_coordinate_frame_size"
+                ],
+                line_width=1,
+            )
 
-        if self.world_coordinate_frame_size is not None:
-            self._render_coordinate_frame()
-
-        for cmd_type, data in self.queue:
+        for cmd_type, data in debug_recorder.command_queue:
             if cmd_type == "line":
                 start, end, color, arrow = data
                 self._render_line(start, end, color, arrow)
 
             elif cmd_type == "circle":
                 center, radius, color, filled = data
-                self._render_circle(center, radius, color, filled)
+                self._render_circle(
+                    center,
+                    radius,
+                    color,
+                    filled,
+                    line_width=self.debug_graphics_settings["line_width"],
+                )
 
             elif cmd_type == "polygon":
                 verts, color, filled = data
@@ -1043,7 +1058,11 @@ class PygameDebugDrawer(AbstractDebugDrawer):
 
             elif cmd_type == "marker":
                 position, color = data
-                self._render_marker(position, color)
+                self._render_marker(
+                    position,
+                    color,
+                    marker_size=self.debug_graphics_settings["marker_size"],
+                )
 
             elif cmd_type == "marker_line":
                 start, direction, color, arrow = data
@@ -1057,4 +1076,318 @@ class PygameDebugDrawer(AbstractDebugDrawer):
                 position, text, color, size = data
                 self._render_text_screen(position, text, color, size)
 
-        self.queue.clear()
+        debug_recorder.command_queue.clear()
+
+    def update_display(self) -> None:
+        """
+        Updates the full display surface to the screen.
+
+        This method should be called once per frame, after all rendering is
+        complete. It takes the contents of the current drawing surface and makes
+        them visible to the user.
+        """
+        pygame.display.flip()
+
+
+# class PygameDebugDrawer(DebugRecorder):
+#     """
+#     A concrete implementation of the debug drawer for Pygame.
+
+#     This class provides a concrete implementation of the `DebugRecorder`
+#     interface, using Pygame for rendering. It handles the drawing of the various
+#     debug shapes, markers, and text onto a Pygame surface.
+#     """
+
+#     def __init__(
+#         self,
+#         surface: pygame.Surface,
+#         camera: Camera,
+#         marker_size: int = 4,
+#         line_width: int = 1,
+#         marker_line_length: int = 40,
+#         world_coordinate_frame_size: Optional[float] = 1.0,
+#     ):
+#         """
+#         Initializes the PygameDebugDrawer.
+
+#         Args:
+#             surface (pygame.Surface): The Pygame surface to draw on.
+#             camera (Camera): The camera instance for coordinate transformations.
+#             marker_size (int, optional): The size of the markers in pixels.
+#                 Defaults to 4.
+#             line_width (int, optional): The width of lines and outlines in pixels.
+#                 Defaults to 1.
+#             marker_line_length (int, optional): The length of marker lines in pixels.
+#                 Defaults to 40.
+#             world_coordinate_frame_size (Optional[float], optional): The size of the
+#                 world coordinate frame in world units. If None, the frame is not drawn.
+#                 Defaults to 1.0.
+#         """
+#         super().__init__()  # Initialize the enabled flag
+#         self.surface = surface
+#         self.camera = camera
+#         self.marker_size = marker_size
+#         self.line_width = line_width
+#         self.marker_line_length = marker_line_length
+#         self.world_coordinate_frame_size = world_coordinate_frame_size
+
+#     def _render_coordinate_frame(self):
+#         """
+#         Renders a coordinate frame at the world origin.
+
+#         The X-axis is drawn in red, and the Y-axis is drawn in green.
+#         This provides a visual reference for the world's coordinate system.
+#         """
+#         self._render_line(
+#             Vec2(0, 0),
+#             Vec2(self.world_coordinate_frame_size, 0),
+#             color=(255, 0, 0),
+#             arrow=True,
+#         )
+#         self._render_line(
+#             Vec2(0, 0),
+#             Vec2(0, self.world_coordinate_frame_size),
+#             color=(0, 255, 0),
+#             arrow=True,
+#         )
+
+#     def _render_line(
+#         self, start: Vec2, end: Vec2, color: Tuple[int, int, int], arrow: bool = False
+#     ):
+#         """
+#         Renders a line segment from a start to an end point.
+
+#         The line is drawn in world coordinates and converted to screen coordinates
+#         using the camera. An optional arrowhead can be drawn at the end point.
+
+#         Args:
+#             start (Vec2): The starting point of the line in world coordinates.
+#             end (Vec2): The ending point of the line in world coordinates.
+#             color (Tuple[int, int, int]): The RGB color of the line.
+#             arrow (bool, optional): If True, an arrowhead is drawn at the end.
+#                 Defaults to False.
+#         """
+#         screen_start = self.camera.world_to_screen(start)
+#         screen_end = self.camera.world_to_screen(end)
+#         pygame.draw.line(
+#             self.surface,
+#             color,
+#             screen_start.to_int_tuple(),
+#             screen_end.to_int_tuple(),
+#             width=self.line_width,
+#         )
+
+#         if arrow:
+#             direction = (screen_end - screen_start).normalize()
+#             # arrow_length_screen = min((screen_end - screen_start).length() / 5, 50)
+#             # arrow_width_screen = arrow_length_screen / 2
+#             arrow_length_screen = 8
+#             arrow_width_screen = 6
+#             triangle_points_screen = [
+#                 screen_end,
+#                 screen_end
+#                 - direction * arrow_length_screen
+#                 + Vec2(-direction.y, direction.x) * 0.5 * arrow_width_screen,
+#                 screen_end
+#                 - direction * arrow_length_screen
+#                 + Vec2(direction.y, -direction.x) * 0.5 * arrow_width_screen,
+#             ]
+#             pygame.draw.polygon(
+#                 self.surface,
+#                 color,
+#                 [p.to_int_tuple() for p in triangle_points_screen],
+#                 width=0,  # filled triangle
+#             )
+
+#     def _render_circle(
+#         self, center: Vec2, radius: float, color: Tuple[int, int, int], filled: bool
+#     ):
+#         """
+#         Renders a circle at a given center with a specified radius.
+
+#         The circle's position and radius are in world coordinates and are
+#         converted to screen coordinates for rendering.
+
+#         Args:
+#             center (Vec2): The center of the circle in world coordinates.
+#             radius (float): The radius of the circle in world units.
+#             color (Tuple[int, int, int]): The RGB color of the circle.
+#             filled (bool): If True, the circle is filled; otherwise, it is
+#                 drawn as an outline.
+#         """
+#         screen_center = self.camera.world_to_screen(center)
+#         screen_radius = int(radius * self.camera.scale)
+#         if screen_radius > 0:
+#             pygame.draw.circle(
+#                 self.surface,
+#                 color,
+#                 screen_center.to_int_tuple(),
+#                 screen_radius,
+#                 width=0 if filled else self.line_width,
+#             )
+
+#     def _render_polygon(
+#         self, vertices: List[Vec2], color: Tuple[int, int, int], filled: bool
+#     ):
+#         """
+#         Renders a polygon defined by a list of vertices.
+
+#         The vertices are in world coordinates and are converted to screen
+#         coordinates for rendering.
+
+#         Args:
+#             vertices (List[Vec2]): A list of `Vec2` points defining the
+#                 polygon's vertices in world coordinates.
+#             color (Tuple[int, int, int]): The RGB color of the polygon.
+#             filled (bool): If True, the polygon is filled; otherwise, it is
+#                 drawn as an outline.
+#         """
+#         screen_verts = [self.camera.world_to_screen(v).to_int_tuple() for v in vertices]
+#         pygame.draw.polygon(
+#             self.surface,
+#             color,
+#             screen_verts,
+#             width=0 if filled else self.line_width,
+#         )
+
+#     def _render_marker(self, position: Vec2, color: Tuple[int, int, int]):
+#         """
+#         Renders a fixed-size marker at a world position.
+
+#         The marker's size is constant in screen space, making it useful for
+#         highlighting points regardless of camera zoom.
+
+#         Args:
+#             position (Vec2): The position of the marker in world coordinates.
+#             color (Tuple[int, int, int]): The RGB color of the marker.
+#         """
+#         screen_pos = self.camera.world_to_screen(position)
+#         pygame.draw.circle(
+#             self.surface,
+#             color,
+#             screen_pos.to_int_tuple(),
+#             self.marker_size,
+#             width=0,  # filled circle
+#         )
+
+#     def _render_marker_line(
+#         self,
+#         start: Vec2,
+#         direction: Vec2,
+#         color: Tuple[int, int, int],
+#         arrow: bool = False,
+#     ):
+#         """
+#         Renders a fixed-length line from a point in a given direction.
+
+#         The line's length is constant in screen space, making it suitable for
+#         visualizing vectors like forces or normals without scaling with zoom.
+
+#         Args:
+#             start (Vec2): The starting position of the line in world coordinates.
+#             direction (Vec2): The direction vector of the line.
+#             color (Tuple[int, int, int]): The RGB color of the line.
+#             arrow (bool, optional): If True, an arrowhead is drawn at the end.
+#                 Defaults to False.
+#         """
+#         # in order to use the _render_line method, we need to calculate the end point in
+#         # world coordinates
+#         screen_start = self.camera.world_to_screen(start)
+#         screen_end = self.camera.world_to_screen(start + direction)
+#         screen_direction = screen_end - screen_start
+#         screen_end = screen_start + (
+#             screen_direction.normalize() * self.marker_line_length
+#         )
+#         world_end = self.camera.screen_to_world(screen_end)
+#         self._render_line(start, world_end, color, arrow)
+
+#     def _render_text_world(
+#         self, position: Vec2, text: str, color: Tuple[int, int, int], size: float
+#     ):
+#         """
+#         Renders text at a specific world position.
+
+#         The text is anchored at the given world coordinates and will move and
+#         scale with the camera.
+
+#         Args:
+#             position (Vec2): The anchor position of the text in world coordinates.
+#             text (str): The string to be rendered.
+#             color (Tuple[int, int, int]): The RGB color of the text.
+#             size (float): The desired font size.
+#         """
+#         # Create a font for the specific size
+#         font = pygame.font.SysFont("Arial", int(size))
+#         text_surface = font.render(text, True, color)
+
+#         # Convert world position to screen coordinates
+#         screen_pos = self.camera.world_to_screen(position)
+#         self.surface.blit(text_surface, screen_pos.to_int_tuple())
+
+#     def _render_text_screen(
+#         self, position: Vec2, text: str, color: Tuple[int, int, int], size: float
+#     ):
+#         """
+#         Renders text at a fixed screen position.
+
+#         The text is anchored at the given screen coordinates (in pixels) and will
+#         not move or scale with the camera. This is useful for UI overlays.
+
+#         Args:
+#             position (Vec2): The anchor position of the text in screen coordinates.
+#             text (str): The string to be rendered.
+#             color (Tuple[int, int, int]): The RGB color of the text.
+#             size (float): The font size in pixels.
+#         """
+#         # Create a font for the specific size
+#         font = pygame.font.SysFont("Arial", int(size))
+#         text_surface = font.render(text, True, color)
+
+#         # Use screen position directly
+#         self.surface.blit(text_surface, position.to_int_tuple())
+
+#     def render_all(self):
+#         """
+#         Triggers the rendering of all scheduled debug graphics for the current frame.
+
+#         This method iterates through the queue of drawing commands scheduled via
+#         the `add_*` methods and renders them to the Pygame surface. The queue is
+#         cleared after rendering. This should be called once per frame. If debug
+#         drawing is disabled, this method does nothing.
+#         """
+#         if not self.enabled:
+#             return
+
+#         if self.world_coordinate_frame_size is not None:
+#             self._render_coordinate_frame()
+
+#         for cmd_type, data in self.queue:
+#             if cmd_type == "line":
+#                 start, end, color, arrow = data
+#                 self._render_line(start, end, color, arrow)
+
+#             elif cmd_type == "circle":
+#                 center, radius, color, filled = data
+#                 self._render_circle(center, radius, color, filled)
+
+#             elif cmd_type == "polygon":
+#                 verts, color, filled = data
+#                 self._render_polygon(verts, color, filled)
+
+#             elif cmd_type == "marker":
+#                 position, color = data
+#                 self._render_marker(position, color)
+
+#             elif cmd_type == "marker_line":
+#                 start, direction, color, arrow = data
+#                 self._render_marker_line(start, direction, color, arrow)
+
+#             elif cmd_type == "text_world":
+#                 position, text, color, size = data
+#                 self._render_text_world(position, text, color, size)
+
+#             elif cmd_type == "text_screen":
+#                 position, text, color, size = data
+#                 self._render_text_screen(position, text, color, size)
+
+#         self.queue.clear()

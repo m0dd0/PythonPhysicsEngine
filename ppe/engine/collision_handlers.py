@@ -15,20 +15,20 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional
 
 from ppe.engine.common import Body, CircleShape, PolygonShape, Contact, Vec2
-from ppe.engine.debug import AbstractDebugDrawer
+from ppe.utils.debug import DebugRecorder
 
 
 class AbstractCollisionHandler(ABC):
     """Defines the interface for a specific collision handler between two shapes."""
 
-    def __init__(self, debug_drawer: Optional[AbstractDebugDrawer] = None):
+    def __init__(self, debug_recorder: Optional[DebugRecorder] = None):
         """
         Initializes the collision handler.
 
         Args:
-            debug_drawer: An optional debug drawer for visualizing collisions.
+            debug_recorder: An optional debug drawer for visualizing collisions.
         """
-        self.debug_drawer = debug_drawer
+        self.debug_recorder = debug_recorder
 
     @abstractmethod
     def generate_contact(self, body_a: Body, body_b: Body) -> Optional[Contact]:
@@ -74,9 +74,9 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
 
         # using the squared distance to avoid a sqrt call for performance
         dist_sq = ref_to_inc.length_squared()
-        # if self.debug_drawer:
+        # if self.debug_recorder:
         #     # draw line from reference body to incident body
-        #     self.debug_drawer.draw_line(
+        #     self.debug_recorder.draw_line(
         #         reference_body.position, body_b.position, color=(0, 0, 255), arrow=True
         #     )
 
@@ -284,9 +284,9 @@ class SatPolygonHandler(AbstractCollisionHandler):
         )
 
         # debug drawing
-        if self.debug_drawer is not None:
+        if self.debug_recorder is not None:
             # draw the reference edge
-            self.debug_drawer.add_line(
+            self.debug_recorder.add_line(
                 reference_edge[0],
                 reference_edge[1],
                 color=(0, 255, 0),
@@ -294,7 +294,7 @@ class SatPolygonHandler(AbstractCollisionHandler):
             )
 
             # draw the collision normal
-            # self.debug_drawer.add_line(
+            # self.debug_recorder.add_line(
             #     reference_edge[0],
             #     reference_edge[0] + collision_normal * min_overlap,
             #     color=(255, 255, 0),
@@ -302,7 +302,7 @@ class SatPolygonHandler(AbstractCollisionHandler):
             # )
 
             # draw the incident edge
-            self.debug_drawer.add_line(
+            self.debug_recorder.add_line(
                 incident_edge[0],
                 incident_edge[1],
                 color=(0, 0, 255),
@@ -387,9 +387,9 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
             )  # clamp t to [0, 1] (0 means closest point on the line is p1, 1 means p2)
             closest_on_edge = p1 + edge * t
 
-            # if self.debug_drawer:
+            # if self.debug_recorder:
             #     # draw line from circle center to closest point on edge in blue
-            #     self.debug_drawer.draw_line(
+            #     self.debug_recorder.draw_line(
             #         body_a.position, closest_on_edge, color=(0, 0, 255)
             #     )
 
