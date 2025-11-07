@@ -18,8 +18,6 @@ from typing import List, Optional, Tuple, Dict, Any
 import pygame
 
 from ppe.engine.common import Body, PolygonShape, CircleShape, Vec2
-from ppe.utils.profiler import Profiler
-from ppe.engine.debug import DebugRecorder
 
 
 class Camera:
@@ -226,38 +224,6 @@ class AbstractView(ABC):
         """
         pass
 
-    @abstractmethod
-    def render_debug_recorder(self, debug_recorder: DebugRecorder) -> None:
-        pass
-
-    def render_all(
-        self, bodies: List[Body], profiler: Profiler = None, info: List[str] = None
-    ) -> None:
-        """
-        A convenience method to render the entire frame, including background,
-        bodies, profiler, and info section.
-
-        This method encapsulates the full rendering process for a single frame.
-        It calls the necessary sub-methods in the correct order to produce a
-        complete visual output. This is useful for simplifying the main loop
-        when all components need to be rendered together.
-
-        Args:
-            bodies (List[Body]): A list of `Body` objects to be rendered.
-            profiler (Profiler, optional): The `Profiler` instance for rendering
-                performance data. If None, the profiler is not rendered. Defaults to None.
-            info (List[str], optional): A list of informational strings to render.
-                If None, no info section is rendered. Defaults to None.
-        """
-        self.render_background()
-        self.render_bodies(bodies)
-        if profiler:
-            self.render_profiler(profiler)
-        if info:
-            self.render_info(info)
-        self.update_display()
-
-
 class PygameView(AbstractView):
     """
     A concrete implementation of the `AbstractView` using the Pygame library.
@@ -274,7 +240,6 @@ class PygameView(AbstractView):
         camera: Camera,
         background_color: Tuple[int, int, int] = (240, 240, 240),
         body_style_defaults: Optional[Dict[str, Any]] = None,
-        debug_graphics_settings: Optional[Dict[str, Any]] = None,
         window_caption: str = "Modular Physics Engine",
     ):
         """
@@ -294,41 +259,8 @@ class PygameView(AbstractView):
                     - outline_width: The width of the body outline (default: 1)
                     - is_filled: Whether the body is filled (default: True)
                     - circle_orientation_line: Whether to draw the orientation line for circles (default: True)
-            profiler_settings (Optional[Dict[str, Any]], optional): Configuration for
-                the profiler display, such as position and colors. The following is the default configuration showing all
-                valid keys:
-                    - position: The position of the top-left of the profiler visualization (default: (10, 10))
-                    - font_style: The font style for the profiler text (default: "Arial")
-                    - fontsize: The font size for the profiler text (default: 12)
-                    - pixels_per_ms: The scaling factor for the profiler bars (default: 8)
-                    - smooth: Whether to use smoothed fps values of the profiler (default: True)
-                    - colors: The color palette for the profiler bars (default: TAB10_COLORS)
-                    - bar_height: The height of the profiler bars (default: 10)
-            info_section_settings (Optional[Dict[str, Any]], optional): Configuration on how
-                the info section gets rendered. The following is the default configuration showing all
-                valid keys:
-                    - position: The position of the info section (default: (10, -100))
-                    - font_style: The font style for the info text (default: "Arial")
-                    - fontsize: The font size for the info text (default: 12)
-                    - text_color: The color of the info text (default: (0, 0, 0))
-                    - line_height: The line height for the info text (default: 15)
-            debug_graphics_settings (Optional[Dict[str, Any]], optional): Configuration on how
-                the debug graphics get rendered. The following is the default configuration showing all
-                valid keys:
-                    - marker_size: The size of the markers in pixels. Defaults to 4.
-                    - line_width: The width of lines and outlines in pixels. Defaults to 1.
-                    - marker_line_length: The length of marker lines in pixels. Defaults to 40.
-                    - world_coordinate_frame_size: The size of the world coordinate frame
-                        in world units. If None, the frame is not drawn. Defaults to 1.0.
             window_caption (str, optional): The caption for the Pygame window.
                 Defaults to "Modular Physics Engine".
-            text_render_settings (Optional[Dict[str, Any]], optional): Default
-                settings for rendering text, such as font style and size. Note that the text
-                in the profiler and info section uses their own font setting. This setting
-                is merely responsible for explicit calls to the render_text_* methods of
-                the view. Default is:
-                    - font_style: "Arial"
-                    - fontsize: 12
         """
         super().__init__(
             screen=pygame.display.set_mode(
@@ -349,66 +281,6 @@ class PygameView(AbstractView):
         }
         if body_style_defaults:
             self.body_style_defaults.update(body_style_defaults)
-
-        # debug graphics settings
-        self.debug_graphics_settings = {
-            "marker_size": 4,
-            "line_width": 1,
-            "marker_line_length": 40,
-            "world_coordinate_frame_size": 1.0,
-        }
-        if debug_graphics_settings is not None:
-            self.debug_graphics_settings.update(debug_graphics_settings)
-
-    def _render_line_screen(
-        self,
-        start: Vec2,
-        end: Vec2,
-        color: Tuple[int, int, int],
-        line_width: int,
-        arrow: bool = False,
-    ):
-        """
-        Renders a line segment from a start to an end point. All values are in pixel coordinates.
-        An optional arrowhead can be drawn at the end point.
-
-        Args:
-            start (Vec2): The starting point of the line in screen coordinates.
-            end (Vec2): The ending point of the line in screen coordinates.
-            color (Tuple[int, int, int]): The RGB color of the line.
-            arrow (bool, optional): If True, an arrowhead is drawn at the end.
-                Defaults to False.
-            line_width (int, optional): The width of the line.
-        """
-        pygame.draw.line(
-            self.screen,
-            color,
-            start.to_int_tuple(),
-            end.to_int_tuple(),
-            width=line_width,
-        )
-
-        if arrow:
-            direction = (end - start).normalize()
-            arrow_length_screen = 8
-            arrow_width_screen = 6
-
-            triangle_points_screen = [
-                end,
-                end
-                - direction * arrow_length_screen
-                + Vec2(-direction.y, direction.x) * 0.5 * arrow_width_screen,
-                end
-                - direction * arrow_length_screen
-                + Vec2(direction.y, -direction.x) * 0.5 * arrow_width_screen,
-            ]
-
-            pygame.draw.polygon(
-                self.screen,
-                color,
-                [p.to_int_tuple() for p in triangle_points_screen],
-                width=0,  # filled triangle
-            )
 
     def _render_polygon_body(self, body: Body) -> None:
         """
@@ -494,43 +366,6 @@ class PygameView(AbstractView):
                 width=style["outline_width"],
             )
 
-    def _render_coordinate_frame(
-        self,
-        coordinate_frame_size: float,
-        position: Vec2,
-        line_width: int,
-        rotation: float = 0.0,
-    ):
-        """
-        Renders a coordinate frame at the world origin.
-
-        The X-axis is drawn in red, and the Y-axis is drawn in green.
-        This provides a visual reference for the world's coordinate system.
-
-        Args:
-            coordinate_frame_size (float): The length of the coordinate frame's axes in world units.
-            position (Vec2): The position of the coordinate frame in world coordinates.
-            line_width (int): The width of the coordinate frame's lines in pixels.
-            rotation (float): The rotation of the coordinate frame in radians.
-        """
-        self._render_line_screen(
-            start=self.camera.world_to_screen(position),
-            end=self.camera.world_to_screen(
-                position + Vec2(coordinate_frame_size, 0).rotate(rotation)
-            ),
-            color=(255, 0, 0),
-            arrow=True,
-            line_width=line_width,
-        )
-        self._render_line_screen(
-            start=self.camera.world_to_screen(position),
-            end=self.camera.world_to_screen(
-                position + Vec2(0, coordinate_frame_size).rotate(rotation)
-            ),
-            color=(0, 255, 0),
-            arrow=True,
-            line_width=line_width,
-        )
 
     def render_background(self) -> None:
         """
@@ -576,85 +411,6 @@ class PygameView(AbstractView):
                 self._render_circle_body(body)
             else:
                 raise ValueError(f"Unsupported shape type: {type(body.shape).__name__}")
-
-    def render_debug_recorder(self, debug_recorder: DebugRecorder):
-        """
-        Triggers the rendering of all scheduled debug graphics.
-
-        This method iterates through the queue of drawing commands scheduled via
-        the `add_*` methods and renders them to the Pygame surface. The queue is
-        cleared after rendering. This should be called once per frame.
-        """
-        if (
-            self.debug_graphics_settings["world_coordinate_frame_size"] is not None
-            and debug_recorder.enabled
-        ):
-            self._render_coordinate_frame(
-                position=Vec2(0, 0),
-                coordinate_frame_size=self.debug_graphics_settings[
-                    "world_coordinate_frame_size"
-                ],
-                line_width=1,
-            )
-
-        for cmd_type, data in debug_recorder.command_queue:
-            if cmd_type == "line":
-                start, end, color, arrow = data
-                self._render_line_screen(
-                    self.camera.world_to_screen(start),
-                    self.camera.world_to_screen(end),
-                    color,
-                    line_width=self.debug_graphics_settings["line_width"],
-                    arrow=arrow,
-                )
-
-            elif cmd_type == "circle":
-                center, radius, color, filled = data
-                pygame.draw.circle(
-                    self.screen,
-                    color,
-                    self.camera.world_to_screen(center).to_int_tuple(),
-                    int(radius * self.camera.scale),
-                    width=0 if filled else self.debug_graphics_settings["line_width"],
-                )
-
-            elif cmd_type == "polygon":
-                verts, color, filled = data
-                pygame.draw.polygon(
-                    self.screen,
-                    color,
-                    [self.camera.world_to_screen(v).to_int_tuple() for v in verts],
-                    width=0 if filled else self.debug_graphics_settings["line_width"],
-                )
-
-            elif cmd_type == "marker":
-                position, color = data
-                pygame.draw.circle(
-                    self.screen,
-                    color,
-                    self.camera.world_to_screen(position).to_int_tuple(),
-                    int(self.debug_graphics_settings["marker_size"]),
-                    width=0,
-                )
-
-            elif cmd_type == "marker_line":
-                start, direction, color, arrow = data
-                start_screen = self.camera.world_to_screen(start)
-                end_screen = self.camera.world_to_screen(start + direction)
-                end_screen = (
-                    start_screen
-                    + (end_screen - start_screen).normalize()
-                    * self.debug_graphics_settings["marker_line_length"]
-                )
-                self._render_line_screen(
-                    start_screen,
-                    end_screen,
-                    color,
-                    line_width=self.debug_graphics_settings["line_width"],
-                    arrow=arrow,
-                )
-
-        debug_recorder.command_queue.clear()
 
     def update_display(self) -> None:
         """

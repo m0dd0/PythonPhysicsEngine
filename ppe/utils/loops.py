@@ -100,7 +100,6 @@ def main_loop(
         with profiler.time("render"):
             view.render_background()
             view.render_bodies(world.bodies)
-            view.render_debug_recorder(world.debug_recorder)
             for widget in widgets:
                 widget.render(view.screen)
         

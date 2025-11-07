@@ -36,7 +36,12 @@ from ppe.frontend.controller import (
 from ppe.utils.profiler import Profiler
 from ppe.frontend.colors import V1_COLORS
 from ppe.engine.debug import DebugRecorder
-from ppe.frontend.widgets import PGProfilerWidget, AbstractUIElement, PGControllerInfoWidget
+from ppe.frontend.widgets import (
+    PGProfilerWidget,
+    AbstractUIElement,
+    PGControllerInfoWidget,
+    PGDebugRecorderWidget,
+)
 
 
 ## Constants
@@ -76,7 +81,6 @@ def setup() -> Tuple[
         ),
         body_style_defaults=BODY_STYLE_DEFAULTS,
     )
-
 
     ## define initial bodies
     initial_bodies = [
@@ -165,6 +169,7 @@ def setup() -> Tuple[
             position=(10, 10), profiler=profiler, subsection_keys=["world"]
         ),
         PGControllerInfoWidget(position=(10, -100), controllers=controllers),
+        PGDebugRecorderWidget(debug_recorder=debug_recorder, camera=view.camera),
     ]
 
     clock = pygame.time.Clock()
@@ -220,7 +225,6 @@ def main_loop(
         with profiler.time("render"):
             view.render_background()
             view.render_bodies(world.bodies)
-            view.render_debug_recorder(debug_recorder)
             for widget in widgets:
                 widget.render(view.screen)
 

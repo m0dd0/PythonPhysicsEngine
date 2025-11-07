@@ -7,6 +7,9 @@ import pygame
 from ppe.frontend.input import InputState
 from ppe.utils.profiler import Profiler
 from ppe.frontend.controller import AbstractController
+from ppe.frontend.view import Camera
+from ppe.engine.debug import DebugRecorder
+from ppe.engine.common import Vec2
 
 
 class AbstractUIElement(ABC):
@@ -393,3 +396,219 @@ class PGControllerInfoWidget(PGTextPanelWidget):
         self.update_text("\n".join(c.action_description for c in self.controllers))
 
     # The 'draw' method is inherited from TextPanelWidget and works perfectly
+
+
+class PGDebugRecorderWidget(AbstractUIElement):
+    """
+    A UI element that renders all commands from a DebugRecorder.
+
+    This widget is responsible for translating the world-space debug
+    commands (lines, circles, etc.) into screen-space Pygame draw calls,
+    using the provided Camera for coordinate conversion.
+    """
+
+    def __init__(
+        self,
+        debug_recorder: DebugRecorder,
+        camera: Camera,
+        world_coordinate_frame_size: int = 1,
+        line_width: int = 2,
+        marker_size: int = 4,
+        marker_line_length: int = 40,
+    ):
+        """
+        Initializes the DebugWidget.
+
+        Args:
+            debug_recorder (DebugRecorder): The data model containing the list of draw commands.
+            camera (Camera): The camera used to convert world-space coordinates to screen-space.
+            world_coordinate_frame_size (int): The size of the world coordinate frame in pixels.
+            line_width (int): The width of lines in pixels.
+            marker_size (int): The size of markers in pixels.
+            marker_line_length (int): The length of marker lines in pixels.
+        """
+        # This widget is just an overlay, so its rect can be 0,0,0,0
+        super().__init__(position=(0, 0), width=0, height=0)
+        self.debug_recorder = debug_recorder
+        self.camera = camera
+        self.world_coordinate_frame_size = world_coordinate_frame_size
+        self.line_width = line_width
+        self.marker_size = marker_size
+        self.marker_line_length = marker_line_length
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """
+        The DebugWidget is non-interactive; this method does nothing.
+        """
+        pass
+
+    def _render_line_screen(
+        self,
+        surface: pygame.Surface,
+        start: Vec2,
+        end: Vec2,
+        color: Tuple[int, int, int],
+        line_width: int,
+        arrow: bool = False,
+    ):
+        """
+        Renders a line segment from a start to an end point. All values are in pixel coordinates.
+        An optional arrowhead can be drawn at the end point.
+
+        Args:
+            surface (pygame.Surface): The surface to draw on.
+            start (Vec2): The starting point of the line in screen coordinates.
+            end (Vec2): The ending point of the line in screen coordinates.
+            color (Tuple[int, int, int]): The RGB color of the line.
+            arrow (bool, optional): If True, an arrowhead is drawn at the end.
+                Defaults to False.
+            line_width (int, optional): The width of the line.
+        """
+        pygame.draw.line(
+            surface,
+            color,
+            start.to_int_tuple(),
+            end.to_int_tuple(),
+            width=line_width,
+        )
+
+        if arrow:
+            direction = (end - start).normalize()
+            arrow_length_screen = 8
+            arrow_width_screen = 6
+
+            triangle_points_screen = [
+                end,
+                end
+                - direction * arrow_length_screen
+                + Vec2(-direction.y, direction.x) * 0.5 * arrow_width_screen,
+                end
+                - direction * arrow_length_screen
+                + Vec2(direction.y, -direction.x) * 0.5 * arrow_width_screen,
+            ]
+
+            pygame.draw.polygon(
+                surface,
+                color,
+                [p.to_int_tuple() for p in triangle_points_screen],
+                width=0,  # filled triangle
+            )
+
+    def _render_coordinate_frame(
+        self,
+        surface: pygame.Surface,
+        coordinate_frame_size: float,
+        position: Vec2,
+        line_width: int,
+        rotation: float = 0.0,
+    ):
+        """
+        Renders a coordinate frame at the world origin.
+
+        The X-axis is drawn in red, and the Y-axis is drawn in green.
+        This provides a visual reference for the world's coordinate system.
+
+        Args:
+            surface (pygame.Surface): The surface to draw on.
+            coordinate_frame_size (float): The length of the coordinate frame's axes in world units.
+            position (Vec2): The position of the coordinate frame in world coordinates.
+            line_width (int): The width of the coordinate frame's lines in pixels.
+            rotation (float): The rotation of the coordinate frame in radians.
+        """
+        self._render_line_screen(
+            surface,
+            start=self.camera.world_to_screen(position),
+            end=self.camera.world_to_screen(
+                position + Vec2(coordinate_frame_size, 0).rotate(rotation)
+            ),
+            color=(255, 0, 0),
+            arrow=True,
+            line_width=line_width,
+        )
+        self._render_line_screen(
+            surface,
+            start=self.camera.world_to_screen(position),
+            end=self.camera.world_to_screen(
+                position + Vec2(0, coordinate_frame_size).rotate(rotation)
+            ),
+            color=(0, 255, 0),
+            arrow=True,
+            line_width=line_width,
+        )
+
+    def render(self, surface: pygame.Surface) -> None:
+        """
+        Draws all buffered commands from the DebugRecorder to the screen.
+        """
+        if not self.debug_recorder.enabled:
+            return
+
+        if self.world_coordinate_frame_size is not None:
+            self._render_coordinate_frame(
+                surface=surface,
+                position=Vec2(0, 0),
+                coordinate_frame_size=self.world_coordinate_frame_size,
+                line_width=1,
+            )
+
+        # This logic is moved directly from PygameView.render_debug_logs
+        for cmd_type, data in self.debug_recorder.command_queue:
+            if cmd_type == "line":
+                start, end, color, arrow = data
+                self._render_line_screen(
+                    surface,
+                    self.camera.world_to_screen(start),
+                    self.camera.world_to_screen(end),
+                    color,
+                    line_width=self.line_width,
+                    arrow=arrow,
+                )
+
+            elif cmd_type == "polygon":
+                verts, color, filled = data
+                pygame.draw.polygon(
+                    surface,
+                    color,
+                    [self.camera.world_to_screen(v).to_int_tuple() for v in verts],
+                    width=0 if filled else self.line_width,
+                )
+
+            elif cmd_type == "circle":
+                center, radius, color, filled = data
+                pygame.draw.circle(
+                    surface,
+                    color,
+                    self.camera.world_to_screen(center).to_int_tuple(),
+                    int(radius * self.camera.scale),
+                    width=0 if filled else self.line_width,
+                )
+
+            elif cmd_type == "marker":
+                position, color = data
+                pygame.draw.circle(
+                    surface,
+                    color,
+                    self.camera.world_to_screen(position).to_int_tuple(),
+                    int(self.marker_size),
+                    width=0,
+                )
+
+            elif cmd_type == "marker_line":
+                start, direction, color, arrow = data
+                start_screen = self.camera.world_to_screen(start)
+                end_screen = self.camera.world_to_screen(start + direction)
+                end_screen = (
+                    start_screen
+                    + (end_screen - start_screen).normalize()
+                    * self.marker_line_length
+                )
+                self._render_line_screen(
+                    surface,
+                    start_screen,
+                    end_screen,
+                    color,
+                    line_width=self.line_width,
+                    arrow=arrow,
+                )
+
+        self.debug_recorder.command_queue.clear()

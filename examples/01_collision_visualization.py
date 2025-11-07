@@ -49,7 +49,7 @@ from ppe.frontend.controller import (
 )
 from ppe.utils.profiler import Profiler
 from ppe.engine.debug import DebugRecorder
-from ppe.frontend.widgets import PGControllerInfoWidget, AbstractUIElement
+from ppe.frontend.widgets import PGControllerInfoWidget, AbstractUIElement, PGDebugRecorderWidget
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)
@@ -150,7 +150,8 @@ def setup() -> Tuple[
     ]
 
     widgets = [
-        PGControllerInfoWidget(controllers=controllers, position=(10, -150))
+        PGControllerInfoWidget(controllers=controllers, position=(10, -150)),
+        PGDebugRecorderWidget(debug_recorder=debug_recorder, camera=view.camera),
     ]
 
     clock = pygame.time.Clock()
@@ -195,11 +196,8 @@ def main_loop(
         # Render the world
         view.render_background()
         view.render_bodies(world.bodies)
-        view.render_debug_recorder(debug_recorder)
         for widget in widgets:
             widget.render(view.screen)
-
-        # Render profiler after timing is complete
         view.update_display()
 
     pygame.quit()  # pylint: disable=no-member

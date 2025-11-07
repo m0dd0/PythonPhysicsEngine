@@ -43,6 +43,7 @@ from ppe.frontend.widgets import (
     AbstractUIElement,
     PGProfilerWidget,
     PGControllerInfoWidget,
+    PGDebugRecorderWidget,
 )
 
 ## Constants
@@ -178,6 +179,7 @@ def setup() -> Tuple[
     widgets = [
         PGProfilerWidget(profiler=profiler, position=(10, 10)),
         PGControllerInfoWidget(controllers=controllers, position=(10, -100)),
+        PGDebugRecorderWidget(debug_recorder=debug_recorder, camera=view.camera),
     ]
 
     clock = pygame.time.Clock()
@@ -233,8 +235,6 @@ def main_loop(
         with profiler.time("render"):
             view.render_background()
             view.render_bodies(world.bodies)
-            view.render_debug_recorder(debug_recorder)
-            view.render_info([c.action_description for c in controllers])
             for widget in widgets:
                 widget.render(view.screen)
 
