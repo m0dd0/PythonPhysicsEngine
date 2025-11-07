@@ -22,7 +22,7 @@ def main_loop(
     profiler: Profiler,
     widgets: List[AbstractUIElement],
     target_fps: int = 60,
-    use_fixed_timestep: bool = False,
+    use_fixed_simulation_timestep: bool = False,
     cap_fps: bool = True,
     substeps: int = 1,
     max_iterations: int = None,
@@ -69,7 +69,7 @@ def main_loop(
         actual_dt = elapsed_ms / 1000.0
         
         # ...unless we're forcing a fixed timestep.
-        if use_fixed_timestep:
+        if use_fixed_simulation_timestep:
             dt = fixed_dt
         else:
             dt = actual_dt

@@ -159,10 +159,9 @@ def main():
         profiler,
         widgets,
         target_fps=60,
-        use_fixed_timestep=False,
+        use_fixed_simulation_timestep=False,
         cap_fps=True,
         substeps=1,
-        max_iterations=1000,
     )
 
 

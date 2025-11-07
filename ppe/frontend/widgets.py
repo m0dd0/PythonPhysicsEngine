@@ -161,6 +161,7 @@ class PGProfilerWidget(AbstractUIElement):
             row_idx=0,
             timings={k: v for k, v in timings.items() if "/" not in k},
             heading=f"total ({int(frame_time):03d}ms)",
+            total_frame_time=frame_time,
         )
 
         # Render all requested subsection bars
@@ -190,6 +191,7 @@ class PGProfilerWidget(AbstractUIElement):
         row_idx: int,
         timings: Dict[str, float],
         heading: str,
+        total_frame_time: float = None,
     ) -> None:
         """Renders a single horizontal bar for the profiler."""
 
@@ -201,6 +203,9 @@ class PGProfilerWidget(AbstractUIElement):
         surface.blit(self.font.render(heading, True, (0, 0, 0)), row_position)
 
         total_time = sum(timings.values())
+        if total_frame_time is not None:
+            timings["_idle_"] = total_frame_time - total_time
+            total_time = total_frame_time
 
         accumulated_section_width = 0
         for i_segment, (key, value) in enumerate(timings.items()):
@@ -210,7 +215,9 @@ class PGProfilerWidget(AbstractUIElement):
 
             color = self.colors[i_segment % len(self.colors)]
             section_position = (
-                row_position[0] + self.horizontal_bar_offset + accumulated_section_width,
+                row_position[0]
+                + self.horizontal_bar_offset
+                + accumulated_section_width,
                 row_position[1],
             )
             accumulated_section_width += width
