@@ -49,6 +49,7 @@ from ppe.frontend.controller import (
 )
 from ppe.utils.profiler import Profiler
 from ppe.engine.debug import DebugRecorder
+from ppe.frontend.widgets import PGControllerInfoWidget, AbstractUIElement
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)
@@ -66,6 +67,7 @@ def setup() -> Tuple[
     Profiler,
     pygame.time.Clock,
     DebugRecorder,
+    List[AbstractUIElement],
 ]:
     pygame.init()  # pylint: disable=no-member
 
@@ -147,9 +149,13 @@ def setup() -> Tuple[
         HoverRotateController(world=world, camera=view.camera),
     ]
 
+    widgets = [
+        PGControllerInfoWidget(controllers=controllers, position=(10, -150))
+    ]
+
     clock = pygame.time.Clock()
 
-    return view, world, controllers, app_controller, clock, debug_recorder
+    return view, world, controllers, app_controller, clock, debug_recorder, widgets
 
 
 def main_loop(
@@ -159,6 +165,7 @@ def main_loop(
     app_controller: ApplicationController,
     clock: pygame.time.Clock,
     debug_recorder: DebugRecorder,
+    widgets: List[AbstractUIElement],
 ):
     ## Main Loop
     running = True
@@ -189,7 +196,8 @@ def main_loop(
         view.render_background()
         view.render_bodies(world.bodies)
         view.render_debug_recorder(debug_recorder)
-        view.render_info([c.action_description for c in controllers])
+        for widget in widgets:
+            widget.render(view.screen)
 
         # Render profiler after timing is complete
         view.update_display()
@@ -198,8 +206,8 @@ def main_loop(
 
 
 def main():
-    view, world, controllers, app_controller, clock, debug_recorder = setup()
-    main_loop(view, world, controllers, app_controller, clock, debug_recorder)
+    view, world, controllers, app_controller, clock, debug_recorder, widgets = setup()
+    main_loop(view, world, controllers, app_controller, clock, debug_recorder, widgets)
 
 
 if __name__ == "__main__":

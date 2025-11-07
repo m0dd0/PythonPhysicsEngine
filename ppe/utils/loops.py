@@ -101,7 +101,6 @@ def main_loop(
             view.render_background()
             view.render_bodies(world.bodies)
             view.render_debug_recorder(world.debug_recorder)
-            view.render_info([c.action_description for c in controllers])
             for widget in widgets:
                 widget.render(view.screen)
         

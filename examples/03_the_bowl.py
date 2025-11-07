@@ -39,15 +39,18 @@ from ppe.frontend.controller import (
 from ppe.utils.profiler import Profiler
 from ppe.frontend.colors import V1_COLORS
 from ppe.engine.debug import DebugRecorder
-from ppe.frontend.widgets import AbstractUIElement, PGProfilerWidget
+from ppe.frontend.widgets import (
+    AbstractUIElement,
+    PGProfilerWidget,
+    PGControllerInfoWidget,
+)
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)
 SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 576
 SCREEN_WIDTH_WORLD = 10.0  # World width in physics units
-BODY_STYLE_DEFAULTS = {
-}
+BODY_STYLE_DEFAULTS = {}
 
 CIRCLE_SPAWN_RADIUS_RANGE = (0.1, 0.3)
 POLYGON_SPAWN_SIDE_RANGE = (0.1, 0.5)
@@ -80,9 +83,6 @@ def setup() -> Tuple[
         body_style_defaults=BODY_STYLE_DEFAULTS,
     )
 
-    ## initialize widgets
-    widgets = [PGProfilerWidget(profiler=profiler, position=(10, 10))]
-
     ## initialize bodies
     initial_bodies = [
         # left wall
@@ -90,23 +90,21 @@ def setup() -> Tuple[
             shape=PolygonShape.create_rectangle(width=0.5, height=3),
             position=Vec2(-3.75, 2.75),
             mass=None,  # static body
-            user_data={"color": [0,0,0]}
+            user_data={"color": [0, 0, 0]},
         ),
         # right wall
         Body(
             shape=PolygonShape.create_rectangle(width=0.5, height=3),
             position=Vec2(3.75, 2.75),
             mass=None,  # static body
-            user_data={"color": [0,0,0]}
-
-
+            user_data={"color": [0, 0, 0]},
         ),
         # bottom wall
         Body(
             shape=PolygonShape.create_rectangle(width=8, height=0.5),
             position=Vec2(0, 1),
             mass=None,  # static body
-            user_data={"color": [0,0,0]}
+            user_data={"color": [0, 0, 0]},
         ),
     ]
 
@@ -176,9 +174,24 @@ def setup() -> Tuple[
         ),
     ]
 
+    ## initialize widgets
+    widgets = [
+        PGProfilerWidget(profiler=profiler, position=(10, 10)),
+        PGControllerInfoWidget(controllers=controllers, position=(10, -100)),
+    ]
+
     clock = pygame.time.Clock()
 
-    return view, world, controllers, app_controller, profiler, clock, widgets, debug_recorder
+    return (
+        view,
+        world,
+        controllers,
+        app_controller,
+        profiler,
+        clock,
+        widgets,
+        debug_recorder,
+    )
 
 
 def main_loop(

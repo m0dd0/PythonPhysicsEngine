@@ -226,35 +226,6 @@ class AbstractView(ABC):
         """
         pass
 
-    # @abstractmethod
-    # def render_profiler(self, profiler: Profiler) -> None:
-    #     """
-    #     Renders performance profiling information to the screen.
-
-    #     This method visualizes timing data from a `Profiler` instance, which can
-    #     help in debugging performance issues. It may display information like
-    #     frame time, FPS, and the duration of different simulation stages.
-
-    #     Args:
-    #         profiler (Profiler): The `Profiler` instance containing the timing data
-    #             for the current frame.
-    #     """
-    #     pass
-
-    @abstractmethod
-    def render_info(self, info: List[str]) -> None:
-        """
-        Renders a list of informational strings to the screen.
-
-        This is a general-purpose method for displaying debug information, simulation
-        state, or other textual data as an overlay on the screen. Each string in
-        the list is typically rendered on a new line.
-
-        Args:
-            info (List[str]): A list of strings to be rendered on the screen.
-        """
-        pass
-
     @abstractmethod
     def render_debug_recorder(self, debug_recorder: DebugRecorder) -> None:
         pass
@@ -303,11 +274,8 @@ class PygameView(AbstractView):
         camera: Camera,
         background_color: Tuple[int, int, int] = (240, 240, 240),
         body_style_defaults: Optional[Dict[str, Any]] = None,
-        # profiler_settings: Optional[Dict[str, Any]] = None,
-        info_section_settings: Optional[Dict[str, Any]] = None,
         debug_graphics_settings: Optional[Dict[str, Any]] = None,
         window_caption: str = "Modular Physics Engine",
-        text_render_settings: Optional[Dict[str, Any]] = None,
     ):
         """
         Initializes the PygameView.
@@ -362,11 +330,13 @@ class PygameView(AbstractView):
                     - font_style: "Arial"
                     - fontsize: 12
         """
-        self.camera = camera
-        self.screen = pygame.display.set_mode(
-            (camera.screen_width, camera.screen_height)
+        super().__init__(
+            screen=pygame.display.set_mode(
+                (camera.screen_width, camera.screen_height)
+            )
         )
         pygame.display.set_caption(window_caption)
+        self.camera = camera
 
         # appearance settings
         self.background_color = background_color
@@ -380,60 +350,6 @@ class PygameView(AbstractView):
         if body_style_defaults:
             self.body_style_defaults.update(body_style_defaults)
 
-        # info rendering settings
-        self.info_section_settings = {
-            "position": (10, -100),
-            "fontsize": 12,
-            "font_style": "Arial",
-            "text_color": (0, 0, 0),
-            "line_height": 15,
-        }
-        if info_section_settings:
-            self.info_section_settings.update(info_section_settings)
-        self.info_section_settings["font"] = pygame.font.SysFont(
-            self.info_section_settings["font_style"],
-            self.info_section_settings["fontsize"],
-        )
-
-        # profiler settings
-        # self.profiler_settings = {
-        #     "position": (10, 10),
-        #     "font_style": "Arial",
-        #     "fontsize": 12,
-        #     "pixels_per_ms": 8,
-        #     "smooth": True,
-        #     "colors": TAB10_COLORS,
-        #     "bar_background_color": (200, 200, 200),
-        #     "subsection_keys": [],
-        #     "label_font_style": "Arial",
-        #     "label_font_size": 12,
-        #     "row_height": 15,
-        #     "row_spacing": 2,
-        #     "horizontal_bar_offset": 70,
-        # }
-        # if profiler_settings:
-        #     self.profiler_settings.update(profiler_settings)
-        # self.profiler_settings["font"] = pygame.font.SysFont(
-        #     self.profiler_settings["font_style"],
-        #     self.profiler_settings["fontsize"],
-        # )
-        # self.profiler_settings["label_font"] = pygame.font.SysFont(
-        #     self.profiler_settings["label_font_style"],
-        #     self.profiler_settings["label_font_size"],
-        # )
-
-        # text rendering settings
-        self.text_render_settings = {
-            "font_style": "Arial",
-            "fontsize": 12,
-        }
-        if text_render_settings:
-            self.text_render_settings.update(text_render_settings)
-        self.text_render_settings["font"] = pygame.font.SysFont(
-            self.text_render_settings["font_style"],
-            self.text_render_settings["fontsize"],
-        )
-
         # debug graphics settings
         self.debug_graphics_settings = {
             "marker_size": 4,
@@ -443,15 +359,6 @@ class PygameView(AbstractView):
         }
         if debug_graphics_settings is not None:
             self.debug_graphics_settings.update(debug_graphics_settings)
-
-    def _resolve_position(self, position: Tuple[int, int]) -> Tuple[int, int]:
-        """Resolves the given position to be within the screen bounds."""
-        x, y = position
-        if x < 0:
-            x = self.camera.screen_width + position[0]
-        if y < 0:
-            y = self.camera.screen_height + position[1]
-        return (x, y)
 
     def _render_line_screen(
         self,
@@ -587,80 +494,6 @@ class PygameView(AbstractView):
                 width=style["outline_width"],
             )
 
-    # def _render_profiler_bar(
-    #     self,
-    #     position: Tuple[int, int],
-    #     timings: Dict[str, float],
-    #     heading: str,
-    # ) -> None:
-    #     """Renders a horizontal bar for the profiler including its heading and the labels.
-
-    #     Args:
-    #         position (Tuple[int, int]): The (x, y) position to render the bar.
-    #         timings (Dict[str, float]): A dictionary of timing data for each section.
-    #         heading (str): The heading text to display above the bar.
-    #         total_timing (float): The total timing value for the bar. This will draw a background
-    #             rectangle for the bar. Ignored if set to None.
-    #     """
-    #     # draw the header text
-    #     self.screen.blit(
-    #         self.profiler_settings["font"].render(heading, True, (0, 0, 0)),
-    #         (position[0], position[1]),
-    #     )
-
-    #     bar_position = (
-    #         position[0] + self.profiler_settings["horizontal_bar_offset"],
-    #         position[1],
-    #     )
-
-    #     # compute the section based properties
-    #     section_widths = [
-    #         int(timing * self.profiler_settings["pixels_per_ms"])
-    #         for timing in timings.values()
-    #     ]
-    #     section_colors = [
-    #         self.profiler_settings["colors"][i % len(self.profiler_settings["colors"])]
-    #         for i in range(len(timings))
-    #     ]
-    #     total_time = sum(timings.values())
-    #     section_labels = [
-    #         f"{key} ({int(value):02d}ms/{int(value / total_time * 100):02d}%)"
-    #         for key, value in timings.items()
-    #     ]
-
-    #     # draw the colored sections
-    #     section_x_position = bar_position[0]
-    #     for width, color, label in zip(section_widths, section_colors, section_labels):
-    #         pygame.draw.rect(
-    #             self.screen,
-    #             color,
-    #             (
-    #                 section_x_position,
-    #                 bar_position[1],
-    #                 width,
-    #                 self.profiler_settings["row_height"],
-    #             ),
-    #             width=0,
-    #         )
-
-    #         # draw the label with correct width
-    #         for i in range(len(label)):
-    #             if self.profiler_settings["label_font"].size(label[:i])[0] > width:
-    #                 label = label[: i - 1]
-    #                 break
-    #         label_rect = self.profiler_settings["label_font"].render(
-    #             label, True, (0, 0, 0)
-    #         )
-    #         self.screen.blit(
-    #             label_rect,
-    #             (
-    #                 section_x_position + (width - label_rect.get_width()) // 2,
-    #                 bar_position[1],
-    #             ),
-    #         )
-
-    #         section_x_position += width
-
     def _render_coordinate_frame(
         self,
         coordinate_frame_size: float,
@@ -743,89 +576,6 @@ class PygameView(AbstractView):
                 self._render_circle_body(body)
             else:
                 raise ValueError(f"Unsupported shape type: {type(body.shape).__name__}")
-
-    # def render_profiler(self, profiler: Profiler) -> None:
-    #     """
-    #     Renders an enhanced profiler visualization with a horizontal timeline bar.
-
-    #     This method displays timing data from the `Profiler` as a series of
-    #     color-coded segments, where the width of each segment is proportional to
-    #     the time taken. It shows total frame time, FPS, and detailed breakdowns
-    #     for top-level and specified subsection timings. Timing entries that do not contain
-    #     a `/` will be treated as top-level entries and displayed in a shared bar.
-    #     Entries with a `/` will be grouped by the preceding section name and displayed
-    #     in separate bars per leading section. Note that only one level of nesting is supported.
-
-    #     Args:
-    #         profiler (Profiler): The `Profiler` instance with the timing data to render.
-    #     """
-    #     # Get timing data in milliseconds
-    #     if self.profiler_settings["smooth"]:
-    #         frame_time = profiler.smoothed_total_frame_time
-    #         timings = profiler.smoothed_timings
-    #     else:
-    #         frame_time = profiler.total_frame_time
-    #         timings = profiler.timings
-
-    #     # resolve position
-    #     position = self._resolve_position(self.profiler_settings["position"])
-
-    #     # render the color bar for the top-level timings
-    #     toplevel_timings = {k: v for k, v in timings.items() if "/" not in k}
-    #     self._render_profiler_bar(
-    #         position=position,
-    #         timings=toplevel_timings,
-    #         # heading=f"{int(frame_time):03d}ms ({int(1000 / frame_time):02d} FPS)",
-    #         heading=f"total ({int(frame_time):03d}ms)",
-    #     )
-
-    #     # render subsection bars below the main bar
-    #     y_position = position[1]
-    #     for subsection_key in self.profiler_settings["subsection_keys"]:
-    #         y_position += (
-    #             self.profiler_settings["row_height"]
-    #             + self.profiler_settings["row_spacing"]
-    #         )
-    #         subsections_timings = {
-    #             k.split("/")[1]: v
-    #             for k, v in timings.items()
-    #             if k.startswith(f"{subsection_key}/")
-    #         }
-    #         if not subsections_timings:
-    #             continue
-
-    #         self._render_profiler_bar(
-    #             position=[position[0], y_position],
-    #             timings=subsections_timings,
-    #             heading=f"{subsection_key} ({int(sum(subsections_timings.values())):03d}ms)",
-    #         )
-
-    def render_info(self, info: List[str]) -> None:
-        """
-        Renders a list of informational strings to the screen.
-
-        This method displays each string in the provided list as a separate line
-        of text in a designated area of the screen, configured by
-        `info_section_settings`. It's useful for showing debug data, controls,
-        or simulation status.
-
-        Args:
-            info (List[str]): A list of strings to render as information.
-        """
-        ## resolve position
-        position = self._resolve_position(self.info_section_settings["position"])
-
-        for i, line in enumerate(info):
-            text_surface = self.info_section_settings["font"].render(
-                line, True, self.info_section_settings["text_color"]
-            )
-            self.screen.blit(
-                text_surface,
-                (
-                    position[0],
-                    position[1] + i * self.info_section_settings["line_height"],
-                ),
-            )
 
     def render_debug_recorder(self, debug_recorder: DebugRecorder):
         """

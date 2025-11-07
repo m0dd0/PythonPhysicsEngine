@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Any, Dict
+import math
 
 import pygame
 
 from ppe.frontend.input import InputState
 from ppe.utils.profiler import Profiler
+from ppe.frontend.controller import AbstractController
 
 
 class AbstractUIElement(ABC):
@@ -55,7 +57,33 @@ class AbstractUIElement(ABC):
         pass
 
 
-class PGProfilerWidget(AbstractUIElement):
+class PGAbstractUIElement(AbstractUIElement):
+    def __init__(self, position, width, height):
+        super().__init__(position, width, height)
+
+    def _resolve_position(
+        self, position: Tuple[int, int], surface: pygame.Surface
+    ) -> Tuple[int, int]:
+        """Resolves the given position to be within the screen bounds.
+        This is especially useful for definig distances from the right or bottom of the screen
+        by using negative numbers.
+
+        Args:
+            position (Tuple[int, int]): The position to resolve.
+            surface (pygame.Surface): The surface to check against.
+
+        Returns:
+            Tuple[int, int]: The resolved position.
+        """
+        x, y = position
+        if x < 0:
+            x = surface.get_width() + position[0]
+        if y < 0:
+            y = surface.get_height() + position[1]
+        return (x, y)
+
+
+class PGProfilerWidget(PGAbstractUIElement):
     """
     A UI widget that visualizes data from a Profiler object.
 
@@ -196,9 +224,10 @@ class PGProfilerWidget(AbstractUIElement):
         """Renders a single horizontal bar for the profiler."""
 
         # Draw the header text
+        position = self._resolve_position(self.position, surface)
         row_position = (
-            self.position[0],
-            self.position[1] + row_idx * (self.bar_height + self.bar_spacing),
+            position[0],
+            position[1] + row_idx * (self.bar_height + self.bar_spacing),
         )
         surface.blit(self.font.render(heading, True, (0, 0, 0)), row_position)
 
@@ -244,3 +273,123 @@ class PGProfilerWidget(AbstractUIElement):
                     + (self.bar_height - label_rect.get_height()) // 2,
                 ),
             )
+
+
+class PGTextPanelWidget(PGAbstractUIElement):
+    """
+    A simple UI widget that renders text strings.
+    """
+
+    def __init__(
+        self,
+        position: Tuple[int, int],
+        text: str,
+        font: pygame.font.Font = None,
+        text_color: Tuple[int, int, int] = (0, 0, 0),
+        line_spacing: int = 4,
+        max_width: int = math.inf,
+    ):
+        """
+        Initializes the TextPanelWidget.
+
+        Args:
+            position (Tuple[int, int]): The position of the widget.
+            font (pygame.font.Font): The font to use for rendering text. Defaults to Arial.
+            text_color (Tuple[int, int, int]): The color of the text. Defaults to black.
+            line_spacing (int): The spacing between lines of text. Defaults to 4.
+            max_width (int): The maximum width of the widget. If the text exceeds this width, it will wrap to the next line.
+                If None, no wrapping will occur. Defaults to None.
+        """
+        super().__init__(position, 0, 0)
+        self.font = font if font else pygame.font.SysFont("Arial", 12)
+        self.text_color = text_color
+        self.line_spacing = line_spacing
+        self.max_width = max_width
+        self._text = text
+        self.lines = self._linebreak_text(text)
+
+    def _linebreak_text(self, text: str) -> List[str]:
+        lines = text.split("\n")
+
+        splitted_lines = []
+
+        for line in lines:
+            if self.max_width is not None:
+                words = line.split(" ")
+                current_line = ""
+                for word in words:
+                    if self.font.size(current_line + word)[0] > self.max_width:
+                        splitted_lines.append(current_line)
+                        current_line = ""
+                    current_line += word + " "
+                if current_line:
+                    splitted_lines.append(current_line)
+            else:
+                splitted_lines.append(line)
+
+        return splitted_lines
+
+    def update_text(self, text: str):
+        self._text = text
+        self.lines = self._linebreak_text(text)
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """This widget is non-interactive."""
+        pass
+
+    def render(self, surface: pygame.Surface) -> None:
+        """Draws the list of text strings."""
+        position = self._resolve_position(self.position, surface)
+        for i_line, line in enumerate(self.lines):
+            text_surf = self.font.render(line, True, self.text_color)
+            surface.blit(
+                text_surf,
+                (
+                    position[0],
+                    position[1] + i_line * (self.font.get_height() + self.line_spacing),
+                ),
+            )
+
+
+class PGControllerInfoWidget(PGTextPanelWidget):
+    """
+    A specialized text panel that automatically displays the
+    action_description from a list of controllers.
+    """
+
+    def __init__(
+        self,
+        position: Tuple[int, int],
+        controllers: List[AbstractController],
+        font: pygame.font.Font = None,
+        text_color: Tuple[int, int, int] = (0, 0, 0),
+        line_spacing: int = 4,
+    ):
+        """
+        Initializes the widget.
+
+        Args:
+            position (Tuple[int, int]): The position of the widget.
+            controllers (List[AbstractController]): The list of controllers to get descriptions from.
+            font (pygame.font.Font): The font to use for rendering. Defaults to Arial.
+            text_color (Tuple): The color of the text.
+            line_spacing (int): The vertical spacing between lines.
+        """
+        self.controllers = controllers
+        super().__init__(
+            position=position,
+            text="\n".join(c.action_description for c in self.controllers),
+            font=font,
+            text_color=text_color,
+            line_spacing=line_spacing,
+        )
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        """
+        Updates the widget's text lines from the controllers.
+        This widget is non-interactive, so it doesn't process input.
+        """
+        # This is the logic we successfully moved out of the main loop
+        self.update_text("\n".join(c.action_description for c in self.controllers))
+
+    # The 'draw' method is inherited from TextPanelWidget and works perfectly

@@ -30,7 +30,7 @@ from ppe.frontend.controller import (
     AbstractController,
     CameraZoomController,
 )
-from ppe.frontend.widgets import PGProfilerWidget
+from ppe.frontend.widgets import PGProfilerWidget, PGControllerInfoWidget
 from ppe.frontend.colors import V1_COLORS
 from ppe.utils.profiler import Profiler
 from ppe.utils.loops import main_loop
@@ -102,12 +102,24 @@ def setup() -> Tuple[
         # profiler_settings={"subsection_keys": ["world"]},
         body_style_defaults=BODY_STYLE_DEFAULTS,
     )
+    ## Initialize controllers
+    app_controller = ApplicationController(debug_recorder=debug_recorder)
+    controllers: List[AbstractController] = [
+        app_controller,
+        DebugController(
+            controlled_debug_recorder=debug_recorder,
+            debug_recorder=debug_recorder,
+            initial_debug_mode=False,
+        ),
+        CameraZoomController(view.camera),
+    ]
 
     ## initialize widgets
     widgets = [
         PGProfilerWidget(
             profiler=profiler, position=(10, 10), subsection_keys=["world"]
-        )
+        ),
+        PGControllerInfoWidget(controllers=controllers, position=(10, -100)),
     ]
 
     ## Setup the world simulation
@@ -134,17 +146,6 @@ def setup() -> Tuple[
         ),
     )
 
-    ## Initialize controllers
-    app_controller = ApplicationController(debug_recorder=debug_recorder)
-    controllers: List[AbstractController] = [
-        app_controller,
-        DebugController(
-            controlled_debug_recorder=debug_recorder,
-            debug_recorder=debug_recorder,
-            initial_debug_mode=False,
-        ),
-        CameraZoomController(view.camera),
-    ]
 
     return view, world, controllers, app_controller, profiler, widgets
 
