@@ -65,6 +65,7 @@ def setup() -> Tuple[
     ApplicationController,
     Profiler,
     pygame.time.Clock,
+    DebugRecorder,
 ]:
     pygame.init()  # pylint: disable=no-member
 
@@ -78,9 +79,9 @@ def setup() -> Tuple[
         profiler_settings={"subsection_keys": ["world"]},
         body_style_defaults=BODY_STYLE,
     )
-    debug_recorder = DebugRecorder()
 
-    ## Initialize the profiler
+    ## Initialize the profiler and debug recorder
+    debug_recorder = DebugRecorder()
     profiler = Profiler()
 
     ## define initial bodies
@@ -115,11 +116,15 @@ def setup() -> Tuple[
         narrow_phase=DispatchNarrowPhase(
             debug_recorder=debug_recorder,
             handlers={
-                ("circle", "circle"): CircleVsCircleHandler(debug_recorder=debug_recorder),
+                ("circle", "circle"): CircleVsCircleHandler(
+                    debug_recorder=debug_recorder
+                ),
                 ("circle", "polygon"): CircleVsPolygonHandler(
                     debug_recorder=debug_recorder
                 ),
-                ("polygon", "polygon"): SatPolygonHandler(debug_recorder=debug_recorder),
+                ("polygon", "polygon"): SatPolygonHandler(
+                    debug_recorder=debug_recorder
+                ),
             },
         ),
         bodies=initial_bodies,
@@ -147,7 +152,7 @@ def setup() -> Tuple[
 
     clock = pygame.time.Clock()
 
-    return view, world, controllers, app_controller, profiler, clock
+    return view, world, controllers, app_controller, profiler, clock, debug_recorder
 
 
 def main_loop(
@@ -157,6 +162,7 @@ def main_loop(
     app_controller: ApplicationController,
     profiler: Profiler,
     clock: pygame.time.Clock,
+    debug_recorder: DebugRecorder,
 ):
     ## Main Loop
     running = True
@@ -192,29 +198,20 @@ def main_loop(
         with profiler.time("render"):
             view.render_background()
             view.render_bodies(world.bodies)
-            world.debug_recorder.render_all()
+            view.render_debug_recorder(debug_recorder)
             view.render_info([c.action_description for c in controllers])
 
         # Render profiler after timing is complete
-        # start = time.perf_counter()
         profiler.end_frame()
         view.render_profiler(profiler)
         view.update_display()
-        # end = time.perf_counter()
-        # print(f"Profiler rendering took {((end - start) * 1000):.2f} ms")
-        # -> time that is not included in the profiler is negligible (<1 ms)
-
-    ## keeping the window open for debugging purposes
-    # import time
-    # while True:
-    #     time.sleep(0.1)
 
     pygame.quit()  # pylint: disable=no-member
 
 
 def main():
-    view, world, controllers, app_controller, profiler, clock = setup()
-    main_loop(view, world, controllers, app_controller, profiler, clock)
+    view, world, controllers, app_controller, profiler, clock, debug_recorder = setup()
+    main_loop(view, world, controllers, app_controller, profiler, clock, debug_recorder)
 
 
 if __name__ == "__main__":

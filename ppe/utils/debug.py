@@ -143,56 +143,6 @@ class DebugRecorder:
             return
         self.command_queue.append(("marker_line", (start, direction, color, arrow)))
 
-    def add_text_world(
-        self,
-        position: Vec2,
-        text: str,
-        color: Tuple[int, int, int] = (0, 0, 0),
-        size: float = 12.0,
-    ) -> None:
-        """
-        Schedules text to be drawn at a specific world position.
-
-        The text will be anchored at the given world coordinates and will move and
-        scale with the camera.
-
-        Args:
-            position (Vec2): The anchor position of the text in world coordinates.
-            text (str): The string to be rendered.
-            color (Tuple[int, int, int], optional): The RGB color of the text.
-                Defaults to black (0, 0, 0).
-            size (float, optional): The font size of the text. The final pixel size
-                may be affected by the rendering backend. Defaults to 12.0.
-        """
-        if not self.enabled:
-            return
-        self.command_queue.append(("text_world", (position, text, color, size)))
-
-    def add_text_screen(
-        self,
-        position: Vec2,
-        text: str,
-        color: Tuple[int, int, int] = (0, 0, 0),
-        size: float = 12.0,
-    ) -> None:
-        """
-        Schedules text to be drawn at a fixed screen position.
-
-        The text will be anchored at the given screen coordinates (in pixels) and will
-        not move or scale with the camera. This is useful for UI elements or overlays.
-
-        Args:
-            position (Vec2): The anchor position of the text in screen coordinates (pixels).
-            text (str): The string to be rendered.
-            color (Tuple[int, int, int], optional): The RGB color of the text.
-                Defaults to black (0, 0, 0).
-            size (float, optional): The font size of the text in pixels.
-                Defaults to 12.0.
-        """
-        if not self.enabled:
-            return
-        self.command_queue.append(("text_screen", (position, text, color, size)))
-
     def add_rectangle(
         self,
         position: Vec2,
