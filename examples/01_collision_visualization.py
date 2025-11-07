@@ -69,6 +69,9 @@ def setup() -> Tuple[
 ]:
     pygame.init()  # pylint: disable=no-member
 
+    ## Initialize the debug recorder
+    debug_recorder = DebugRecorder()
+    
     ## Initialize View
     view = PygameView(
         camera=Camera.with_world_width(
@@ -76,13 +79,8 @@ def setup() -> Tuple[
             screen_height=SCREEN_HEIGHT,
             world_width=SCREEN_WIDTH_WORLD,
         ),
-        profiler_settings={"subsection_keys": ["world"]},
         body_style_defaults=BODY_STYLE,
     )
-
-    ## Initialize the profiler and debug recorder
-    debug_recorder = DebugRecorder()
-    profiler = Profiler()
 
     ## define initial bodies
     initial_bodies = [
@@ -129,7 +127,6 @@ def setup() -> Tuple[
         ),
         bodies=initial_bodies,
         debug_recorder=debug_recorder,
-        profiler=profiler,
     )
 
     ## Initialize controllers
@@ -152,7 +149,7 @@ def setup() -> Tuple[
 
     clock = pygame.time.Clock()
 
-    return view, world, controllers, app_controller, profiler, clock, debug_recorder
+    return view, world, controllers, app_controller, clock, debug_recorder
 
 
 def main_loop(
@@ -160,7 +157,6 @@ def main_loop(
     world: World,
     controllers: List[AbstractController],
     app_controller: ApplicationController,
-    profiler: Profiler,
     clock: pygame.time.Clock,
     debug_recorder: DebugRecorder,
 ):
@@ -168,50 +164,42 @@ def main_loop(
     running = True
 
     while running:
-        profiler.start_frame()
-
         # wait until at least 1/60 seconds have passed
         dt = clock.tick(60) / 1000.0
 
         ## Input
-        with profiler.time("input"):
-            input_state = InputState.from_pygame()
+        input_state = InputState.from_pygame()
 
         ## Controller Updates
-        with profiler.time("controller"):
-            for controller in controllers:
-                controller.update(input_state, dt)
+        for controller in controllers:
+            controller.update(input_state, dt)
 
         # Check if application should quit
         if app_controller.should_quit:
             running = False
 
         ## Physics Update
-        with profiler.time("world"):
-            try:
-                world.step(dt)
-            except Exception as e:
-                print(f"Error during world step: {e}")
-                running = False
+        try:
+            world.step(dt)
+        except Exception as e:
+            print(f"Error during world step: {e}")
+            running = False
 
         # Render the world
-        with profiler.time("render"):
-            view.render_background()
-            view.render_bodies(world.bodies)
-            view.render_debug_recorder(debug_recorder)
-            view.render_info([c.action_description for c in controllers])
+        view.render_background()
+        view.render_bodies(world.bodies)
+        view.render_debug_recorder(debug_recorder)
+        view.render_info([c.action_description for c in controllers])
 
         # Render profiler after timing is complete
-        profiler.end_frame()
-        view.render_profiler(profiler)
         view.update_display()
 
     pygame.quit()  # pylint: disable=no-member
 
 
 def main():
-    view, world, controllers, app_controller, profiler, clock, debug_recorder = setup()
-    main_loop(view, world, controllers, app_controller, profiler, clock, debug_recorder)
+    view, world, controllers, app_controller, clock, debug_recorder = setup()
+    main_loop(view, world, controllers, app_controller, clock, debug_recorder)
 
 
 if __name__ == "__main__":

@@ -20,20 +20,20 @@ from ppe.engine.collision_handlers import (
 from ppe.engine.collision_narrow import DispatchNarrowPhase
 from ppe.engine.solvers import IterativeImpulseSolver
 from ppe.engine.solvers import SemiImplicitEulerIntegrator
+from ppe.engine.debug import DebugRecorder
 
 # application components
 from ppe.frontend.view import PygameView, Camera
 from ppe.frontend.controller import (
-    InputState,
     ApplicationController,
     DebugController,
     AbstractController,
     CameraZoomController,
 )
-from ppe.utils.profiler import Profiler
+from ppe.frontend.widgets import PGProfilerWidget
 from ppe.frontend.colors import V1_COLORS
+from ppe.utils.profiler import Profiler
 from ppe.utils.loops import main_loop
-from ppe.engine.debug import DebugRecorder
 
 
 ## Constants
@@ -87,6 +87,10 @@ def setup() -> Tuple[
 ]:
     pygame.init()  # pylint: disable=no-member
 
+    # initialize debug_recorder and profiler
+    debug_recorder = DebugRecorder()
+    profiler = Profiler()
+
     ## intiiaalize view
     view = PygameView(
         camera=Camera.with_world_width(
@@ -95,13 +99,16 @@ def setup() -> Tuple[
             world_width=SCREEN_WIDTH_WORLD,
             position=Vec2(0, 1),
         ),
-        profiler_settings={"subsection_keys": ["world"]},
+        # profiler_settings={"subsection_keys": ["world"]},
         body_style_defaults=BODY_STYLE_DEFAULTS,
     )
 
-    # initialize debug_recorder and profiler
-    debug_recorder = DebugRecorder()
-    profiler = Profiler()
+    ## initialize widgets
+    widgets = [
+        PGProfilerWidget(
+            profiler=profiler, position=(10, 10), subsection_keys=["world"]
+        )
+    ]
 
     ## Setup the world simulation
     world = World(
@@ -139,21 +146,22 @@ def setup() -> Tuple[
         CameraZoomController(view.camera),
     ]
 
-    return view, world, controllers, app_controller, profiler
+    return view, world, controllers, app_controller, profiler, widgets
 
 
 def main():
-    view, world, controllers, app_controller, profiler = setup()
+    view, world, controllers, app_controller, profiler, widgets = setup()
     main_loop(
         view,
         world,
         controllers,
         app_controller,
         profiler,
-        target_fps=100,
-        use_fixed_timestep=True,
-        cap_fps=False,
-        substeps=3,
+        widgets,
+        target_fps=60,
+        use_fixed_timestep=False,
+        cap_fps=True,
+        substeps=1,
         max_iterations=1000,
     )
 
