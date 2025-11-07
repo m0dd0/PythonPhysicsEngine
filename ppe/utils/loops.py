@@ -5,13 +5,14 @@ import pygame
 from ppe.engine.world import World
 
 # application components
-from ppe.utils.view import AbstractView
-from ppe.utils.controller import (
+from ppe.frontend.view import AbstractView
+from ppe.frontend.controller import (
     InputState,
     ApplicationController,
     AbstractController,
 )
 from ppe.utils.profiler import Profiler
+from ppe.frontend.widgets import AbstractUIElement
 
 def main_loop(
     view: AbstractView,
@@ -19,10 +20,10 @@ def main_loop(
     controllers: List[AbstractController],
     app_controller: ApplicationController,
     profiler: Profiler,
+    widgets: List[AbstractUIElement],
     target_fps: int = 60,
-    use_fixed_timestep: bool = False,
+    use_fixed_simulation_timestep: bool = False,
     cap_fps: bool = True,
-    render_profiler: bool = True,
     substeps: int = 1,
     max_iterations: int = None,
 ):
@@ -52,12 +53,9 @@ def main_loop(
     # Calculate the ideal fixed timestep
     fixed_dt = 1.0 / target_fps
 
-    render_times = []
-    world_times = []
-
     iterations = 0
     while running:
-        profiler.start_frame()
+        profiler.start_new_frame()
 
         # --- 1. Calculate Delta Time (dt) ---
         if cap_fps:
@@ -71,7 +69,7 @@ def main_loop(
         actual_dt = elapsed_ms / 1000.0
         
         # ...unless we're forcing a fixed timestep.
-        if use_fixed_timestep:
+        if use_fixed_simulation_timestep:
             dt = fixed_dt
         else:
             dt = actual_dt
@@ -84,6 +82,8 @@ def main_loop(
         with profiler.time("controller"):
             for controller in controllers:
                 controller.update(input_state, dt)
+            for widget in widgets:
+                widget.update(input_state, dt)
 
         # Check for quit signal from any controller
         if app_controller.should_quit:
@@ -100,24 +100,13 @@ def main_loop(
         with profiler.time("render"):
             view.render_background()
             view.render_bodies(world.bodies)
-            view.render_debug_recorder(world.debug_recorder)
-            view.render_info([c.action_description for c in controllers])
-
-        # Render profiler after frame timing is complete
-        profiler.end_frame()
-        if render_profiler:
-            view.render_profiler(profiler)
+            for widget in widgets:
+                widget.render(view.screen)
         
-        render_times.append(profiler.timings["render"])
-        world_times.append(profiler.timings["physics"])
-
         view.update_display()
 
         iterations += 1
         if max_iterations is not None and iterations >= max_iterations:
             running = False
-
-    print(f"Average render time: {sum(render_times) / len(render_times)} ms")
-    print(f"Average world step time: {sum(world_times) / len(world_times)} ms")
 
     pygame.quit() # pylint: disable=no-member

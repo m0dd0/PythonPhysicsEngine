@@ -16,7 +16,7 @@ from ppe.engine.collision_handlers import (
     SatPolygonHandler,
     CircleVsPolygonHandler,
 )
-from ppe.utils.debug import DebugRecorder
+from ppe.engine.debug import DebugRecorder
 
 # we associate shape types with integer IDs so we can define an order of the types
 # this is important so that the argument order of the collision handlers are consistent

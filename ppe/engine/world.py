@@ -21,7 +21,7 @@ from ppe.engine.collision_handlers import (
 )
 from ppe.engine.integrators import AbstractIntegrator, SemiImplicitEulerIntegrator
 from ppe.engine.force_generators import AbstractForceGenerator
-from ppe.utils.debug import DebugRecorder
+from ppe.engine.debug import DebugRecorder
 from ppe.utils.profiler import Profiler
 
 

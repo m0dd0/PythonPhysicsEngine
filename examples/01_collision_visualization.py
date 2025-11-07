@@ -36,8 +36,8 @@ from ppe.engine.collision_handlers import (
 )
 
 # application components
-from ppe.utils.view import PygameView, Camera
-from ppe.utils.controller import (
+from ppe.frontend.view import PygameView, Camera
+from ppe.frontend.controller import (
     CameraPanController,
     CameraZoomController,
     InputState,
@@ -48,7 +48,8 @@ from ppe.utils.controller import (
     HoverRotateController,
 )
 from ppe.utils.profiler import Profiler
-from ppe.utils.debug import DebugRecorder
+from ppe.engine.debug import DebugRecorder
+from ppe.frontend.widgets import PGControllerInfoWidget, AbstractUIElement, PGDebugRecorderWidget
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)
@@ -65,9 +66,14 @@ def setup() -> Tuple[
     ApplicationController,
     Profiler,
     pygame.time.Clock,
+    DebugRecorder,
+    List[AbstractUIElement],
 ]:
     pygame.init()  # pylint: disable=no-member
 
+    ## Initialize the debug recorder
+    debug_recorder = DebugRecorder()
+    
     ## Initialize View
     view = PygameView(
         camera=Camera.with_world_width(
@@ -75,13 +81,8 @@ def setup() -> Tuple[
             screen_height=SCREEN_HEIGHT,
             world_width=SCREEN_WIDTH_WORLD,
         ),
-        profiler_settings={"subsection_keys": ["world"]},
         body_style_defaults=BODY_STYLE,
     )
-    debug_recorder = DebugRecorder()
-
-    ## Initialize the profiler
-    profiler = Profiler()
 
     ## define initial bodies
     initial_bodies = [
@@ -115,16 +116,19 @@ def setup() -> Tuple[
         narrow_phase=DispatchNarrowPhase(
             debug_recorder=debug_recorder,
             handlers={
-                ("circle", "circle"): CircleVsCircleHandler(debug_recorder=debug_recorder),
+                ("circle", "circle"): CircleVsCircleHandler(
+                    debug_recorder=debug_recorder
+                ),
                 ("circle", "polygon"): CircleVsPolygonHandler(
                     debug_recorder=debug_recorder
                 ),
-                ("polygon", "polygon"): SatPolygonHandler(debug_recorder=debug_recorder),
+                ("polygon", "polygon"): SatPolygonHandler(
+                    debug_recorder=debug_recorder
+                ),
             },
         ),
         bodies=initial_bodies,
         debug_recorder=debug_recorder,
-        profiler=profiler,
     )
 
     ## Initialize controllers
@@ -145,9 +149,14 @@ def setup() -> Tuple[
         HoverRotateController(world=world, camera=view.camera),
     ]
 
+    widgets = [
+        PGControllerInfoWidget(controllers=controllers, position=(10, -150)),
+        PGDebugRecorderWidget(debug_recorder=debug_recorder, camera=view.camera),
+    ]
+
     clock = pygame.time.Clock()
 
-    return view, world, controllers, app_controller, profiler, clock
+    return view, world, controllers, app_controller, clock, debug_recorder, widgets
 
 
 def main_loop(
@@ -155,66 +164,48 @@ def main_loop(
     world: World,
     controllers: List[AbstractController],
     app_controller: ApplicationController,
-    profiler: Profiler,
     clock: pygame.time.Clock,
+    debug_recorder: DebugRecorder,
+    widgets: List[AbstractUIElement],
 ):
     ## Main Loop
     running = True
 
     while running:
-        profiler.start_frame()
-
         # wait until at least 1/60 seconds have passed
         dt = clock.tick(60) / 1000.0
 
         ## Input
-        with profiler.time("input"):
-            input_state = InputState.from_pygame()
+        input_state = InputState.from_pygame()
 
         ## Controller Updates
-        with profiler.time("controller"):
-            for controller in controllers:
-                controller.update(input_state, dt)
+        for controller in controllers:
+            controller.update(input_state, dt)
 
         # Check if application should quit
         if app_controller.should_quit:
             running = False
 
         ## Physics Update
-        with profiler.time("world"):
-            try:
-                world.step(dt)
-            except Exception as e:
-                print(f"Error during world step: {e}")
-                running = False
+        try:
+            world.step(dt)
+        except Exception as e:
+            print(f"Error during world step: {e}")
+            running = False
 
         # Render the world
-        with profiler.time("render"):
-            view.render_background()
-            view.render_bodies(world.bodies)
-            world.debug_recorder.render_all()
-            view.render_info([c.action_description for c in controllers])
-
-        # Render profiler after timing is complete
-        # start = time.perf_counter()
-        profiler.end_frame()
-        view.render_profiler(profiler)
+        view.render_background()
+        view.render_bodies(world.bodies)
+        for widget in widgets:
+            widget.render(view.screen)
         view.update_display()
-        # end = time.perf_counter()
-        # print(f"Profiler rendering took {((end - start) * 1000):.2f} ms")
-        # -> time that is not included in the profiler is negligible (<1 ms)
-
-    ## keeping the window open for debugging purposes
-    # import time
-    # while True:
-    #     time.sleep(0.1)
 
     pygame.quit()  # pylint: disable=no-member
 
 
 def main():
-    view, world, controllers, app_controller, profiler, clock = setup()
-    main_loop(view, world, controllers, app_controller, profiler, clock)
+    view, world, controllers, app_controller, clock, debug_recorder, widgets = setup()
+    main_loop(view, world, controllers, app_controller, clock, debug_recorder, widgets)
 
 
 if __name__ == "__main__":
