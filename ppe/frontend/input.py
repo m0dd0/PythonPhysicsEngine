@@ -1,3 +1,14 @@
+"""
+Module containing classes for handling user input in a physics simulation.
+
+This module defines the `InputState` class, which is a generic container for all user input for a single frame.
+The class contains continuous state variables for tracking mouse position and button state,
+as well as single-frame event variables for tracking mouse and keyboard events.
+
+The class provides methods for updating the state of the class based on Pygame events.
+
+"""
+
 from typing import Set
 from dataclasses import dataclass, field
 

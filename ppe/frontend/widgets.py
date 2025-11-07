@@ -398,7 +398,7 @@ class PGControllerInfoWidget(PGTextPanelWidget):
     # The 'draw' method is inherited from TextPanelWidget and works perfectly
 
 
-class PGDebugRecorderWidget(AbstractUIElement):
+class PGDebugRecorderWidget(PGAbstractUIElement):
     """
     A UI element that renders all commands from a DebugRecorder.
 
@@ -599,8 +599,7 @@ class PGDebugRecorderWidget(AbstractUIElement):
                 end_screen = self.camera.world_to_screen(start + direction)
                 end_screen = (
                     start_screen
-                    + (end_screen - start_screen).normalize()
-                    * self.marker_line_length
+                    + (end_screen - start_screen).normalize() * self.marker_line_length
                 )
                 self._render_line_screen(
                     surface,
@@ -612,3 +611,46 @@ class PGDebugRecorderWidget(AbstractUIElement):
                 )
 
         self.debug_recorder.command_queue.clear()
+
+
+class PGStatsWidget(PGAbstractUIElement):
+    def __init__(
+        self,
+        position: Tuple[int, int],
+        profiler: Profiler,
+        font: pygame.font.Font = None,
+        smoothing_frames: int = 30,
+    ):
+        super().__init__(position, 0, 0)
+        self.profiler = profiler
+        self.font = font if font is not None else pygame.font.SysFont("Arial", 12)
+        self.smoothing_frames = smoothing_frames
+
+    def update(self, input_state: InputState, dt: float) -> None:
+        pass
+
+    def render(self, surface: pygame.Surface) -> None:
+        frames_used = min(
+            len(self.profiler.total_frame_time_history), self.smoothing_frames
+        )
+        if frames_used == 0:
+            return
+
+        fps = frames_used / sum(list(self.profiler.total_frame_time_history)[-frames_used:]) * 1000
+        real_time_factor = (
+            sum(list(self.profiler.dt_simulated_history)[-frames_used:])
+            / sum(list(self.profiler.total_frame_time_history)[-frames_used:])
+        )
+
+        fps_text = self.font.render(f"fps: {fps:03.2f}", True, (0, 0, 0))
+        real_time_factor_text = self.font.render(
+            f"real time factor: {real_time_factor:03.2f}", True, (0, 0, 0)
+        )
+        total_steps_text = self.font.render(
+            f"total steps: {self.profiler.total_frames_counter}", True, (0, 0, 0)
+        )
+
+        position = self._resolve_position(self.position, surface)
+        surface.blit(fps_text, position)
+        surface.blit(real_time_factor_text, (position[0], position[1] + 20))
+        surface.blit(total_steps_text, (position[0], position[1] + 40))

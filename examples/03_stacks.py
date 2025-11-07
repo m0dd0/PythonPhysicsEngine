@@ -30,7 +30,12 @@ from ppe.frontend.controller import (
     AbstractController,
     CameraZoomController,
 )
-from ppe.frontend.widgets import PGProfilerWidget, PGControllerInfoWidget, PGDebugRecorderWidget
+from ppe.frontend.widgets import (
+    PGProfilerWidget,
+    PGControllerInfoWidget,
+    PGDebugRecorderWidget,
+    PGStatsWidget,
+)
 from ppe.frontend.colors import V1_COLORS
 from ppe.utils.profiler import Profiler
 from ppe.utils.loops import main_loop
@@ -121,6 +126,7 @@ def setup() -> Tuple[
         ),
         PGControllerInfoWidget(controllers=controllers, position=(10, -100)),
         PGDebugRecorderWidget(debug_recorder=debug_recorder, camera=view.camera),
+        PGStatsWidget(position=(-100,-100), profiler=profiler),
     ]
 
     ## Setup the world simulation
@@ -147,7 +153,6 @@ def setup() -> Tuple[
         ),
     )
 
-
     return view, world, controllers, app_controller, profiler, widgets
 
 
@@ -160,9 +165,9 @@ def main():
         app_controller,
         profiler,
         widgets,
-        target_fps=60,
-        use_fixed_simulation_timestep=False,
-        cap_fps=True,
+        target_fps=100,
+        use_fixed_simulation_timestep=True,
+        cap_fps=False,
         substeps=1,
     )
 

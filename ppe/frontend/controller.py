@@ -1,10 +1,9 @@
 """A collection of controllers for handling user input in a physics simulation.
 
 This module provides a flexible controller system for managing user interactions to actions
-in the simulation. It defines an abstract base class, `AbstractController`,
-and a data class, `InputState`, to create a standardized way of handling input.
-The use of the `InputState` class allows to make the controllers independent of the used
-library for detecting user inputs (currently only PyGame is supported).
+in the simulation. Note that controllers could be interpreted as a special case of widgets
+where no rendering is done. However, we still have them seperate as they serve slightly
+different purposes.
 
 The available controllers include:
 - `ApplicationController`: Handles application-level actions like quitting.

@@ -55,8 +55,6 @@ def main_loop(
 
     iterations = 0
     while running:
-        profiler.start_new_frame()
-
         # --- 1. Calculate Delta Time (dt) ---
         if cap_fps:
             # Wait to maintain the target FPS. Returns actual ms elapsed.
@@ -74,6 +72,8 @@ def main_loop(
         else:
             dt = actual_dt
             
+        profiler.start_new_frame(dt)
+
         # --- 2. Input ---
         with profiler.time("input"):
             input_state = InputState.from_pygame()

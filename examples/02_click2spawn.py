@@ -41,6 +41,7 @@ from ppe.frontend.widgets import (
     AbstractUIElement,
     PGControllerInfoWidget,
     PGDebugRecorderWidget,
+    PGStatsWidget
 )
 
 
@@ -55,6 +56,47 @@ CIRCLE_SPAWN_RADIUS_RANGE = (0.1, 0.3)
 POLYGON_SPAWN_SIDE_RANGE = (0.1, 0.5)
 GRAVITY = Vec2(0, -9.81)
 BOUNCINESS = 0.5
+
+BEAM_BODY = [
+    Body(
+        shape=PolygonShape(
+            vertices=[
+                Vec2(-2.5, -0.1),
+                Vec2(-2.5, 0.1),
+                Vec2(2.5, 0.1),
+                Vec2(2.5, -0.1),
+            ],
+        ),
+        position=Vec2(0, -1),
+        mass=None,
+        user_data={"color": (0, 0, 0)},
+        restitution=BOUNCINESS,
+    )
+]
+
+BOWL_BODIES = [
+    # left wall
+    Body(
+        shape=PolygonShape.create_rectangle(width=0.5, height=3),
+        position=Vec2(-3.75, 0.75),
+        mass=None,  # static body
+        user_data={"color": [0, 0, 0]},
+    ),
+    # right wall
+    Body(
+        shape=PolygonShape.create_rectangle(width=0.5, height=3),
+        position=Vec2(3.75, 0.75),
+        mass=None,  # static body
+        user_data={"color": [0, 0, 0]},
+    ),
+    # bottom wall
+    Body(
+        shape=PolygonShape.create_rectangle(width=8, height=0.5),
+        position=Vec2(0, -1),
+        mass=None,  # static body
+        user_data={"color": [0, 0, 0]},
+    ),
+]
 
 
 def setup() -> Tuple[
@@ -77,34 +119,17 @@ def setup() -> Tuple[
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
             world_width=SCREEN_WIDTH_WORLD,
-            position=Vec2(0, 1),
+            position=Vec2(0, 0),
         ),
         body_style_defaults=BODY_STYLE_DEFAULTS,
     )
-
-    ## define initial bodies
-    initial_bodies = [
-        Body(
-            shape=PolygonShape(
-                vertices=[
-                    Vec2(-2.5, -0.1),
-                    Vec2(-2.5, 0.1),
-                    Vec2(2.5, 0.1),
-                    Vec2(2.5, -0.1),
-                ],
-            ),
-            position=Vec2(0, 0),
-            mass=None,
-            user_data={"color": (0, 0, 0)},
-            restitution=BOUNCINESS,
-        )
-    ]
 
     ## Setup the world simulation
     world = World(
         solver=IterativeImpulseSolver(),
         integrator=SemiImplicitEulerIntegrator(),
-        bodies=initial_bodies,
+        # bodies=BEAM_BODY,
+        bodies=BOWL_BODIES,
         debug_recorder=debug_recorder,
         profiler=profiler,
         force_generators=[GlobalForceField(strength=GRAVITY)],
@@ -170,6 +195,7 @@ def setup() -> Tuple[
         ),
         PGControllerInfoWidget(position=(10, -100), controllers=controllers),
         PGDebugRecorderWidget(debug_recorder=debug_recorder, camera=view.camera),
+        PGStatsWidget(profiler=profiler, position=(-100, -100)),
     ]
 
     clock = pygame.time.Clock()
@@ -182,7 +208,6 @@ def setup() -> Tuple[
         profiler,
         clock,
         widgets,
-        debug_recorder,
     )
 
 
@@ -194,15 +219,14 @@ def main_loop(
     profiler: Profiler,
     clock: pygame.time.Clock,
     widgets: List[AbstractUIElement],
-    debug_recorder: DebugRecorder,
 ):
     running = True
 
     while running:
-        profiler.start_new_frame()
-
         # wait until at least 1/60 seconds have passed
         dt = clock.tick(60) / 1000.0
+
+        profiler.start_new_frame(dt)
 
         ## Input
         with profiler.time("input"):
