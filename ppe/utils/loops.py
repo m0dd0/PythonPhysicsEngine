@@ -5,8 +5,8 @@ import pygame
 from ppe.engine.world import World
 
 # application components
-from ppe.utils.view import AbstractView
-from ppe.utils.controller import (
+from ppe.frontend.view import AbstractView
+from ppe.frontend.controller import (
     InputState,
     ApplicationController,
     AbstractController,

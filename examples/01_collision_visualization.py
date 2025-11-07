@@ -36,8 +36,8 @@ from ppe.engine.collision_handlers import (
 )
 
 # application components
-from ppe.utils.view import PygameView, Camera
-from ppe.utils.controller import (
+from ppe.frontend.view import PygameView, Camera
+from ppe.frontend.controller import (
     CameraPanController,
     CameraZoomController,
     InputState,
@@ -48,7 +48,7 @@ from ppe.utils.controller import (
     HoverRotateController,
 )
 from ppe.utils.profiler import Profiler
-from ppe.utils.debug import DebugRecorder
+from ppe.engine.debug import DebugRecorder
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)

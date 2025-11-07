@@ -29,8 +29,8 @@ from ppe.engine.solvers import (
 from ppe.engine.solvers import SemiImplicitEulerIntegrator, PositionVerletIntegrator
 
 # application components
-from ppe.utils.view import PygameView, Camera
-from ppe.utils.controller import (
+from ppe.frontend.view import PygameView, Camera
+from ppe.frontend.controller import (
     InputState,
     ApplicationController,
     DebugController,
@@ -38,8 +38,8 @@ from ppe.utils.controller import (
     BodySpawnController,
 )
 from ppe.utils.profiler import Profiler
-from ppe.utils.colors import V1_COLORS
-from ppe.utils.debug import DebugRecorder
+from ppe.frontend.colors import V1_COLORS
+from ppe.engine.debug import DebugRecorder
 
 
 ## Constants

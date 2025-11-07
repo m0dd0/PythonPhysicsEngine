@@ -30,10 +30,10 @@ from copy import deepcopy
 
 import pygame
 
-from ppe.engine.common import Body, Vec2, PolygonShape, CircleShape
+from ppe.engine.common import Body, Vec2
 from ppe.engine.world import World
-from ppe.utils.debug import DebugRecorder
-from ppe.utils.view import Camera
+from ppe.engine.debug import DebugRecorder
+from ppe.frontend.view import Camera
 
 
 PYGAME_KEY_CONSTANTS = [

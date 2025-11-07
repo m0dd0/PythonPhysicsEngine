@@ -19,8 +19,8 @@ import pygame
 
 from ppe.engine.common import Body, PolygonShape, CircleShape, Vec2
 from ppe.utils.profiler import Profiler
-from ppe.utils.colors import TAB10_COLORS
-from ppe.utils.debug import DebugRecorder
+from ppe.frontend.colors import TAB10_COLORS
+from ppe.engine.debug import DebugRecorder
 
 
 class Camera:

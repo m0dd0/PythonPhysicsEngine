@@ -26,8 +26,8 @@ from ppe.engine.collision_handlers import (
 from ppe.engine.force_generators import GlobalForceField
 
 # application components
-from ppe.utils.view import PygameView, Camera
-from ppe.utils.controller import (
+from ppe.frontend.view import PygameView, Camera
+from ppe.frontend.controller import (
     CameraPanController,
     CameraZoomController,
     InputState,
@@ -37,8 +37,8 @@ from ppe.utils.controller import (
     BodySpawnController,
 )
 from ppe.utils.profiler import Profiler
-from ppe.utils.colors import V1_COLORS
-from ppe.utils.debug import DebugRecorder
+from ppe.frontend.colors import V1_COLORS
+from ppe.engine.debug import DebugRecorder
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)

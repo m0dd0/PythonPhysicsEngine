@@ -18,7 +18,7 @@ from ppe.engine.integrators import (
     PositionVerletIntegrator,
     NoOpIntegrator,
 )
-from ppe.utils.debug import DebugRecorder
+from ppe.engine.debug import DebugRecorder
 
 
 class AbstractSolver(ABC):

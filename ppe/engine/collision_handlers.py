@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional
 
 from ppe.engine.common import Body, CircleShape, PolygonShape, Contact, Vec2
-from ppe.utils.debug import DebugRecorder
+from ppe.engine.debug import DebugRecorder
 
 
 class AbstractCollisionHandler(ABC):
