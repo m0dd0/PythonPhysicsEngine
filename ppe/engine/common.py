@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Union
 import random
 from dataclasses import dataclass
+import functools
 
 
 class Vec2:
@@ -32,6 +33,9 @@ class Vec2:
 
     def __truediv__(self, scalar: float) -> "Vec2":
         return Vec2(self.x / scalar, self.y / scalar)
+
+    def __hash__(self) -> int:
+        return hash((self.x, self.y))
 
     def dot(self, other: "Vec2") -> float:
         return self.x * other.x + self.y * other.y
@@ -310,9 +314,8 @@ class CircleShape(Shape):
         Returns:
             A tuple containing the min and max points of the AABB.
         """
-        # TODO check if caching of aabb and interatia improves performance and by how much.
         # at the aabb narrow phase the aabbs get accessed for each pair of bodies and currently it is recomputed every time
-        # try lru cache util and custom caching implemenation where we do not need to hash the inputs
+        # however, this operation is so cheap that the overhead of caching is not worth it
         radius = self.radius
         return (
             Vec2(position.x - radius, position.y - radius),
@@ -504,28 +507,18 @@ class PolygonShape(Shape):
         return cls(vertices)
 
     @classmethod
-    def create_random_rectangle(
-        cls, min_size: float = 0.05, max_size: float = 1.0
-    ) -> "PolygonShape":
-        """
-        Creates a random rectangle shape with width and height between min_size and max_size.
-
-        Args:
-            min_size: The minimum size for width and height.
-            max_size: The maximum size for width and height.
-
-        Returns:
-            A PolygonShape representing the random rectangle.
-        """
-        width = random.uniform(min_size, max_size)
-        height = random.uniform(min_size, max_size)
-        return cls.create_rectangle(width, height)
-
-    # TODO create random polygon
+    def create_random(cls, num_vertices_range: Tuple[int, int], sample_radius_range: Tuple[float, float]):
+        n_vertices = random.randint(num_vertices_range[0], num_vertices_range[1])
+        angles = [random.uniform(0, 2 * math.pi) for _ in range(n_vertices)]
+        angles = sorted(angles)
+        radius = random.uniform(sample_radius_range[0], sample_radius_range[1])
+        vertices = [Vec2(radius * math.cos(angle), radius * math.sin(angle)) for angle in angles]
+        return cls(vertices)
 
     def get_type(self) -> str:
         return "polygon"
 
+    @functools.lru_cache
     def get_world_space_vertices(self, position: Vec2, angle: float) -> List[Vec2]:
         """
         Calculates the world-space vertices of the polygon, taking into account the position and rotation of the shape.
@@ -537,8 +530,10 @@ class PolygonShape(Shape):
         Returns:
             List[Vec2]: A list of world-space vertices defining the shape.
         """
-        # TODO check if caching rotated vertices improves performance since the world space vertices 
-        # get accessed multiple times per simulation step wlthough the angle and position do not change
+        # this method is accessed with the same values multiple times per frame
+        # therefore we use lru_cache
+        # however the caching overhead through hasing might be too high to be worth it
+
         cos_angle = math.cos(angle)
         sin_angle = math.sin(angle)
         return [
@@ -549,6 +544,7 @@ class PolygonShape(Shape):
             for v in self.vertices
         ]
 
+    @functools.lru_cache
     def get_normals(self, position: Vec2, angle: float) -> List[Vec2]:
         """
         Calculates the world-space normals of the polygon, taking into account the position and rotation of the shape.
@@ -560,7 +556,6 @@ class PolygonShape(Shape):
         Returns:
             List[Vec2]: A list of world-space normals defining the shape.
         """
-        # TODO check if caching normals improves performance since they might get accessed multiple times per simulation step
         world_space_vertices = self.get_world_space_vertices(position, angle)
         normals = []
         for i in range(  # pylint: disable=consider-using-enumerate
@@ -574,6 +569,7 @@ class PolygonShape(Shape):
             )  # right normal is the outward normal for convex, counter-clockwise polygons
         return normals
 
+    @functools.lru_cache
     def get_edges(self, position: Vec2, angle: float) -> List[Tuple[Vec2, Vec2]]:
         """
         Calculates the world-space edges of the polygon, taking into account the position and rotation of the shape.
@@ -585,7 +581,6 @@ class PolygonShape(Shape):
         Returns:
             List[Tuple[Vec2, Vec2]]: A list of world-space edges defining the shape, where each edge is represented as a tuple of two vertices.
         """
-        # TODO check if caching edges improves performance since they might get accessed multiple times per simulation step
         world_space_vertices = self.get_world_space_vertices(position, angle)
         edges = []
         for i in range(  # pylint: disable=consider-using-enumerate
@@ -596,6 +591,7 @@ class PolygonShape(Shape):
             edges.append((v1, v2))
         return edges
 
+    @functools.lru_cache
     def calculate_inertia(self, mass: float) -> float:
         """Calculates the moment of inertia for this shape.
 
@@ -608,7 +604,6 @@ class PolygonShape(Shape):
         Returns:
             float: The moment of inertia of the shape.
         """ 
-        # TODO check if caching inertia improves performance since it gets accessed multiple times per simulation step
         min_x = min(v.x for v in self.vertices)
         max_x = max(v.x for v in self.vertices)
         min_y = min(v.y for v in self.vertices)
@@ -617,6 +612,7 @@ class PolygonShape(Shape):
         height = max_y - min_y
         return (1.0 / 12.0) * mass * (width**2 + height**2)
 
+    
     def get_aabb(self, position: Vec2, angle: float) -> Tuple[Vec2, Vec2]:
         """
         Calculates the Axis-Aligned Bounding Box (AABB) of the shape in world space.
@@ -628,7 +624,6 @@ class PolygonShape(Shape):
         Returns:
             A tuple containing the min and max points of the AABB.
         """
-        # TODO check if caching aabb improves performance since it gets accessed multiple times per simulation step
         world_space_vertices = self.get_world_space_vertices(position, angle)
 
         min_x = min(v.x for v in world_space_vertices)
