@@ -1,4 +1,4 @@
-# TODO module docstring that explains difference between UIElement and controllers
+"""Widgets for rendering UI elements in the frontend view layer."""
 
 import math
 from abc import ABC, abstractmethod

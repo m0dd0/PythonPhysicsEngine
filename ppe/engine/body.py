@@ -1,3 +1,5 @@
+"""Module defining the Body class representing physical objects in the physics engine."""
+
 from typing import Tuple, Union
 
 from ppe.engine.common import Vec2

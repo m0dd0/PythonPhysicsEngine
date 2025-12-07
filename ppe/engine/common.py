@@ -1,7 +1,7 @@
 """
 This module contains core classes and functions for the physics engine.
-It includes classes for representing vectors, shapes, bodies, joints, and contacts.
-physics-related calculations.
+Namely, it defines a 2D vector class `Vec2` for all position, velocity, and force calculations,
+as well as a `Contact` class that holds information about collisions between bodies.
 """
 
 import math

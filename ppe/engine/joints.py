@@ -1,3 +1,5 @@
+"""Module defining joint classes for constraints between bodies in the physics engine."""
+
 from abc import ABC
 
 from ppe.engine.body import Body

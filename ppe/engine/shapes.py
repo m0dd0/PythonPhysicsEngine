@@ -1,3 +1,5 @@
+"""Module defining various collision shapes that are used to define the shape of bodies in the physics engine."""
+
 import functools
 import math
 import random
