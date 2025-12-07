@@ -1,15 +1,17 @@
-from abc import ABC, abstractmethod
-from typing import List, Tuple, Any, Dict
+# TODO module docstring that explains difference between UIElement and controllers
+
 import math
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Tuple
 
 import pygame
 
-from ppe.frontend.input import InputState
-from ppe.utils.profiler import Profiler
-from ppe.frontend.controller import AbstractController
-from ppe.frontend.view import Camera
-from ppe.engine.debug import DebugRecorder
 from ppe.engine.common import Vec2
+from ppe.engine.debug import DebugRecorder
+from ppe.frontend.controller import AbstractController
+from ppe.frontend.input import InputState
+from ppe.frontend.view import Camera
+from ppe.utils.profiler import Profiler
 
 
 class AbstractUIElement(ABC):
@@ -636,11 +638,14 @@ class PGStatsWidget(PGAbstractUIElement):
         if frames_used == 0:
             return
 
-        fps = frames_used / sum(list(self.profiler.total_frame_time_history)[-frames_used:]) * 1000
-        real_time_factor = (
-            sum(list(self.profiler.dt_simulated_history)[-frames_used:])
+        fps = (
+            frames_used
             / sum(list(self.profiler.total_frame_time_history)[-frames_used:])
+            * 1000
         )
+        real_time_factor = sum(
+            list(self.profiler.dt_simulated_history)[-frames_used:]
+        ) / sum(list(self.profiler.total_frame_time_history)[-frames_used:])
 
         fps_text = self.font.render(f"fps: {fps:03.2f}", True, (0, 0, 0))
         real_time_factor_text = self.font.render(

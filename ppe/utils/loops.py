@@ -3,16 +3,15 @@ from typing import List
 import pygame
 
 from ppe.engine.world import World
-
-# application components
-from ppe.frontend.view import AbstractView
 from ppe.frontend.controller import (
-    InputState,
-    ApplicationController,
     AbstractController,
+    ApplicationController,
+    InputState,
 )
-from ppe.utils.profiler import Profiler
+from ppe.frontend.view import AbstractView
 from ppe.frontend.widgets import AbstractUIElement
+from ppe.utils.profiler import Profiler
+
 
 def main_loop(
     view: AbstractView,
@@ -42,7 +41,7 @@ def main_loop(
         target_fps (int): The target frames per second.
         use_fixed_timestep (bool): If True, the physics `dt` will be a fixed value (1.0 / target_fps),
             even if the actual elapsed time is different (higher).
-        cap_fps (bool): If True, the loop will wait (tick) to maintain the target_fps. 
+        cap_fps (bool): If True, the loop will wait (tick) to maintain the target_fps.
             If False, it runs as fast as possible.
         render_profiler (bool): Whether to display the profiler.
         substeps (int): The number of physics steps to perform per rendering frame for better stability.
@@ -62,16 +61,17 @@ def main_loop(
         else:
             # Run as fast as possible. Returns actual ms elapsed.
             elapsed_ms = clock.tick()
-        
+
         # Use the actual elapsed time...
+        # TODO why did we divide by 1000.0 here again?
         actual_dt = elapsed_ms / 1000.0
-        
+
         # ...unless we're forcing a fixed timestep.
         if use_fixed_simulation_timestep:
             dt = fixed_dt
         else:
             dt = actual_dt
-            
+
         profiler.start_new_frame(dt)
 
         # --- 2. Input ---
@@ -102,11 +102,11 @@ def main_loop(
             view.render_bodies(world.bodies)
             for widget in widgets:
                 widget.render(view.screen)
-        
+
         view.update_display()
 
         iterations += 1
         if max_iterations is not None and iterations >= max_iterations:
             running = False
 
-    pygame.quit() # pylint: disable=no-member
+    pygame.quit()  # pylint: disable=no-member

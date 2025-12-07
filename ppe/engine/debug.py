@@ -1,7 +1,8 @@
 """
 This module defines tools for graphical debugging.
 """
-from typing import Tuple, List, Any
+
+from typing import Any, List, Tuple
 
 from ppe.engine.common import Vec2
 
@@ -20,6 +21,8 @@ class DebugRecorder:
             enabled (bool): If True, debug drawing is enabled; otherwise, it is disabled.
         """
         self.enabled = enabled
+
+        # command_queue is a list of commans-commandArgs tuples: [("line", (start, end, color, arrow)), ...]
         self.command_queue: List[Tuple[str, Tuple[Any]]] = []
 
     def add_line(

@@ -9,8 +9,8 @@ The class provides methods for updating the state of the class based on Pygame e
 
 """
 
-from typing import Set
 from dataclasses import dataclass, field
+from typing import Set
 
 import pygame
 

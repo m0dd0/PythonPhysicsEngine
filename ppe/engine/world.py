@@ -10,18 +10,18 @@ bodies in the simulation.
 
 from typing import List, Optional
 
-from ppe.engine.common import Body, Joint, Vec2
-from ppe.engine.solvers import AbstractSolver, SimpleIterativeImpulseSolver
-from ppe.engine.collision_broad import AbstractBroadPhase, AABBBroadPhase
-from ppe.engine.collision_narrow import AbstractNarrowPhase, DispatchNarrowPhase
+from ppe.engine.collision_broad import AABBBroadPhase, AbstractBroadPhase
 from ppe.engine.collision_handlers import (
     CircleVsCircleHandler,
-    SatPolygonHandler,
     CircleVsPolygonHandler,
+    SatPolygonHandler,
 )
-from ppe.engine.integrators import AbstractIntegrator, SemiImplicitEulerIntegrator
-from ppe.engine.force_generators import AbstractForceGenerator
+from ppe.engine.collision_narrow import AbstractNarrowPhase, DispatchNarrowPhase
+from ppe.engine.common import Body, Joint, Vec2
 from ppe.engine.debug import DebugRecorder
+from ppe.engine.force_generators import AbstractForceGenerator
+from ppe.engine.integrators import AbstractIntegrator, SemiImplicitEulerIntegrator
+from ppe.engine.solvers import AbstractSolver, SimpleIterativeImpulseSolver
 from ppe.utils.profiler import Profiler
 
 
@@ -135,7 +135,7 @@ class World:
         ## solver adjusts velocities to resolve all contacts and joints
         with self.profiler.time("world/solver"):
             self.solver.solve(contacts, self.joints, dt)
-        
+
         ## Updates positions based on the new, corrected velocities
         with self.profiler.time("world/integrate2"):
             self.integrator.post_solve_integration(self.bodies, dt)

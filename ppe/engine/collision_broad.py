@@ -12,9 +12,8 @@ This module contains the following classes:
 - `AABBBroadPhase`: An efficient broad-phase using Axis-Aligned Bounding Boxes (AABB).
 """
 
-
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 from ppe.engine.common import Body, Vec2
 from ppe.engine.debug import DebugRecorder
@@ -125,7 +124,6 @@ class AABBBroadPhase(AbstractBroadPhase):
         potential_pairs = []
         for i, (body_a, (min_a, max_a)) in enumerate(zip(bodies, body_aabbs)):
             for body_b, (min_b, max_b) in zip(bodies[i + 1 :], body_aabbs[i + 1 :]):
-
                 if body_a.inverse_mass == 0 and body_b.inverse_mass == 0:
                     continue
 

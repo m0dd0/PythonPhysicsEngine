@@ -9,16 +9,16 @@ for different types of solvers. The available solvers are:
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 from dataclasses import dataclass
+from typing import List, Optional
 
-from ppe.engine.common import Contact, Joint, Vec2, Body
-from ppe.engine.integrators import (
-    SemiImplicitEulerIntegrator,
-    PositionVerletIntegrator,
-    NoOpIntegrator,
-)
+from ppe.engine.common import Body, Contact, Joint, Vec2
 from ppe.engine.debug import DebugRecorder
+from ppe.engine.integrators import (
+    NoOpIntegrator,
+    PositionVerletIntegrator,
+    SemiImplicitEulerIntegrator,
+)
 
 
 class AbstractSolver(ABC):
@@ -226,7 +226,7 @@ class IterativeImpulseSolver(AbstractSolver):
         This is done by calculating the point velocities of both bodies at the contact point and then subtracting them.
 
         Args:
-            contact_point_data (ContactPointData): The contact point data containing information 
+            contact_point_data (ContactPointData): The contact point data containing information
                 about the two bodies in contact.
 
         Returns:
@@ -260,7 +260,7 @@ class IterativeImpulseSolver(AbstractSolver):
         this method needs to be called with all contact points in the contact information.
 
         Args:
-            contact_point_data (ContactPointData): The contact point data containing information 
+            contact_point_data (ContactPointData): The contact point data containing information
                 about the two bodies in contact and relevant pre-computed values like effective inverse mass.
         """
         # compute relative velocity of both bodies at the contact point
@@ -333,13 +333,13 @@ class IterativeImpulseSolver(AbstractSolver):
         updates the body velocities directly.
 
         Args:
-            contact (Contact): The high-level contact manifold containing body information 
+            contact (Contact): The high-level contact manifold containing body information
                 and the contact normal.
             contact_point (Vec2): The specific world-space point of this contact.
-            effective_inverse_mass_tangent (float): The pre-computed inverse effective mass 
+            effective_inverse_mass_tangent (float): The pre-computed inverse effective mass
                 along the tangent.
-            contact_state (ContactState): The state object holding the accumulated impulses 
-                for this point. This method reads accumulated_impulse_normal and updates 
+            contact_state (ContactState): The state object holding the accumulated impulses
+                for this point. This method reads accumulated_impulse_normal and updates
                 accumulated_impulse_tangent.
         """
         if contact_point_data.effective_inverse_mass_tangent == 0.0:

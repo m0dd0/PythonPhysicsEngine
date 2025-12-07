@@ -4,12 +4,12 @@ It includes classes for representing vectors, shapes, bodies, joints, and contac
 physics-related calculations.
 """
 
-import math
-from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
-import random
-from dataclasses import dataclass
 import functools
+import math
+import random
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import List, Tuple, Union
 
 
 class Vec2:
@@ -99,6 +99,7 @@ class Vec2:
         """Returns the negation of the vector."""
         return Vec2(-self.x, -self.y)
 
+
 class Body:
     """Represents a single physical object in the world."""
 
@@ -120,20 +121,20 @@ class Body:
         Args:
             shape (Shape): The shape of the body.
             position (Vec2): The initial position of the body.
-            mass (Union[float, None]): The mass of the body. If None, the body is 
+            mass (Union[float, None]): The mass of the body. If None, the body is
                 considered static.
-            angle (float, optional): The initial rotation angle of the body in radians. 
+            angle (float, optional): The initial rotation angle of the body in radians.
                 Defaults to 0.0.
-            restitution (float, optional): The restitution (bounciness) of the body. 
+            restitution (float, optional): The restitution (bounciness) of the body.
                 Defaults to 0.2.
-            friction_coefficient (float, optional): The friction coefficient of the body. 
+            friction_coefficient (float, optional): The friction coefficient of the body.
                 Defaults to 0.5.
             initial_velocity (Vec2, optional): The initial linear velocity of the body.
                 Defaults to (0, 0).
             initial_angular_velocity (float, optional): The initial angular velocity of the body.
                 Defaults to 0.0.
-            user_data (dict, optional): Custom user data associated with the body. 
-                This data is irrelevant for the physics simulation but might be for 
+            user_data (dict, optional): Custom user data associated with the body.
+                This data is irrelevant for the physics simulation but might be for
                 other purposes like rendering. Defaults to None.
 
         Raises:
@@ -171,7 +172,9 @@ class Body:
         self.user_data = user_data if user_data is not None else dict()
 
     @classmethod
-    def create_with_density(cls, shape: "Shape", density: float, *args, **kwargs) -> "Body":
+    def create_with_density(
+        cls, shape: "Shape", density: float, *args, **kwargs
+    ) -> "Body":
         """Alternative initializer to create a new Body instance with a specific density.
 
         Args:
@@ -329,7 +332,7 @@ class CircleShape(Shape):
         Args:
             point (Vec2): The point to check.
             position (Vec2): The world-space position of the circle's body.
-            angle (float): The world-space angle of the circle's body 
+            angle (float): The world-space angle of the circle's body
                 (ignored for circles but required for consistency with other shapes).
 
         Returns:
@@ -455,9 +458,9 @@ class PolygonShape(Shape):
         return True
 
     def _center_vertices(self, vertices: List[Vec2]) -> List[Vec2]:
-        """ Calculates the true geometric centroid and translates the vertices so the
+        """Calculates the true geometric centroid and translates the vertices so the
         centroid is at the origin (0,0). Assumes a valid, non-degenerate polygon.
-        
+
         Args:
             vertices (List[Vec2]): A list of Vec2 vertices defining the polygon's shape.
 
@@ -466,22 +469,22 @@ class PolygonShape(Shape):
         """
         # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
         signed_area = self._get_signed_area(vertices)
-        
+
         cx_sum = 0.0
         cy_sum = 0.0
 
-        for i in range(len(vertices)): # pylint: disable=consider-using-enumerate
+        for i in range(len(vertices)):  # pylint: disable=consider-using-enumerate
             p1 = vertices[i]
             p2 = vertices[(i + 1) % len(vertices)]
-            
+
             cross_product = p1.cross(p2)
-            
+
             cx_sum += (p1.x + p2.x) * cross_product
             cy_sum += (p1.y + p2.y) * cross_product
 
         six_times_area = 6 * signed_area
         centroid = Vec2(cx_sum / six_times_area, cy_sum / six_times_area)
-        
+
         # Translate vertices by subtracting the calculated centroid
         return [v - centroid for v in vertices]
 
@@ -507,12 +510,18 @@ class PolygonShape(Shape):
         return cls(vertices)
 
     @classmethod
-    def create_random(cls, num_vertices_range: Tuple[int, int], sample_radius_range: Tuple[float, float]):
+    def create_random(
+        cls,
+        num_vertices_range: Tuple[int, int],
+        sample_radius_range: Tuple[float, float],
+    ):
         n_vertices = random.randint(num_vertices_range[0], num_vertices_range[1])
         angles = [random.uniform(0, 2 * math.pi) for _ in range(n_vertices)]
         angles = sorted(angles)
         radius = random.uniform(sample_radius_range[0], sample_radius_range[1])
-        vertices = [Vec2(radius * math.cos(angle), radius * math.sin(angle)) for angle in angles]
+        vertices = [
+            Vec2(radius * math.cos(angle), radius * math.sin(angle)) for angle in angles
+        ]
         return cls(vertices)
 
     def get_type(self) -> str:
@@ -603,7 +612,7 @@ class PolygonShape(Shape):
 
         Returns:
             float: The moment of inertia of the shape.
-        """ 
+        """
         min_x = min(v.x for v in self.vertices)
         max_x = max(v.x for v in self.vertices)
         min_y = min(v.y for v in self.vertices)
@@ -612,7 +621,6 @@ class PolygonShape(Shape):
         height = max_y - min_y
         return (1.0 / 12.0) * mass * (width**2 + height**2)
 
-    
     def get_aabb(self, position: Vec2, angle: float) -> Tuple[Vec2, Vec2]:
         """
         Calculates the Axis-Aligned Bounding Box (AABB) of the shape in world space.
@@ -733,10 +741,11 @@ class PolygonShape(Shape):
 #     def get_aabb(self, position, angle) -> Tuple[Vec2, Vec2]:
 #         raise NotImplementedError("CompoundShape is not implemented yet.")
 
+
 @dataclass
 class Contact:
     """Holds information about a collision between two bodies.
-    
+
     Holds the following information:
     reference_body: The reference body (the body that gets penetrated).
     incident_body: The incident body (the body that is penetrating the reference body).
@@ -744,15 +753,19 @@ class Contact:
     penetration_depth: The depth of penetration.
     contact_points: The contact points. Usually one except for side-to-side collisions.
     """
+
     reference_body: Body  # reference body
     incident_body: Body  # incident body
     normal: Vec2  # normal is assumed to always point from reference body to incident body and has unit length
     penetration_depth: float
-    contact_points: List[Vec2]  # contact_points are assumed to be located on incident body
+    contact_points: List[
+        Vec2
+    ]  # contact_points are assumed to be located on incident body
 
 
 class Joint(ABC):
     """Base class for joints."""
+
     pass
 
 

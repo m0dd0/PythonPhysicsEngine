@@ -13,13 +13,14 @@ which is responsible for converting between world coordinates and screen coordin
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 import pygame
 
-from ppe.engine.common import Body, PolygonShape, CircleShape, Vec2
+from ppe.engine.common import Body, CircleShape, PolygonShape, Vec2
 
 
+# TODO consider moving Camera to a separate module
 class Camera:
     """
     A 2D camera for rendering the game world. A camera object is responsible for
@@ -224,6 +225,7 @@ class AbstractView(ABC):
         """
         pass
 
+
 class PygameView(AbstractView):
     """
     A concrete implementation of the `AbstractView` using the Pygame library.
@@ -263,9 +265,7 @@ class PygameView(AbstractView):
                 Defaults to "Modular Physics Engine".
         """
         super().__init__(
-            screen=pygame.display.set_mode(
-                (camera.screen_width, camera.screen_height)
-            )
+            screen=pygame.display.set_mode((camera.screen_width, camera.screen_height))
         )
         pygame.display.set_caption(window_caption)
         self.camera = camera
@@ -365,7 +365,6 @@ class PygameView(AbstractView):
                 end_pos.to_int_tuple(),
                 width=style["outline_width"],
             )
-
 
     def render_background(self) -> None:
         """

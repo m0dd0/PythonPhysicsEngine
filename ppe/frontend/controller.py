@@ -21,16 +21,16 @@ customization of user controls in different simulation scenarios.
 """
 
 import math
-from abc import ABC, abstractmethod
-from typing import Optional, Dict, Set, Literal, Union, Callable, List, Tuple
 import random
+from abc import ABC, abstractmethod
 from copy import deepcopy
+from typing import Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 
 from ppe.engine.common import Body, Vec2
-from ppe.engine.world import World
 from ppe.engine.debug import DebugRecorder
-from ppe.frontend.view import Camera
+from ppe.engine.world import World
 from ppe.frontend.input import InputState
+from ppe.frontend.view import Camera
 
 
 class AbstractController(ABC):
@@ -507,8 +507,9 @@ class BodyDragController(AbstractController):
         if self.dragged_body:
             # compute the point in world coordinates where the body is grabbed
             # note that this is not necessarily the same as the current mouse position as the body may have moved since the grab
-            sin_a, cos_a = math.sin(self.dragged_body.angle), math.cos(
-                self.dragged_body.angle
+            sin_a, cos_a = (
+                math.sin(self.dragged_body.angle),
+                math.cos(self.dragged_body.angle),
             )
             world_offset = Vec2(
                 self.grab_point_local.x * cos_a - self.grab_point_local.y * sin_a,

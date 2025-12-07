@@ -6,44 +6,39 @@ Users can spawn new polygon or circle bodies into the world by clicking with the
 - Right click creates a random circle.
 """
 
-from typing import List, Tuple
 import random
+from typing import List, Tuple
 
 import pygame
 
-# engine components
-from ppe.engine.common import Body, PolygonShape, Vec2, CircleShape
-from ppe.engine.world import World
-from ppe.engine.force_generators import GlobalForceField
 from ppe.engine.collision_handlers import (
     CircleVsCircleHandler,
     CircleVsPolygonHandler,
     SatPolygonHandler,
 )
 from ppe.engine.collision_narrow import DispatchNarrowPhase
-from ppe.engine.solvers import IterativeImpulseSolver
-from ppe.engine.solvers import SemiImplicitEulerIntegrator
-
-# application components
-from ppe.frontend.view import PygameView, Camera
-from ppe.frontend.controller import (
-    InputState,
-    ApplicationController,
-    DebugController,
-    AbstractController,
-    BodySpawnController,
-)
-from ppe.utils.profiler import Profiler
-from ppe.frontend.colors import V1_COLORS
+from ppe.engine.common import Body, CircleShape, PolygonShape, Vec2
 from ppe.engine.debug import DebugRecorder
+from ppe.engine.force_generators import GlobalForceField
+from ppe.engine.solvers import IterativeImpulseSolver, SemiImplicitEulerIntegrator
+from ppe.engine.world import World
+from ppe.frontend.colors import V1_COLORS
+from ppe.frontend.controller import (
+    AbstractController,
+    ApplicationController,
+    BodySpawnController,
+    DebugController,
+    InputState,
+)
+from ppe.frontend.view import Camera, PygameView
 from ppe.frontend.widgets import (
-    PGProfilerWidget,
     AbstractUIElement,
     PGControllerInfoWidget,
     PGDebugRecorderWidget,
-    PGStatsWidget
+    PGProfilerWidget,
+    PGStatsWidget,
 )
-
+from ppe.utils.profiler import Profiler
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)

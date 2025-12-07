@@ -1,4 +1,3 @@
-
 """
 This module contains classes for generating forces in a physics simulation.
 
@@ -8,13 +7,16 @@ The available force generators are:
 
 - `GlobalForceField`: Applies a constant force to all bodies in the simulation.
 """
+
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from ppe.engine.common import Body, Vec2, Shape
+from ppe.engine.common import Body, Shape, Vec2
+
 
 class AbstractForceGenerator(ABC):
     """Abstract base class for force generators."""
+
     @abstractmethod
     def apply(self, bodies: Optional[List[Body]]) -> None:
         """
@@ -25,9 +27,11 @@ class AbstractForceGenerator(ABC):
                     for global forces like gravity. Targeted forces might ignore this.
         """
         raise NotImplementedError
-    
+
+
 class GlobalForceField(AbstractForceGenerator):
     """Applies a constant force to all bodies in the simulation."""
+
     def __init__(self, strength: Vec2):
         """
         Initializes a global force field.
@@ -43,8 +47,15 @@ class GlobalForceField(AbstractForceGenerator):
                 continue
             body.force_accumulator += self.strength * body.mass
 
+
 class LocalForceField(AbstractForceGenerator):
-    def __init__(self, shape: Shape, strength: Vec2, shape_position: Vec2 = None, shape_angle: float = None):
+    def __init__(
+        self,
+        shape: Shape,
+        strength: Vec2,
+        shape_position: Vec2 = None,
+        shape_angle: float = None,
+    ):
         """
         Initializes a local force field that applies a force to all bodies inside a vritual shape.
 
@@ -63,13 +74,14 @@ class LocalForceField(AbstractForceGenerator):
         for body in bodies:
             if body.inverse_mass == 0.0:
                 continue
-            
+
             # The logic is now a simple, generic call
             if self.shape.is_point_inside(
                 point=body.position,
                 position=self.shape_position,
-                angle=self.shape_angle
+                angle=self.shape_angle,
             ):
                 body.force_accumulator += self.strength
+
 
 # TODO add sprong force etc

@@ -8,38 +8,33 @@ from typing import List, Tuple
 
 import pygame
 
-# engine components
-from ppe.engine.common import Body, PolygonShape, Vec2
-from ppe.engine.world import World
-from ppe.engine.force_generators import GlobalForceField
 from ppe.engine.collision_handlers import (
     CircleVsCircleHandler,
     CircleVsPolygonHandler,
     SatPolygonHandler,
 )
 from ppe.engine.collision_narrow import DispatchNarrowPhase
-from ppe.engine.solvers import IterativeImpulseSolver
-from ppe.engine.solvers import SemiImplicitEulerIntegrator
+from ppe.engine.common import Body, PolygonShape, Vec2
 from ppe.engine.debug import DebugRecorder
-
-# application components
-from ppe.frontend.view import PygameView, Camera
+from ppe.engine.force_generators import GlobalForceField
+from ppe.engine.solvers import IterativeImpulseSolver, SemiImplicitEulerIntegrator
+from ppe.engine.world import World
+from ppe.frontend.colors import V1_COLORS
 from ppe.frontend.controller import (
-    ApplicationController,
-    DebugController,
     AbstractController,
+    ApplicationController,
     CameraZoomController,
+    DebugController,
 )
+from ppe.frontend.view import Camera, PygameView
 from ppe.frontend.widgets import (
-    PGProfilerWidget,
     PGControllerInfoWidget,
     PGDebugRecorderWidget,
+    PGProfilerWidget,
     PGStatsWidget,
 )
-from ppe.frontend.colors import V1_COLORS
-from ppe.utils.profiler import Profiler
 from ppe.utils.loops import main_loop
-
+from ppe.utils.profiler import Profiler
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)
@@ -126,7 +121,7 @@ def setup() -> Tuple[
         ),
         PGControllerInfoWidget(controllers=controllers, position=(10, -100)),
         PGDebugRecorderWidget(debug_recorder=debug_recorder, camera=view.camera),
-        PGStatsWidget(position=(-100,-100), profiler=profiler),
+        PGStatsWidget(position=(-100, -100), profiler=profiler),
     ]
 
     ## Setup the world simulation

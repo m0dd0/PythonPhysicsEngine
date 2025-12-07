@@ -12,9 +12,9 @@ The module contains the following classes:
 
 import math
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
-from ppe.engine.common import Body, CircleShape, PolygonShape, Contact, Vec2
+from ppe.engine.common import Body, CircleShape, Contact, PolygonShape, Vec2
 from ppe.engine.debug import DebugRecorder
 
 
@@ -51,7 +51,7 @@ class CircleVsCircleHandler(AbstractCollisionHandler):
 
     def generate_contact(self, body_a: Body, body_b: Body) -> Optional[Contact]:
         """Checks for collision between two circles.
-        
+
         Args:
             body_a: The first body.
             body_b: The second body.
@@ -126,22 +126,22 @@ class SatPolygonHandler(AbstractCollisionHandler):
         if d2 >= 0:
             clipped_points.append(v2)
 
-        assert (
-            len(clipped_points) > 0
-        ), "At least one point should be inside the clipping plane. Otherwise, there is no intersection/collision."
+        assert len(clipped_points) > 0, (
+            "At least one point should be inside the clipping plane. Otherwise, there is no intersection/collision."
+        )
 
         # If the points are on opposite sides, find the intersection point by linear interpolation
         if d1 * d2 < 0:
-            assert (
-                len(clipped_points) == 1
-            ), "There should be exactly one point inside the clipping plane."
+            assert len(clipped_points) == 1, (
+                "There should be exactly one point inside the clipping plane."
+            )
             t = d1 / (d1 - d2)
             intersection_point = v1 + (v2 - v1) * t
             clipped_points.append(intersection_point)
 
-        assert (
-            len(clipped_points) == 2
-        ), "There should be exactly two points after clipping the incident edge."
+        assert len(clipped_points) == 2, (
+            "There should be exactly two points after clipping the incident edge."
+        )
 
         return tuple(clipped_points)
 
@@ -160,7 +160,7 @@ class SatPolygonHandler(AbstractCollisionHandler):
         other_vertices: List[Vec2],
     ) -> Tuple[bool, float, Vec2, Tuple[Vec2, Vec2]]:
         """
-        Checks whether there is a a given normal along which the projected vertices 
+        Checks whether there is a a given normal along which the projected vertices
         of the other polygon are in front and behind the corresponding edge.
         If this is the case there might be an overlap along this normal of the two polygons.
 
@@ -181,8 +181,8 @@ class SatPolygonHandler(AbstractCollisionHandler):
         reference_edge = None
         # the shape whose normal has the smallest overlap "owns" the collision normal
         # this corresponding edge of this normal is the reference edge (getting penetrated)
-        # contrary the incident edge (penetrating one) is defined as the edge on the incident 
-        # shape whose normal is most aligned (but pointing in the opposite direction) with 
+        # contrary the incident edge (penetrating one) is defined as the edge on the incident
+        # shape whose normal is most aligned (but pointing in the opposite direction) with
         # the collision normal
         # note that a definition using the most penetrating point would not work as it
         # would not work in the case of parallel edges (e.g. in a rectangle)
@@ -197,10 +197,13 @@ class SatPolygonHandler(AbstractCollisionHandler):
             # if this is the case, we save the overlap by computing the distance of the farthest vertex of the other shape
             # to the reference edge along the negative of the outward pointing normal
 
-            distances = self._distances_from_edge(other_vertices, own_vertices[i], normal_a_i)
+            distances = self._distances_from_edge(
+                other_vertices, own_vertices[i], normal_a_i
+            )
             # check the sign of the distances to know whether they are behind or in front of the edge
             if all(d >= 0 for d in distances):
-                return False, None, None, None  # all vertices are in front of the edge -> no collision, we found a separating axis
+                # all vertices are in front of the edge -> no collision, we found a separating axis
+                return (False, None, None, None)
             elif all(d <= 0 for d in distances):
                 continue  # all points are "behind" the edge -> the opposite edge is "responible" for detecting potential collisions
             else:
@@ -245,14 +248,14 @@ class SatPolygonHandler(AbstractCollisionHandler):
         normals_a = body_a.shape.get_normals(body_a.position, body_a.angle)
         normals_b = body_b.shape.get_normals(body_b.position, body_b.angle)
 
-        is_collision_a, min_overlap_a, collision_normal_a, reference_edge_a = self._find_overlap(
-            normals_a, verts_a, verts_b
+        is_collision_a, min_overlap_a, collision_normal_a, reference_edge_a = (
+            self._find_overlap(normals_a, verts_a, verts_b)
         )
         if not is_collision_a:
             return None
-        
-        is_collision_b, min_overlap_b, collision_normal_b, reference_edge_b = self._find_overlap(
-            normals_b, verts_b, verts_a
+
+        is_collision_b, min_overlap_b, collision_normal_b, reference_edge_b = (
+            self._find_overlap(normals_b, verts_b, verts_a)
         )
         if not is_collision_b:
             return None
@@ -398,9 +401,9 @@ class CircleVsPolygonHandler(AbstractCollisionHandler):
                 min_dist_sq = dist_sq
                 closest_point = closest_on_edge
 
-        assert (
-            closest_point is not None
-        ), "Closest point should be set if we reach here."
+        assert closest_point is not None, (
+            "Closest point should be set if we reach here."
+        )
 
         if min_dist_sq >= circle_shape.radius * circle_shape.radius:
             return None

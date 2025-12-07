@@ -1,15 +1,15 @@
-import pytest
 import math
+
+import pytest
 
 # Import all the classes from your core module
 from ppe.engine.common import (
-    Vec2,
     Body,
-    Shape,
     CircleShape,
-    PolygonShape,
     Contact,
     DistanceJoint,
+    PolygonShape,
+    Vec2,
 )
 
 

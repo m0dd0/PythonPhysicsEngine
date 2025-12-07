@@ -7,15 +7,15 @@ Currently, we use a dispatcher that dispatches to specific handler objects for e
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional, Dict
+from typing import Dict, List, Optional, Tuple
 
-from ppe.engine.common import Body, Contact
 from ppe.engine.collision_handlers import (
     AbstractCollisionHandler,
     CircleVsCircleHandler,
-    SatPolygonHandler,
     CircleVsPolygonHandler,
+    SatPolygonHandler,
 )
+from ppe.engine.common import Body, Contact
 from ppe.engine.debug import DebugRecorder
 
 # we associate shape types with integer IDs so we can define an order of the types

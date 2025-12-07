@@ -22,34 +22,39 @@ from typing import List, Tuple
 
 import pygame
 
-# engine components
-from ppe.engine.common import Body, PolygonShape, Vec2, CircleShape
-from ppe.engine.world import World
-from ppe.engine.solvers import NoOpSolver
-from ppe.engine.integrators import NoOpIntegrator
 from ppe.engine.collision_broad import AABBBroadPhase
-from ppe.engine.collision_narrow import DispatchNarrowPhase
 from ppe.engine.collision_handlers import (
     CircleVsCircleHandler,
-    SatPolygonHandler,
     CircleVsPolygonHandler,
+    SatPolygonHandler,
+)
+from ppe.engine.collision_narrow import DispatchNarrowPhase
+
+# engine components
+from ppe.engine.common import Body, CircleShape, PolygonShape, Vec2
+from ppe.engine.debug import DebugRecorder
+from ppe.engine.integrators import NoOpIntegrator
+from ppe.engine.solvers import NoOpSolver
+from ppe.engine.world import World
+from ppe.frontend.controller import (
+    AbstractController,
+    ApplicationController,
+    BodyDragController,
+    CameraPanController,
+    CameraZoomController,
+    DebugController,
+    HoverRotateController,
+    InputState,
 )
 
 # application components
-from ppe.frontend.view import PygameView, Camera
-from ppe.frontend.controller import (
-    CameraPanController,
-    CameraZoomController,
-    InputState,
-    ApplicationController,
-    DebugController,
-    AbstractController,
-    BodyDragController,
-    HoverRotateController,
+from ppe.frontend.view import Camera, PygameView
+from ppe.frontend.widgets import (
+    AbstractUIElement,
+    PGControllerInfoWidget,
+    PGDebugRecorderWidget,
 )
 from ppe.utils.profiler import Profiler
-from ppe.engine.debug import DebugRecorder
-from ppe.frontend.widgets import PGControllerInfoWidget, AbstractUIElement, PGDebugRecorderWidget
 
 ## Constants
 # (initial body config is in the code to not pollute the global namespace)
@@ -73,7 +78,7 @@ def setup() -> Tuple[
 
     ## Initialize the debug recorder
     debug_recorder = DebugRecorder()
-    
+
     ## Initialize View
     view = PygameView(
         camera=Camera.with_world_width(
