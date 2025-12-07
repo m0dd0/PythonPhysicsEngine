@@ -26,7 +26,8 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 
-from ppe.engine.common import Body, Vec2
+from ppe.engine.body import Body
+from ppe.engine.common import Vec2
 from ppe.engine.debug import DebugRecorder
 from ppe.engine.world import World
 from ppe.frontend.input import InputState

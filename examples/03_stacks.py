@@ -8,15 +8,17 @@ from typing import List, Tuple
 
 import pygame
 
+from ppe.engine.body import Body
 from ppe.engine.collision_handlers import (
     CircleVsCircleHandler,
     CircleVsPolygonHandler,
     SatPolygonHandler,
 )
 from ppe.engine.collision_narrow import DispatchNarrowPhase
-from ppe.engine.common import Body, PolygonShape, Vec2
+from ppe.engine.common import Vec2
 from ppe.engine.debug import DebugRecorder
 from ppe.engine.force_generators import GlobalForceField
+from ppe.engine.shapes import PolygonShape
 from ppe.engine.solvers import IterativeImpulseSolver, SemiImplicitEulerIntegrator
 from ppe.engine.world import World
 from ppe.frontend.colors import V1_COLORS

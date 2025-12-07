@@ -12,13 +12,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Optional
 
-from ppe.engine.common import Body, Contact, Joint, Vec2
+from ppe.engine.body import Body
+from ppe.engine.common import Contact, Vec2
 from ppe.engine.debug import DebugRecorder
 from ppe.engine.integrators import (
     NoOpIntegrator,
     PositionVerletIntegrator,
     SemiImplicitEulerIntegrator,
 )
+from ppe.engine.joints import Joint
 
 
 class AbstractSolver(ABC):

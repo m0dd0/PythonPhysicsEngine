@@ -18,7 +18,7 @@ However, note that not all solvers can be used with all integrators and vice ver
 from abc import ABC, abstractmethod
 from typing import List
 
-from ppe.engine.common import Body
+from ppe.engine.body import Body
 
 
 class AbstractIntegrator(ABC):

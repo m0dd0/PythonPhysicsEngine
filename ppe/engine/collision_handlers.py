@@ -14,8 +14,10 @@ import math
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple
 
-from ppe.engine.common import Body, CircleShape, Contact, PolygonShape, Vec2
+from ppe.engine.body import Body
+from ppe.engine.common import Contact, Vec2
 from ppe.engine.debug import DebugRecorder
+from ppe.engine.shapes import CircleShape, PolygonShape
 
 
 class AbstractCollisionHandler(ABC):

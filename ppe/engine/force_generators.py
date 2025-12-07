@@ -11,7 +11,9 @@ The available force generators are:
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from ppe.engine.common import Body, Shape, Vec2
+from ppe.engine.body import Body
+from ppe.engine.common import Vec2
+from ppe.engine.shapes import Shape
 
 
 class AbstractForceGenerator(ABC):

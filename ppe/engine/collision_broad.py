@@ -15,7 +15,8 @@ This module contains the following classes:
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple
 
-from ppe.engine.common import Body, Vec2
+from ppe.engine.body import Body
+from ppe.engine.common import Vec2
 from ppe.engine.debug import DebugRecorder
 
 

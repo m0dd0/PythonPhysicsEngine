@@ -9,13 +9,14 @@ Currently, we use a dispatcher that dispatches to specific handler objects for e
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 
+from ppe.engine.body import Body
 from ppe.engine.collision_handlers import (
     AbstractCollisionHandler,
     CircleVsCircleHandler,
     CircleVsPolygonHandler,
     SatPolygonHandler,
 )
-from ppe.engine.common import Body, Contact
+from ppe.engine.common import Contact
 from ppe.engine.debug import DebugRecorder
 
 # we associate shape types with integer IDs so we can define an order of the types

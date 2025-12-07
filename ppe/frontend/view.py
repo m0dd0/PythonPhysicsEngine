@@ -17,7 +17,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pygame
 
-from ppe.engine.common import Body, CircleShape, PolygonShape, Vec2
+from ppe.engine.body import Body
+from ppe.engine.common import Vec2
+from ppe.engine.shapes import CircleShape, PolygonShape
 
 
 # TODO consider moving Camera to a separate module

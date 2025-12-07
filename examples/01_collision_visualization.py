@@ -22,6 +22,7 @@ from typing import List, Tuple
 
 import pygame
 
+from ppe.engine.body import Body
 from ppe.engine.collision_broad import AABBBroadPhase
 from ppe.engine.collision_handlers import (
     CircleVsCircleHandler,
@@ -31,9 +32,10 @@ from ppe.engine.collision_handlers import (
 from ppe.engine.collision_narrow import DispatchNarrowPhase
 
 # engine components
-from ppe.engine.common import Body, CircleShape, PolygonShape, Vec2
+from ppe.engine.common import Vec2
 from ppe.engine.debug import DebugRecorder
 from ppe.engine.integrators import NoOpIntegrator
+from ppe.engine.shapes import CircleShape, PolygonShape
 from ppe.engine.solvers import NoOpSolver
 from ppe.engine.world import World
 from ppe.frontend.controller import (
