@@ -165,15 +165,15 @@ $$v_{p_B}' = \left(v_{lin_B} + \frac{j}{m_B} n\right) + \left(\omega_B - \frac{r
 
 Now we can use the same approach as in the linear case to derive the impulse magnitude $j$ by usign the law of restitution again:
 
-$$v_{rel_P}' = (v_{p_B}' - v_{p_A}') \cdot n = -e \cdot v_{rel_P} \tag{12}$$
+$$v_{rel_P}' = (v_{p_B}' - v_{p_A}') \cdot n = -e \cdot v_{rel_P}$$
 
 We can now set equations (11.1) and (11.2) into (12) to get a quite lengthy expression for the new relative velocity which we can simplify step by step. Note that in the last step we use triple scalar product identity: $(a \times b) \cdot c = (b \times c) \cdot a$.
 
 $$
 \begin{align}
-v_{rel_P}' &= \left(v_{p_B} + j \left(\frac{n}{m_B} + \frac{(r_B \times n) \times r_B}{I_B}\right) - v_{p_A} - (-j) \left(\frac{n}{m_A} + \frac{(r_A \times n) \times r_A}{I_A}\right)\right) \cdot n \tag{13.1}\\
-&= \underbrace{(v_{p_B} - v_{p_A}) \cdot n}_{v_{rel_P}} + j \left(\frac{1}{m_A} + \frac{1}{m_B} + \frac{((r_A \times n) \times r_A) \cdot n}{I_A} + \frac{((r_B \times n) \times r_B) \cdot n}{I_B}\right) \tag{13.2}\\
-&= v_{rel_P} + j \left(\frac{1}{m_A} + \frac{1}{m_B} + \frac{(r_A \times n)^2}{I_A} + \frac{(r_B \times n)^2}{I_B}\right) \tag{13.3}
+v_{rel_P}' &= \left(v_{p_B} + j \left(\frac{n}{m_B} + \frac{(r_B \times n) \times r_B}{I_B}\right) - v_{p_A} - (-j) \left(\frac{n}{m_A} + \frac{(r_A \times n) \times r_A}{I_A}\right)\right) \cdot n\\
+&= \underbrace{(v_{p_B} - v_{p_A}) \cdot n}_{v_{rel_P}} + j \left(\frac{1}{m_A} + \frac{1}{m_B} + \frac{((r_A \times n) \times r_A) \cdot n}{I_A} + \frac{((r_B \times n) \times r_B) \cdot n}{I_B}\right) \\
+&= v_{rel_P} + j \left(\frac{1}{m_A} + \frac{1}{m_B} + \frac{(r_A \times n)^2}{I_A} + \frac{(r_B \times n)^2}{I_B}\right)
 \end{align}
 $$
 
