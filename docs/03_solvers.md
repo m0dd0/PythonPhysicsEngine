@@ -75,13 +75,13 @@ First, let's define some variables and basic equations:
 
 The relative velocity along the normal before the impulse is given by:
 
-$$v_{rel} = (v_b - v_a) \cdot n \tag{1}$$
+$$v_{rel} = (v_b - v_a) \cdot n \qquad (1)$$
 
 After applying the impulse, the new velocities will be:
 
-$$v_a' = v_a - \frac{j}{m_a} n \tag{2.1}$$
+$$v_a' = v_a - \frac{j}{m_a} n \qquad (2.1)$$
 
-$$v_b' = v_b + \frac{j}{m_b} n \tag{2.2}$$
+$$v_b' = v_b + \frac{j}{m_b} n \qquad (2.2)$$
 
 Note that we divide the impulse by the mass of each body to get the change in velocity.
 The heavier a body is, the higher is its resistance to changes in velocity.
@@ -89,25 +89,25 @@ The heavier a body is, the higher is its resistance to changes in velocity.
 <!-- the new relative velocity along the normal after the impulse can therefore be expressed as: -->
 Setting equations (2.1) and (2.2) into (1) we get the following expression for the new relative velocity:
 
-$$v_{rel}' = (v_b' - v_a') \cdot n = \left((v_b + \frac{j}{m_b} n) - (v_a - \frac{j}{m_a} n)\right) \cdot n \tag{3.1}$$
+$$v_{rel}' = (v_b' - v_a') \cdot n = \left((v_b + \frac{j}{m_b} n) - (v_a - \frac{j}{m_a} n)\right) \cdot n \qquad (3.1)$$
 
 Simplifying this expression by using $n \cdot n = 1$ and rearranging terms gives:
 
-$$v_{rel}' = \underbrace{(v_B - v_A) \cdot n}_{=v_{rel}} + {j \left(\frac{1}{m_A} + \frac{1}{m_B}\right)\underbrace{(n \cdot n)}_{=1}} = v_{rel} + j \left(\frac{1}{m_A} + \frac{1}{m_B}\right) \tag{3.2}$$
+$$v_{rel}' = \underbrace{(v_B - v_A) \cdot n}_{=v_{rel}} + {j \left(\frac{1}{m_A} + \frac{1}{m_B}\right)\underbrace{(n \cdot n)}_{=1}} = v_{rel} + j \left(\frac{1}{m_A} + \frac{1}{m_B}\right) \qquad (3.2)$$
 
 Due to Newton's law of restitution, we want the new relative velocity to be:
 
-$$v_{rel}' = -e \cdot v_{rel} \tag{4}$$
+$$v_{rel}' = -e \cdot v_{rel} \qquad (4)$$
 
 where $e$ is the coefficient of restitution (a measure of how "bouncy" the collision is, with 0 being perfectly inelastic and 1 being perfectly elastic).
 
 Setting the two expressions for $v_{rel}'$ equal to each other gives:
 
-$$-e \cdot v_{rel} = v_{rel} + j \left(\frac{1}{m_A} + \frac{1}{m_B}\right) \tag{5}$$
+$$-e \cdot v_{rel} = v_{rel} + j \left(\frac{1}{m_A} + \frac{1}{m_B}\right) \qquad (5)$$
 
 Solving for $j$ yields:
 
-$$j = \frac{-(1 + e) \cdot v_{rel}}{\left(\frac{1}{m_A} + \frac{1}{m_B}\right)} \tag{6}$$
+$$j = \frac{-(1 + e) \cdot v_{rel}}{\left(\frac{1}{m_A} + \frac{1}{m_B}\right)} \qquad (6)$$
 
 Now that we know the impulse magnitude $j$, we can use it to update the velocities of both bodies accordingly:
 
@@ -122,11 +122,11 @@ To account for these rotational effects, we need to consider the point of contac
 To do so, we no longer look at the relative linear velocity of the bodies but rather look at the relative velocity at the contact point.
 The velocity of a point on a rigid body is given by the sum of its linear velocity and the tangential velocity due to its rotation and can be computed as:
 
-$$v_{p_A} = v_{lin,A} + v_{tan,A} = v_{lin,A} + \omega_A \times r_A \tag{7.1}$$
+$$v_{p_A} = v_{lin,A} + v_{tan,A} = v_{lin,A} + \omega_A \times r_A \qquad (7.1)$$
 
 Accordingly for body B: 
 
-$$v_{p_B} = v_{lin,B} + v_{tan,B} = v_{lin,B} + \omega_B \times r_B \tag{7.2}$$
+$$v_{p_B} = v_{lin,B} + v_{tan,B} = v_{lin,B} + \omega_B \times r_B \qquad (7.2)$$
 
 where $r_A$ and $r_B$ are the vectors from the centers of mass of bodies A and B to the contact point, and $\omega_A$ and $\omega_B$ are their angular velocities.
 Note that the cross product $\times$ in 2D is a simple multiplication of the scalar angular velocity $\omega$ with the perpendicular vector of $r$.
@@ -137,7 +137,7 @@ The following image illustrates the situation:
 Lets solve the problem in the same way as before, but now accouting for rotation.
 First we derive a expression for the velocity at the contact point after applying the (not yet known) impulse $j$:
 
-$$v_{p_A}' = v_{lin_A}' + v_{tan_A}' = v_{lin_A}' + \omega_A' \times r_A \tag{8}$$
+$$v_{p_A}' = v_{lin_A}' + v_{tan_A}' = v_{lin_A}' + \omega_A' \times r_A \qquad (8)$$
 
 For the linear term, we can reuse the exact same formula as before (2.1):
 
@@ -146,22 +146,22 @@ $$v_{lin_A}' = v_{lin_A} - \frac{j}{m_A} n$$
 For the angular term, we need to derive how the angular velocity changes when applying an impulse at a point offset from the center of mass.
 A impulse $j$ applied at a point generates a torque $\tau$ given by:
 
-$$\tau_A = r_A \times (j \cdot n) \tag{9}$$
+$$\tau_A = r_A \times (j \cdot n) \qquad (9)$$
 
 Analog to how the mass $m$ relates linear impulse to change in linear velocity, the moment of inertia $I$ relates torque to change in angular velocity.
 We can therefore express the change in angular velocity $\Delta \omega$ as:
 
-$$\Delta \omega_A = \frac{\text{torque induced by impulse}}{\text{moment of inertia}} = \frac{\tau_A}{I_A} = \frac{r_A \times (j \cdot n)}{I_A} \tag{10}$$
+$$\Delta \omega_A = \frac{\text{torque induced by impulse}}{\text{moment of inertia}} = \frac{\tau_A}{I_A} = \frac{r_A \times (j \cdot n)}{I_A} \qquad (10)$$
 
 The moment of intertia for a polygon can be computed directly from its geometry but we wont derive that here. Checkout [the wikipedia article on moment of inertia](https://en.wikipedia.org/wiki/Moment_of_inertia) for more information.
 
 Now inserting expression (10) into (8) and rearraning terms gives:
 
-$$v_{p_A}' = \left(v_{lin_A} - \frac{j}{m_A} n\right) + \left(\omega_A + \frac{r_A \times (j \cdot n)}{I_A}\right) \times r_A = \underbrace{v_{lin_A} + \omega_A \times r_A}_{v_{p_A}} + \underbrace{(-j) \left(\frac{n}{m_A} + \frac{(r_A \times n) \times r_A}{I_A}\right)}_{\Delta v_{p_A}} \tag{11.1}$$
+$$v_{p_A}' = \left(v_{lin_A} - \frac{j}{m_A} n\right) + \left(\omega_A + \frac{r_A \times (j \cdot n)}{I_A}\right) \times r_A = \underbrace{v_{lin_A} + \omega_A \times r_A}_{v_{p_A}} + \underbrace{(-j) \left(\frac{n}{m_A} + \frac{(r_A \times n) \times r_A}{I_A}\right)}_{\Delta v_{p_A}} \qquad (11.1)$$
 
 Analogously for body B we get:
 
-$$v_{p_B}' = \left(v_{lin_B} + \frac{j}{m_B} n\right) + \left(\omega_B - \frac{r_B \times (j \cdot n)}{I_B}\right) \times r_B = \underbrace{v_{lin_B} + \omega_B \times r_B}_{v_{p_B}} + \underbrace{j \left(\frac{n}{m_B} + \frac{(r_B \times n) \times r_B}{I_B}\right)}_{\Delta v_{p_B}} \tag{11.2}$$
+$$v_{p_B}' = \left(v_{lin_B} + \frac{j}{m_B} n\right) + \left(\omega_B - \frac{r_B \times (j \cdot n)}{I_B}\right) \times r_B = \underbrace{v_{lin_B} + \omega_B \times r_B}_{v_{p_B}} + \underbrace{j \left(\frac{n}{m_B} + \frac{(r_B \times n) \times r_B}{I_B}\right)}_{\Delta v_{p_B}} \qquad (11.2)$$
 
 Now we can use the same approach as in the linear case to derive the impulse magnitude $j$ by usign the law of restitution again:
 
@@ -179,8 +179,8 @@ $$
 
 Setting this expression equal to the desired relative velocity from (12) and solving for $j$ gives:
 
-$$v_{rel_P}' = -e \cdot v_{rel_P} = v_{rel_P} + j \left(\frac{1}{m_A} + \frac{1}{m_B} + \frac{(r_A \times n)^2}{I_A} + \frac{(r_B \times n)^2}{I_B}\right) \tag{14}$$
-$$j = \frac{-(1 + e) \cdot v_{rel_P}}{\left(\frac{1}{m_A} + \frac{1}{m_B} + \frac{(r_A \times n)^2}{I_A} + \frac{(r_B \times n)^2}{I_B}\right)} \tag{15}$$
+$$v_{rel_P}' = -e \cdot v_{rel_P} = v_{rel_P} + j \left(\frac{1}{m_A} + \frac{1}{m_B} + \frac{(r_A \times n)^2}{I_A} + \frac{(r_B \times n)^2}{I_B}\right) \qquad (14)$$
+$$j = \frac{-(1 + e) \cdot v_{rel_P}}{\left(\frac{1}{m_A} + \frac{1}{m_B} + \frac{(r_A \times n)^2}{I_A} + \frac{(r_B \times n)^2}{I_B}\right)} \qquad (15)$$
 
 Now we can compute our updated linear and angular velocities for both bodies using the derived impulse magnitude $j$:
 
